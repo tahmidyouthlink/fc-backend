@@ -28,6 +28,7 @@ async function run() {
     const colorCollection = client.db("fashion-commerce").collection("colors");
     const vendorCollection = client.db("fashion-commerce").collection("vendors");
     const tagCollection = client.db("fashion-commerce").collection("tags");
+    const promoCollection = client.db("fashion-commerce").collection("promo-code");
 
     // post a product
     app.post("/addProduct", async (req, res) => {
@@ -502,6 +503,28 @@ async function run() {
       } catch (error) {
         console.error('Error updating rating:', error);
         res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+
+    // post a promo code
+    app.post("/addPromoCode", async (req, res) => {
+      try {
+        const discountData = req.body;
+        const result = await promoCollection.insertOne(discountData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding promo code:", error);
+        res.status(500).send({ message: "Failed to add promo code", error: error.message });
+      }
+    });
+
+    // Get All Promo Codes
+    app.get('/allPromoCodes', async (req, res) => {
+      try {
+        const promos = await promoCollection.find().toArray();
+        res.status(200).send(promos);
+      } catch (error) {
+        res.status(500).send(error.message);
       }
     });
 
