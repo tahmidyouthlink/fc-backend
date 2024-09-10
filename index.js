@@ -236,7 +236,7 @@ async function run() {
           return res.status(404).send({ message: "Category not found" });
         }
 
-        res.send({ message: "Category deleted successfully", result });
+        res.send(result);
       } catch (error) {
         console.error("Error deleting category:", error);
         res.status(500).send({ message: "Failed to delete category", error: error.message });
@@ -255,11 +255,7 @@ async function run() {
 
         const result = await categoryCollection.updateOne(filter, updateCategory);
 
-        if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "Category not found" });
-        }
-
-        res.send({ message: "Category updated successfully", result });
+        res.send(result);
       } catch (error) {
         console.error("Error updating category:", error);
         res.status(500).send({ message: "Failed to update category", error: error.message });
