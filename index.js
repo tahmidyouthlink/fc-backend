@@ -29,6 +29,7 @@ async function run() {
     const vendorCollection = client.db("fashion-commerce").collection("vendors");
     const tagCollection = client.db("fashion-commerce").collection("tags");
     const promoCollection = client.db("fashion-commerce").collection("promo-code");
+    const offerCollection = client.db("fashion-commerce").collection("offers");
 
     // post a product
     app.post("/addProduct", async (req, res) => {
@@ -580,6 +581,28 @@ async function run() {
       } catch (error) {
         console.error("Error updating promo:", error);
         res.status(500).send({ message: "Failed to update promo", error: error.message });
+      }
+    });
+
+    // post a offer
+    app.post("/addOffer", async (req, res) => {
+      try {
+        const offerData = req.body;
+        const result = await offerCollection.insertOne(offerData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding offer:", error);
+        res.status(500).send({ message: "Failed to add offer", error: error.message });
+      }
+    });
+
+    // Get All Offer
+    app.get('/allOffers', async (req, res) => {
+      try {
+        const offers = await offerCollection.find().toArray();
+        res.status(200).send(offers);
+      } catch (error) {
+        res.status(500).send(error.message);
       }
     });
 
