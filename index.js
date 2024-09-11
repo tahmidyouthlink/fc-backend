@@ -606,6 +606,65 @@ async function run() {
       }
     });
 
+    // get single offer
+    app.get("/getSingleOffer/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await offerCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Offer not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching promo:", error);
+        res.status(500).send({ message: "Failed to fetch promo", error: error.message });
+      }
+    });
+
+    //update a single offer
+    app.put("/updateOffer/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const promo = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateOffer = {
+          $set: { ...promo }
+        };
+
+        const result = await offerCollection.updateOne(filter, updateOffer);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Offer not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating offer:", error);
+        res.status(500).send({ message: "Failed to update offer", error: error.message });
+      }
+    });
+
+    // delete single offer
+    app.delete("/deleteOffer/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await offerCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Offer not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting offer:", error);
+        res.status(500).send({ message: "Failed to delete offer", error: error.message });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
