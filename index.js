@@ -30,6 +30,8 @@ async function run() {
     const tagCollection = client.db("fashion-commerce").collection("tags");
     const promoCollection = client.db("fashion-commerce").collection("promo-code");
     const offerCollection = client.db("fashion-commerce").collection("offers");
+    const shippingZoneCollection = client.db("fashion-commerce").collection("shipping-zone");
+    const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
 
     // post a product
     app.post("/addProduct", async (req, res) => {
@@ -662,6 +664,122 @@ async function run() {
       } catch (error) {
         console.error("Error deleting offer:", error);
         res.status(500).send({ message: "Failed to delete offer", error: error.message });
+      }
+    });
+
+    // post a shipping zone
+    app.post("/addShippingZone", async (req, res) => {
+      try {
+        const shippingData = req.body;
+        const result = await shippingZoneCollection.insertOne(shippingData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding shipping details:", error);
+        res.status(500).send({ message: "Failed to add shipping details", error: error.message });
+      }
+    });
+
+    // get all shipping zones
+    app.get("/allShippingZones", async (req, res) => {
+      try {
+        const result = await shippingZoneCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching shipping zones:", error);
+        res.status(500).send({ message: "Failed to fetch shipping zones", error: error.message });
+      }
+    });
+
+    // delete single shipping zone
+    app.delete("/deleteShippingZone/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await shippingZoneCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "shipping not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting shipping:", error);
+        res.status(500).send({ message: "Failed to delete shipping", error: error.message });
+      }
+    });
+
+    // get single shipping zone
+    app.get("/getSingleShippingZone/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await shippingZoneCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "shipping not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching shipping zone:", error);
+        res.status(500).send({ message: "Failed to fetch shipping zone", error: error.message });
+      }
+    });
+
+    //update a single shipping zone
+    app.put("/editShippingZone/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const zone = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateShippingZone = {
+          $set: { ...zone }
+        };
+
+        const result = await shippingZoneCollection.updateOne(filter, updateShippingZone);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Shipping Zone not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating shipping zone:", error);
+        res.status(500).send({ message: "Failed to update shipping zone", error: error.message });
+      }
+    });
+
+    // get all payment methods
+    app.get("/allPaymentMethods", async (req, res) => {
+      try {
+        const result = await paymentMethodCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching payment method:", error);
+        res.status(500).send({ message: "Failed to fetch payment method", error: error.message });
+      }
+    });
+
+    //update a single payment method
+    app.put("/editPaymentMethod/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const method = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatePaymentMethod = {
+          $set: { ...method }
+        };
+
+        const result = await paymentMethodCollection.updateOne(filter, updatePaymentMethod);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Payment method not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating Payment method:", error);
+        res.status(500).send({ message: "Failed to update Payment method", error: error.message });
       }
     });
 
