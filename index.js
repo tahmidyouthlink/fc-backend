@@ -520,7 +520,7 @@ async function run() {
     // Get All Promo Codes
     app.get('/allPromoCodes', async (req, res) => {
       try {
-        const promos = await promoCollection.find().toArray();
+        const promos = await promoCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(promos);
       } catch (error) {
         res.status(500).send(error.message);
@@ -601,7 +601,7 @@ async function run() {
     // Get All Offer
     app.get('/allOffers', async (req, res) => {
       try {
-        const offers = await offerCollection.find().toArray();
+        const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
       } catch (error) {
         res.status(500).send(error.message);
