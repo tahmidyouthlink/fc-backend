@@ -21,7 +21,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    const productInformationCollection = client.db("fashion-commerce").collection("productInformation");
+    const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
     const orderListCollection = client.db("fashion-commerce").collection("orderList");
     const customerListCollection = client.db("fashion-commerce").collection("customerList");
     const categoryCollection = client.db("fashion-commerce").collection("category");
@@ -53,6 +53,24 @@ async function run() {
       } catch (error) {
         console.error("Error fetching products:", error);
         res.status(500).send({ message: "Failed to fetch products", error: error.message });
+      }
+    });
+
+    // get single product info
+    app.get("/singleProduct/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await productInformationCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Product not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Product Details:", error);
+        res.status(500).send({ message: "Failed to fetch Product Details", error: error.message });
       }
     });
 
