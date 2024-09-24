@@ -74,6 +74,24 @@ async function run() {
       }
     });
 
+    //update a single product details
+    app.put("/editProductDetails/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const productDetails = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateProductDetails = {
+          $set: { ...productDetails }
+        };
+
+        const result = await productInformationCollection.updateOne(filter, updateProductDetails);
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating product details:", error);
+        res.status(500).send({ message: "Failed to update product details", error: error.message });
+      }
+    });
+
     // post vendors
     app.post("/addVendor", async (req, res) => {
       try {
