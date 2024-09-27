@@ -74,6 +74,24 @@ async function run() {
       }
     });
 
+    // get single product info
+    app.get("/productFromCategory/:categoryName", async (req, res) => {
+      try {
+        const categoryName = req.params.categoryName;
+        const query = { category: categoryName };
+        const result = await productInformationCollection.find(query).toArray();
+
+        if (!result) {
+          return res.status(404).send({ message: "Product not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Product Details:", error);
+        res.status(500).send({ message: "Failed to fetch Product Details", error: error.message });
+      }
+    });
+
     //update a single product details
     app.put("/editProductDetails/:id", async (req, res) => {
       try {
