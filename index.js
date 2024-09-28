@@ -31,6 +31,7 @@ async function run() {
     const promoCollection = client.db("fashion-commerce").collection("promo-code");
     const offerCollection = client.db("fashion-commerce").collection("offers");
     const shippingZoneCollection = client.db("fashion-commerce").collection("shipping-zone");
+    const shipmentHandlerCollection = client.db("fashion-commerce").collection("shipment-handler");
     const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
 
     // post a product
@@ -800,6 +801,88 @@ async function run() {
       } catch (error) {
         console.error("Error updating shipping zone:", error);
         res.status(500).send({ message: "Failed to update shipping zone", error: error.message });
+      }
+    });
+
+    // post a shipment handler
+    app.post("/addShipmentHandler", async (req, res) => {
+      try {
+        const shipmentData = req.body;
+        const result = await shipmentHandlerCollection.insertOne(shipmentData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding shipment details:", error);
+        res.status(500).send({ message: "Failed to add shipment details", error: error.message });
+      }
+    });
+
+    // get all shipment handler
+    app.get("/allShipmentHandlers", async (req, res) => {
+      try {
+        const result = await shipmentHandlerCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching shipment handlers:", error);
+        res.status(500).send({ message: "Failed to fetch shipment handlers", error: error.message });
+      }
+    });
+
+    // delete single shipment handler
+    app.delete("/deleteShipmentHandler/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await shipmentHandlerCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Shipment Handler not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting Shipment Handler:", error);
+        res.status(500).send({ message: "Failed to delete Shipment Handler", error: error.message });
+      }
+    });
+
+    // get single shipment handler
+    app.get("/getSingleShipmentHandler/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await shipmentHandlerCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "shipment handler not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching shipment handler:", error);
+        res.status(500).send({ message: "Failed to fetch shipment handler", error: error.message });
+      }
+    });
+
+    //update a single shipment handler
+    app.put("/editShipmentHandler/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const shipmentDetails = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateShipmentHandler = {
+          $set: { ...shipmentDetails }
+        };
+
+        const result = await shipmentHandlerCollection.updateOne(filter, updateShipmentHandler);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Shipment handler not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating shipment handler:", error);
+        res.status(500).send({ message: "Failed to update shipment handler", error: error.message });
       }
     });
 
