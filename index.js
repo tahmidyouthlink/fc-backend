@@ -886,6 +886,18 @@ async function run() {
       }
     });
 
+    // post a payment method
+    app.post("/addPaymentMethod", async (req, res) => {
+      try {
+        const paymentData = req.body;
+        const result = await paymentMethodCollection.insertOne(paymentData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding payment method:", error);
+        res.status(500).send({ message: "Failed to add payment method", error: error.message });
+      }
+    });
+
     // get all payment methods
     app.get("/allPaymentMethods", async (req, res) => {
       try {
@@ -894,6 +906,42 @@ async function run() {
       } catch (error) {
         console.error("Error fetching payment method:", error);
         res.status(500).send({ message: "Failed to fetch payment method", error: error.message });
+      }
+    });
+
+    // delete single Payment Method
+    app.delete("/deletePaymentMethod/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await paymentMethodCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Payment Method not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting Payment Method:", error);
+        res.status(500).send({ message: "Failed to delete Payment Method", error: error.message });
+      }
+    });
+
+    // get single Payment Method
+    app.get("/getSinglePaymentMethod/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await paymentMethodCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Payment Method not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Payment Method:", error);
+        res.status(500).send({ message: "Failed to fetch Payment Method", error: error.message });
       }
     });
 
