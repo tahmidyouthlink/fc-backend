@@ -115,11 +115,8 @@ async function run() {
     app.post("/addVendor", async (req, res) => {
       try {
         const vendors = req.body; // Should be an array
-        if (!Array.isArray(vendors)) {
-          return res.status(400).send({ error: 'Expected an array of vendors' });
-        }
-        const result = await vendorCollection.insertMany(vendors);
-        res.status(201).send(result); // Send 201 status on success
+        const result = await vendorCollection.insertOne(vendors);
+        res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding vendors:', error);
         res.status(500).send({ error: 'Failed to add vendors' }); // Send 500 status on error
@@ -152,6 +149,43 @@ async function run() {
       } catch (error) {
         console.error("Error fetching vendors:", error);
         res.status(500).send({ message: "Failed to fetch vendors", error: error.message });
+      }
+    });
+
+    // get single vendor info
+    app.get("/getSingleVendorDetails/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await vendorCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Vendor not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Vendor:", error);
+        res.status(500).send({ message: "Failed to fetch Vendor", error: error.message });
+      }
+    });
+
+    //update a single vendor info
+    app.put("/editVendor/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const vendorData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedVendorDetails = {
+          $set: { ...vendorData }
+        };
+
+        const result = await vendorCollection.updateOne(filter, updatedVendorDetails);
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating this vendor:", error);
+        res.status(500).send({ message: "Failed to update this vendor", error: error.message });
       }
     });
 
