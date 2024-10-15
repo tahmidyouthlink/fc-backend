@@ -355,6 +355,24 @@ async function run() {
       }
     });
 
+    // get single product info
+    app.get("/productFromSeason/:seasonName", async (req, res) => {
+      try {
+        const seasonName = req.params.seasonName;
+        const query = { season: seasonName };
+        const result = await productInformationCollection.find(query).toArray();
+
+        if (!result) {
+          return res.status(404).send({ message: "Product not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Product Details:", error);
+        res.status(500).send({ message: "Failed to fetch Product Details", error: error.message });
+      }
+    });
+
     // Add a Category
     app.post('/addCategory', async (req, res) => {
       const categoryData = req.body;
