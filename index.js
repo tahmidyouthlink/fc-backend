@@ -24,6 +24,7 @@ async function run() {
     const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
     const orderListCollection = client.db("fashion-commerce").collection("orderList");
     const customerListCollection = client.db("fashion-commerce").collection("customerList");
+    const seasonCollection = client.db("fashion-commerce").collection("seasons");
     const categoryCollection = client.db("fashion-commerce").collection("category");
     const colorCollection = client.db("fashion-commerce").collection("colors");
     const vendorCollection = client.db("fashion-commerce").collection("vendors");
@@ -274,6 +275,83 @@ async function run() {
       } catch (error) {
         console.error("Error fetching colors:", error);
         res.status(500).send({ message: "Failed to fetch colors", error: error.message });
+      }
+    });
+
+    // Add a season
+    app.post('/addSeason', async (req, res) => {
+      const seasonData = req.body;
+      try {
+        const result = await seasonCollection.insertOne(seasonData);
+        res.status(201).send(result);
+      } catch (error) {
+        console.error("Error adding season:", error);
+        res.status(500).send({ message: "Failed to add season", error: error.message });
+      }
+    });
+
+    // Get All Seasons
+    app.get('/allSeasons', async (req, res) => {
+      try {
+        const seasons = await seasonCollection.find().toArray();
+        res.status(200).send(seasons);
+      } catch (error) {
+        res.status(500).send(error.message);
+      }
+    });
+
+    // get single season info
+    app.get("/allSeasons/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await seasonCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Season not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching season:", error);
+        res.status(500).send({ message: "Failed to fetch season", error: error.message });
+      }
+    });
+
+    // delete single season
+    app.delete("/deleteSeason/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await seasonCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Season not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting season:", error);
+        res.status(500).send({ message: "Failed to delete season", error: error.message });
+      }
+    });
+
+    //update a single season
+    app.put("/editSeason/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const season = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateSeason = {
+          $set: { ...season }
+        };
+
+        const result = await seasonCollection.updateOne(filter, updateSeason);
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating season:", error);
+        res.status(500).send({ message: "Failed to update season", error: error.message });
       }
     });
 
