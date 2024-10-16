@@ -355,7 +355,7 @@ async function run() {
       }
     });
 
-    // get single product info
+    // get product info via season name
     app.get("/productFromSeason/:seasonName", async (req, res) => {
       try {
         const seasonName = req.params.seasonName;
@@ -531,7 +531,7 @@ async function run() {
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus } = req.body; // Extract status from request body
+      const { orderStatus, trackingNumber, selectedHandlerName } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -567,6 +567,16 @@ async function run() {
             lastStatusChange: new Date(),      // Record the timestamp of the status change
           },
         };
+
+        // Conditionally add trackingNumber if provided and actionType is 'shipped'
+        if (orderStatus === 'Shipped') {
+          if (trackingNumber) {
+            updateDoc.$set.trackingNumber = trackingNumber;
+          }
+          if (selectedHandlerName) {
+            updateDoc.$set.selectedHandlerName = selectedHandlerName;
+          }
+        }
 
         const result = await orderListCollection.updateOne(filter, updateDoc);
 
