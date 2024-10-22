@@ -34,6 +34,7 @@ async function run() {
     const shippingZoneCollection = client.db("fashion-commerce").collection("shipping-zone");
     const shipmentHandlerCollection = client.db("fashion-commerce").collection("shipment-handler");
     const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
+    const locationCollection = client.db("fashion-commerce").collection("locations");
 
     // post a product
     app.post("/addProduct", async (req, res) => {
@@ -1105,6 +1106,104 @@ async function run() {
       } catch (error) {
         console.error("Error updating Payment method:", error);
         res.status(500).send({ message: "Failed to update Payment method", error: error.message });
+      }
+    });
+
+    // post a location
+    app.post("/addLocation", async (req, res) => {
+      try {
+        const locationData = req.body;
+
+        // If the location is set as primary, update all other locations to set `isPrimaryLocation` to false
+        if (locationData.isPrimaryLocation) {
+          await locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
+        }
+
+        // Insert the new location
+        const result = await locationCollection.insertOne(locationData);
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding location:", error);
+        res.status(500).send({ message: "Failed to add location", error: error.message });
+      }
+    });
+
+    // get all locations
+    app.get("/allLocations", async (req, res) => {
+      try {
+        const result = await locationCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+        res.status(500).send({ message: "Failed to fetch locations", error: error.message });
+      }
+    });
+
+    // delete single location
+    app.delete("/deleteLocation/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await locationCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Location not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting Location:", error);
+        res.status(500).send({ message: "Failed to delete Location", error: error.message });
+      }
+    });
+
+    // Update a single location
+    app.put("/updateLocation/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const locationData = req.body;
+
+        // If the updated location is set as primary, update all other locations to set `isPrimaryLocation` to false
+        if (locationData.isPrimaryLocation) {
+          await locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
+        }
+
+        // Update the specific location
+        const filter = { _id: new ObjectId(id) };
+        const updateLocation = {
+          $set: { ...locationData }
+        };
+
+        const result = await locationCollection.updateOne(filter, updateLocation);
+
+        // Handle case where no location was found
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Location not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating location:", error);
+        res.status(500).send({ message: "Failed to update location", error: error.message });
+      }
+    });
+
+    // get single location info
+    app.get("/getSingleLocationDetails/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await locationCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Location not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Location:", error);
+        res.status(500).send({ message: "Failed to fetch Location", error: error.message });
       }
     });
 
