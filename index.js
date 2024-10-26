@@ -35,6 +35,7 @@ async function run() {
     const shipmentHandlerCollection = client.db("fashion-commerce").collection("shipment-handler");
     const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
     const locationCollection = client.db("fashion-commerce").collection("locations");
+    const purchaseOrderCollection = client.db("fashion-commerce").collection("purchase-order");
 
     // post a product
     app.post("/addProduct", async (req, res) => {
@@ -1204,6 +1205,29 @@ async function run() {
       } catch (error) {
         console.error("Error fetching Location:", error);
         res.status(500).send({ message: "Failed to fetch Location", error: error.message });
+      }
+    });
+
+    // post a purchase order
+    app.post("/addPurchaseOrder", async (req, res) => {
+      try {
+        const purchaseOrderData = req.body;
+        const result = await purchaseOrderCollection.insertOne(purchaseOrderData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding purchase order:", error);
+        res.status(500).send({ message: "Failed to add purchase order", error: error.message });
+      }
+    });
+
+    // get all payment methods
+    app.get("/allPurchaseOrders", async (req, res) => {
+      try {
+        const result = await purchaseOrderCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching purchase order:", error);
+        res.status(500).send({ message: "Failed to fetch purchase order", error: error.message });
       }
     });
 
