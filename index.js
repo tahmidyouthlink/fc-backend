@@ -1231,6 +1231,65 @@ async function run() {
       }
     });
 
+    // delete single purchase order
+    app.delete("/deletePurchaseOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await purchaseOrderCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Purchase order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting purchase order:", error);
+        res.status(500).send({ message: "Failed to delete purchase order", error: error.message });
+      }
+    });
+
+    // get single purchase order
+    app.get("/getSinglePurchaseOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await purchaseOrderCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Purchase order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Purchase order:", error);
+        res.status(500).send({ message: "Failed to fetch Purchase order", error: error.message });
+      }
+    });
+
+    //update a single purchase order
+    app.put("/editPurchaseOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const order = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatePurchaseOrder = {
+          $set: { ...order }
+        };
+
+        const result = await purchaseOrderCollection.updateOne(filter, updatePurchaseOrder);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Purchase order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating purchase order:", error);
+        res.status(500).send({ message: "Failed to update purchase order", error: error.message });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
