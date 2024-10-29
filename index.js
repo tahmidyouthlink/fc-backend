@@ -36,6 +36,7 @@ async function run() {
     const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
     const locationCollection = client.db("fashion-commerce").collection("locations");
     const purchaseOrderCollection = client.db("fashion-commerce").collection("purchase-order");
+    const transferOrderCollection = client.db("fashion-commerce").collection("transfer-order");
 
     // post a product
     app.post("/addProduct", async (req, res) => {
@@ -1237,7 +1238,7 @@ async function run() {
       }
     });
 
-    // get all payment methods
+    // get all purchase orders
     app.get("/allPurchaseOrders", async (req, res) => {
       try {
         const result = await purchaseOrderCollection.find().toArray();
@@ -1248,23 +1249,23 @@ async function run() {
       }
     });
 
-    // delete single purchase order
-    app.delete("/deletePurchaseOrder/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const result = await purchaseOrderCollection.deleteOne(query);
+    // delete single purchase order -- not sure
+    // app.delete("/deletePurchaseOrder/:id", async (req, res) => {
+    //   try {
+    //     const id = req.params.id;
+    //     const query = { _id: new ObjectId(id) };
+    //     const result = await purchaseOrderCollection.deleteOne(query);
 
-        if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "Purchase order not found" });
-        }
+    //     if (result.deletedCount === 0) {
+    //       return res.status(404).send({ message: "Purchase order not found" });
+    //     }
 
-        res.send(result);
-      } catch (error) {
-        console.error("Error deleting purchase order:", error);
-        res.status(500).send({ message: "Failed to delete purchase order", error: error.message });
-      }
-    });
+    //     res.send(result);
+    //   } catch (error) {
+    //     console.error("Error deleting purchase order:", error);
+    //     res.status(500).send({ message: "Failed to delete purchase order", error: error.message });
+    //   }
+    // });
 
     // get single purchase order
     app.get("/getSinglePurchaseOrder/:id", async (req, res) => {
@@ -1304,6 +1305,70 @@ async function run() {
       } catch (error) {
         console.error("Error updating purchase order:", error);
         res.status(500).send({ message: "Failed to update purchase order", error: error.message });
+      }
+    });
+
+    // post a transfer order
+    app.post("/addTransferOrder", async (req, res) => {
+      try {
+        const transferOrderData = req.body;
+        const result = await transferOrderCollection.insertOne(transferOrderData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding transfer order:", error);
+        res.status(500).send({ message: "Failed to add transfer order", error: error.message });
+      }
+    });
+
+    // get all transfer orders
+    app.get("/allTransferOrders", async (req, res) => {
+      try {
+        const result = await transferOrderCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching transfer orders:", error);
+        res.status(500).send({ message: "Failed to fetch transfer orders", error: error.message });
+      }
+    });
+
+    // get single transfer order
+    app.get("/getSingleTransferOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await transferOrderCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Transfer order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Transfer order:", error);
+        res.status(500).send({ message: "Failed to fetch Transfer order", error: error.message });
+      }
+    });
+
+    //update a single transfer order
+    app.put("/editTransferOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const order = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateTransferOrder = {
+          $set: { ...order }
+        };
+
+        const result = await transferOrderCollection.updateOne(filter, updateTransferOrder);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Transfer order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating transfer order:", error);
+        res.status(500).send({ message: "Failed to update transfer order", error: error.message });
       }
     });
 
