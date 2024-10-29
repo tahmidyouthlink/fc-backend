@@ -117,8 +117,7 @@ async function run() {
     app.put("/editProductDetailsInventory/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const { _id, ...productDetails } = req.body; // Exclude _id from productDetails
-        console.log(productDetails);
+        const { _id, ...productDetails } = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateProductDetails = {
           $set: { ...productDetails }
