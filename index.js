@@ -1249,23 +1249,23 @@ async function run() {
       }
     });
 
-    // delete single purchase order -- not sure
-    // app.delete("/deletePurchaseOrder/:id", async (req, res) => {
-    //   try {
-    //     const id = req.params.id;
-    //     const query = { _id: new ObjectId(id) };
-    //     const result = await purchaseOrderCollection.deleteOne(query);
+    // delete single purchase order
+    app.delete("/deletePurchaseOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await purchaseOrderCollection.deleteOne(query);
 
-    //     if (result.deletedCount === 0) {
-    //       return res.status(404).send({ message: "Purchase order not found" });
-    //     }
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Purchase order not found" });
+        }
 
-    //     res.send(result);
-    //   } catch (error) {
-    //     console.error("Error deleting purchase order:", error);
-    //     res.status(500).send({ message: "Failed to delete purchase order", error: error.message });
-    //   }
-    // });
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting purchase order:", error);
+        res.status(500).send({ message: "Failed to delete purchase order", error: error.message });
+      }
+    });
 
     // get single purchase order
     app.get("/getSinglePurchaseOrder/:id", async (req, res) => {
@@ -1369,6 +1369,24 @@ async function run() {
       } catch (error) {
         console.error("Error updating transfer order:", error);
         res.status(500).send({ message: "Failed to update transfer order", error: error.message });
+      }
+    });
+
+    // delete single transfer order
+    app.delete("/deleteTransferOrder/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await transferOrderCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Transfer order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting transfer order:", error);
+        res.status(500).send({ message: "Failed to delete transfer order", error: error.message });
       }
     });
 
