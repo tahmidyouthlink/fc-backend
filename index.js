@@ -1,9 +1,20 @@
 const express = require("express");
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+const streamifier = require("streamifier");
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT | 5000;
 require("dotenv").config();
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 const cors = require("cors");
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 app.use(cors());
 app.use(express.json());
@@ -37,6 +48,29 @@ async function run() {
     const locationCollection = client.db("fashion-commerce").collection("locations");
     const purchaseOrderCollection = client.db("fashion-commerce").collection("purchase-order");
     const transferOrderCollection = client.db("fashion-commerce").collection("transfer-order");
+
+    // Define route to handle file upload
+    app.post('/uploadFile', upload.single('attachment'), (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      // Determine file type for Cloudinary storage type
+      const fileType = req.file.mimetype.split('/')[0];
+
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { resource_type: fileType === 'image' ? 'image' : 'raw' },
+        (error, result) => {
+          if (error) {
+            console.error('Error uploading file to Cloudinary:', error);
+            return res.status(500).json({ message: 'Cloudinary upload failed', error: error.message });
+          }
+          res.json({ fileUrl: result.secure_url });
+        }
+      );
+
+      streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    });
 
     // post a product
     app.post("/addProduct", async (req, res) => {
