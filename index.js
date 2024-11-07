@@ -48,6 +48,8 @@ async function run() {
     const locationCollection = client.db("fashion-commerce").collection("locations");
     const purchaseOrderCollection = client.db("fashion-commerce").collection("purchase-order");
     const transferOrderCollection = client.db("fashion-commerce").collection("transfer-order");
+    const marketingBannerCollection = client.db("fashion-commerce").collection("marketing-banner");
+    const loginRegisterSlideCollection = client.db("fashion-commerce").collection("login-register-slide");
 
     // Define route to handle file upload
     app.post('/uploadFile', upload.single('attachment'), (req, res) => {
@@ -1421,6 +1423,93 @@ async function run() {
       } catch (error) {
         console.error("Error deleting transfer order:", error);
         res.status(500).send({ message: "Failed to delete transfer order", error: error.message });
+      }
+    });
+
+    // post a marketing banner
+    app.post("/addMarketingBanner", async (req, res) => {
+      try {
+        const marketingBannerData = req.body;
+        const result = await marketingBannerCollection.insertOne(marketingBannerData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding marketing banner:", error);
+        res.status(500).send({ message: "Failed to add marketing banner", error: error.message });
+      }
+    });
+
+    // get all marketing banner
+    app.get("/allMarketingBanners", async (req, res) => {
+      try {
+        const result = await marketingBannerCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching marketing banner:", error);
+        res.status(500).send({ message: "Failed to fetch marketing banner", error: error.message });
+      }
+    });
+
+    // delete single marketing banner
+    app.delete("/deleteMarketingBanner/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await marketingBannerCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "marketing banner not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting marketing banner:", error);
+        res.status(500).send({ message: "Failed to delete marketing banner", error: error.message });
+      }
+    });
+
+    // post a login register slides
+    app.post("/addLoginRegisterImageUrls", async (req, res) => {
+      try {
+        const loginRegisterImageUrlsData = req.body;
+        const result = await loginRegisterSlideCollection.insertOne(loginRegisterImageUrlsData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding login register slides:", error);
+        res.status(500).send({ message: "Failed to add login register slides", error: error.message });
+      }
+    });
+
+    // get all login register slides
+    app.get("/allLoginRegisterImageUrls", async (req, res) => {
+      try {
+        const result = await loginRegisterSlideCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching login register slides:", error);
+        res.status(500).send({ message: "Failed to fetch login register slides", error: error.message });
+      }
+    });
+
+    //update a single login register image urls
+    app.put("/editLoginRegisterImageUrls/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const urls = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateUrlOrder = {
+          $set: { ...urls }
+        };
+
+        const result = await loginRegisterSlideCollection.updateOne(filter, updateUrlOrder);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Login register image urls not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating login register image urls:", error);
+        res.status(500).send({ message: "Failed to update login register image urls", error: error.message });
       }
     });
 
