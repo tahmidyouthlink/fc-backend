@@ -97,6 +97,48 @@ async function run() {
       }
     });
 
+    // Get all unique sizes
+    app.get("/allSizes", async (req, res) => {
+      try {
+        // Fetch all products
+        const products = await productInformationCollection.find().toArray();
+
+        // Extract all sizes from the products
+        const allSizes = products.flatMap(product => product.allSizes || []);
+
+        // Create a unique set of sizes
+        const uniqueSizes = [...new Set(allSizes)];
+
+        // Respond with both arrays
+        res.send(uniqueSizes);
+      } catch (error) {
+        console.error("Error fetching sizes:", error);
+        res.status(500).send({ message: "Failed to fetch sizes", error: error.message });
+      }
+    });
+
+    // Get all unique color names
+    app.get("/allUniqueColors", async (req, res) => {
+      try {
+        // Fetch all products
+        const products = await productInformationCollection.find().toArray();
+
+        // Extract all color names from the availableColors array
+        const allColors = products.flatMap(product =>
+          product.availableColors?.map(color => color.value) || []
+        );
+
+        // Create a unique set of color names
+        const uniqueColors = [...new Set(allColors)];
+
+        // Respond with the unique color names
+        res.send(uniqueColors);
+      } catch (error) {
+        console.error("Error fetching colors:", error);
+        res.status(500).send({ message: "Failed to fetch colors", error: error.message });
+      }
+    });
+
     // get single product info
     app.get("/singleProduct/:id", async (req, res) => {
       try {
