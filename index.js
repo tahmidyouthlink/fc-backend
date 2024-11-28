@@ -35,6 +35,8 @@ async function run() {
     const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
     const orderListCollection = client.db("fashion-commerce").collection("orderList");
     const customerListCollection = client.db("fashion-commerce").collection("customerList");
+    const cartCollection = client.db("fashion-commerce").collection("cart");
+    const wishlistCollection = client.db("fashion-commerce").collection("wishlist");
     const seasonCollection = client.db("fashion-commerce").collection("seasons");
     const categoryCollection = client.db("fashion-commerce").collection("category");
     const colorCollection = client.db("fashion-commerce").collection("colors");
@@ -731,6 +733,25 @@ async function run() {
       }
     });
 
+    // Get Customer Details by Email --- not sure it will needed or not
+    app.get('/customerDetailsViaEmail/:email', async (req, res) => {
+      const email = req.params.email; // Retrieve email from query parameters
+
+      if (!email) {
+        return res.status(400).send('Email is required'); // Validate input
+      }
+
+      try {
+        const customer = await customerListCollection.findOne({ email }); // Query the database
+        if (!customer) {
+          return res.status(404).send('Customer not found'); // Handle case where no customer is found
+        }
+        res.status(200).send(customer); // Send customer details
+      } catch (error) {
+        res.status(500).send(error.message); // Handle server errors
+      }
+    });
+
     // applying pagination in customer list
     app.get("/customerList", async (req, res) => {
       try {
@@ -757,44 +778,67 @@ async function run() {
       }
     });
 
-    // GET endpoint to retrieve customer rating
-    app.get('/getCustomerRating/:customerId', async (req, res) => {
-      const { customerId } = req.params;
-
+    // saved a cart via customer
+    app.post("/addCart", async (req, res) => {
       try {
-        const customer = await customerListCollection.findOne({ customerId: customerId });
-
-        if (!customer) {
-          return res.status(404).json({ message: 'Customer not found' });
-        }
-
-        // Send the customer with the rating
-        res.status(200).json({ rating: customer.rating });
+        const cartData = req.body;
+        const result = await cartCollection.insertOne(cartData);
+        res.status(201).send(result);
       } catch (error) {
-        console.error('Error retrieving rating:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error("Error adding cart:", error);
+        res.status(500).send({ message: "Failed to add cart", error: error.message });
       }
     });
 
-    // PATCH endpoint to update customer rating
-    app.patch('/addRatingToCustomer/:customerId', async (req, res) => {
-      const { customerId } = req.params;
-      const { rating } = req.body;
+    // get saved carts by single customer via email
+    app.get('/allSavedCartsBySingleCustomer/:email', async (req, res) => {
+      const email = req.params.email; // Retrieve email from query parameters
+
+      if (!email) {
+        return res.status(400).send({ message: "Email is required" }); // Validate input
+      }
 
       try {
-        const result = await customerListCollection.updateOne(
-          { customerId: customerId },
-          { $set: { rating: rating } }
-        );
-
-        if (result.matchedCount === 0) {
-          return res.status(404).json({ message: 'Customer not found' });
+        const carts = await cartCollection.find({ email }).toArray(); // Query for all carts with the given email
+        if (carts.length === 0) {
+          return res.status(404).send({ message: "No carts found for this email" }); // Handle case where no carts are found
         }
-
-        res.status(200).json({ rating: rating });
+        res.status(200).send(carts); // Send cart data
       } catch (error) {
-        console.error('Error updating rating:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error("Error fetching cart data:", error);
+        res.status(500).send({ message: "Failed to fetch cart data", error: error.message });
+      }
+    });
+
+    // saved a wishlist via customer
+    app.post("/addWishlist", async (req, res) => {
+      try {
+        const wishlistData = req.body;
+        const result = await wishlistCollection.insertOne(wishlistData);
+        res.status(201).send(result);
+      } catch (error) {
+        console.error("Error adding wishlist:", error);
+        res.status(500).send({ message: "Failed to add wishlist", error: error.message });
+      }
+    });
+
+    // get saved wishlists by single customer via email
+    app.get('/allSavedWishlistsBySingleCustomer/:email', async (req, res) => {
+      const email = req.params.email; // Retrieve email from query parameters
+
+      if (!email) {
+        return res.status(400).send({ message: "Email is required" }); // Validate input
+      }
+
+      try {
+        const wishlists = await wishlistCollection.find({ email }).toArray(); // Query for all wishlists with the given email
+        if (wishlists.length === 0) {
+          return res.status(404).send({ message: "No wishlists found for this email" }); // Handle case where no wishlists are found
+        }
+        res.status(200).send(wishlists); // Send cart data
+      } catch (error) {
+        console.error("Error fetching wishlist data:", error);
+        res.status(500).send({ message: "Failed to fetch wishlist data", error: error.message });
       }
     });
 
