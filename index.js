@@ -1535,24 +1535,6 @@ async function run() {
       }
     });
 
-    // delete single marketing banner
-    app.delete("/deleteMarketingBanner/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const result = await marketingBannerCollection.deleteOne(query);
-
-        if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "marketing banner not found" });
-        }
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error deleting marketing banner:", error);
-        res.status(500).send({ message: "Failed to delete marketing banner", error: error.message });
-      }
-    });
-
     // post a login register slides
     app.post("/addLoginRegisterImageUrls", async (req, res) => {
       try {
