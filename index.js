@@ -1524,6 +1524,29 @@ async function run() {
       }
     });
 
+    //update a single login register image urls
+    app.put("/editMarketingBanner/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const urls = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateUrlOrder = {
+          $set: { ...urls }
+        };
+
+        const result = await marketingBannerCollection.updateOne(filter, updateUrlOrder);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Login register image urls not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating login register image urls:", error);
+        res.status(500).send({ message: "Failed to update login register image urls", error: error.message });
+      }
+    });
+
     // get all marketing banner
     app.get("/allMarketingBanners", async (req, res) => {
       try {
