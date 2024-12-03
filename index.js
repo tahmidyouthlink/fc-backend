@@ -99,6 +99,46 @@ async function run() {
       }
     });
 
+    app.get("/allSpecificProducts", async (req, res) => {
+      try {
+        // Define the projection to include only the specified fields
+        const projection = {
+          productTitle: 1,
+          restOfOutfit: 1,
+          sizeGuideImageUrl: 1,
+          productVariants: 1,
+          salesThisMonth: 1,
+          status: 1,
+          productId: 1,
+          category: 1,
+          regularPrice: 1,
+          discountValue: 1,
+          batchCode: 1,
+          weight: 1,
+          productDetails: 1,
+          availableColors: 1,
+          newArrival: 1,
+          materialCare: 1,
+          sizeFit: 1,
+          subCategories: 1,
+          groupOfSizes: 1,
+          allSizes: 1,
+          discountType: 1,
+          publishDate: 1
+        };
+
+        // Fetch all products with the specified fields
+        const result = await productInformationCollection
+          .find({}, { projection }) // Apply projection here
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching product details:", error);
+        res.status(500).send({ message: "Failed to fetch product details", error: error.message });
+      }
+    });
+
     // Get all unique sizes
     app.get("/allSizes", async (req, res) => {
       try {
