@@ -795,13 +795,18 @@ async function run() {
     // Update user details by _id
     app.put("/updateUserInformation/:id", async (req, res) => {
       const id = req.params.id; // Retrieve _id from the request parameters
-      const updatedData = req.body; // New data from the request body
-
-      console.log(updatedData, "updatedData");
+      let updatedData = req.body; // New data from the request body
 
       try {
+        // Remove the _id field if it exists in the updatedData
+        if (updatedData._id) {
+          delete updatedData._id;
+        }
+
+        console.log(updatedData, "updatedData");
+
         const result = await customerListCollection.updateOne(
-          { _id: new ObjectId(id) },
+          { _id: new ObjectId(id) }, // Match the document by its _id
           { $set: { ...updatedData } } // Set the new data for specific user information
         );
 
@@ -839,174 +844,6 @@ async function run() {
       } catch (error) {
         console.error("Error fetching customer list:", error);
         res.status(500).send({ message: "Failed to fetch customer list", error: error.message });
-      }
-    });
-
-    // saved a cart via customer
-    app.post("/addCart", async (req, res) => {
-      try {
-        const cartData = req.body;
-        const result = await cartCollection.insertOne(cartData);
-        res.status(201).send(result);
-      } catch (error) {
-        console.error("Error adding cart:", error);
-        res.status(500).send({ message: "Failed to add cart", error: error.message });
-      }
-    });
-
-    // get saved carts by single customer via email
-    app.get('/allSavedCartsBySingleCustomer/:email', async (req, res) => {
-      const email = req.params.email; // Retrieve email from query parameters
-
-      if (!email) {
-        return res.status(400).send({ message: "Email is required" }); // Validate input
-      }
-
-      try {
-        const carts = await cartCollection.find({ email }).toArray(); // Query for all carts with the given email
-        if (carts.length === 0) {
-          return res.status(404).send({ message: "No carts found for this email" }); // Handle case where no carts are found
-        }
-        res.status(200).send(carts); // Send cart data
-      } catch (error) {
-        console.error("Error fetching cart data:", error);
-        res.status(500).send({ message: "Failed to fetch cart data", error: error.message });
-      }
-    });
-
-    // Delete a single cart by _id
-    app.delete("/deleteCart/:id", async (req, res) => {
-      const id = req.params.id; // Retrieve _id from the request parameters
-      try {
-        const result = await cartCollection.deleteOne({ _id: new ObjectId(id) });
-        if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "No cart found with this ID" });
-        }
-        res.send(result);
-      } catch (error) {
-        console.error("Error deleting cart:", error);
-        res.status(500).send({ message: "Failed to delete cart", error: error.message });
-      }
-    });
-
-    // Delete all carts by email
-    app.delete("/deleteAllCartsByEmail/:email", async (req, res) => {
-      const email = req.params.email; // Retrieve email from the request parameters
-      try {
-        const result = await cartCollection.deleteMany({ email });
-        if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "No carts found for this email" });
-        }
-        res.send(result);
-      } catch (error) {
-        console.error("Error deleting carts:", error);
-        res.status(500).send({ message: "Failed to delete carts", error: error.message });
-      }
-    });
-
-    // Update cart details by _id
-    app.put("/updateCart/:id", async (req, res) => {
-      const id = req.params.id; // Retrieve _id from the request parameters
-      const updatedData = req.body; // New data from the request body
-
-      try {
-        const result = await cartCollection.updateOne(
-          { _id: new ObjectId(id) },
-          { $set: updatedData } // Set the new data in the cart
-        );
-
-        if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "No cart found with this ID" });
-        }
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error updating cart:", error);
-        res.status(500).send({ message: "Failed to update cart", error: error.message });
-      }
-    });
-
-    // saved a wishlist via customer
-    app.post("/addWishlist", async (req, res) => {
-      try {
-        const wishlistData = req.body;
-        const result = await wishlistCollection.insertOne(wishlistData);
-        res.status(201).send(result);
-      } catch (error) {
-        console.error("Error adding wishlist:", error);
-        res.status(500).send({ message: "Failed to add wishlist", error: error.message });
-      }
-    });
-
-    // get saved wishlists by single customer via email
-    app.get('/allSavedWishlistsBySingleCustomer/:email', async (req, res) => {
-      const email = req.params.email; // Retrieve email from query parameters
-
-      if (!email) {
-        return res.status(400).send({ message: "Email is required" }); // Validate input
-      }
-
-      try {
-        const wishlists = await wishlistCollection.find({ email }).toArray(); // Query for all wishlists with the given email
-        if (wishlists.length === 0) {
-          return res.status(404).send({ message: "No wishlists found for this email" }); // Handle case where no wishlists are found
-        }
-        res.status(200).send(wishlists); // Send cart data
-      } catch (error) {
-        console.error("Error fetching wishlist data:", error);
-        res.status(500).send({ message: "Failed to fetch wishlist data", error: error.message });
-      }
-    });
-
-    // Delete a single wishlist by _id
-    app.delete("/deleteWishlist/:id", async (req, res) => {
-      const id = req.params.id; // Retrieve _id from the request parameters
-      try {
-        const result = await wishlistCollection.deleteOne({ _id: new ObjectId(id) });
-        if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "No wishlist found with this ID" });
-        }
-        res.send(result);
-      } catch (error) {
-        console.error("Error deleting wishlist:", error);
-        res.status(500).send({ message: "Failed to delete wishlist", error: error.message });
-      }
-    });
-
-    // Delete all wishlists by email
-    app.delete("/deleteAllWishlistsByEmail/:email", async (req, res) => {
-      const email = req.params.email; // Retrieve email from the request parameters
-      try {
-        const result = await wishlistCollection.deleteMany({ email });
-        if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "No wishlists found for this email" });
-        }
-        res.send(result);
-      } catch (error) {
-        console.error("Error deleting wishlists:", error);
-        res.status(500).send({ message: "Failed to delete wishlists", error: error.message });
-      }
-    });
-
-    // Update wishlist details by _id
-    app.put("/updateWishlist/:id", async (req, res) => {
-      const id = req.params.id; // Retrieve _id from the request parameters
-      const updatedData = req.body; // New data from the request body
-
-      try {
-        const result = await wishlistCollection.updateOne(
-          { _id: new ObjectId(id) },
-          { $set: updatedData } // Set the new data in the wishlist
-        );
-
-        if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "No wishlist found with this ID" });
-        }
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error updating wishlist:", error);
-        res.status(500).send({ message: "Failed to update wishlist", error: error.message });
       }
     });
 
