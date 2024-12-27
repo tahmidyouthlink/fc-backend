@@ -35,8 +35,6 @@ async function run() {
     const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
     const orderListCollection = client.db("fashion-commerce").collection("orderList");
     const customerListCollection = client.db("fashion-commerce").collection("customerList");
-    const cartCollection = client.db("fashion-commerce").collection("cart");
-    const wishlistCollection = client.db("fashion-commerce").collection("wishlist");
     const seasonCollection = client.db("fashion-commerce").collection("seasons");
     const categoryCollection = client.db("fashion-commerce").collection("category");
     const colorCollection = client.db("fashion-commerce").collection("colors");
@@ -52,8 +50,9 @@ async function run() {
     const transferOrderCollection = client.db("fashion-commerce").collection("transfer-order");
     const marketingBannerCollection = client.db("fashion-commerce").collection("marketing-banner");
     const loginRegisterSlideCollection = client.db("fashion-commerce").collection("login-register-slide");
+    const heroBannerCollection = client.db("fashion-commerce").collection("hero-banner");
 
-    // Define route to handle file upload
+    // Define route to handle file upload to cloudinary
     app.post('/uploadFile', upload.single('attachment'), (req, res) => {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
@@ -1606,6 +1605,52 @@ async function run() {
       } catch (error) {
         console.error("Error updating login register image urls:", error);
         res.status(500).send({ message: "Failed to update login register image urls", error: error.message });
+      }
+    });
+
+    // post a hero banner slides
+    app.post("/addHeroBannerImageUrls", async (req, res) => {
+      try {
+        const heroBannerImageUrlsData = req.body;
+        const result = await heroBannerCollection.insertOne(heroBannerImageUrlsData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding hero banner slides:", error);
+        res.status(500).send({ message: "Failed to add hero banner slides", error: error.message });
+      }
+    });
+
+    // get all hero banner slides
+    app.get("/allHeroBannerImageUrls", async (req, res) => {
+      try {
+        const result = await heroBannerCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching hero banner slides:", error);
+        res.status(500).send({ message: "Failed to fetch hero banner slides", error: error.message });
+      }
+    });
+
+    //update a single hero banner image urls
+    app.put("/editHeroBannerImageUrls/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const urls = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateUrlOrder = {
+          $set: { ...urls }
+        };
+
+        const result = await heroBannerCollection.updateOne(filter, updateUrlOrder);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "hero banner image urls not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating hero banner image urls:", error);
+        res.status(500).send({ message: "Failed to update hero banner image urls", error: error.message });
       }
     });
 
