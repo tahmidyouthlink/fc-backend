@@ -670,7 +670,7 @@ async function run() {
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus, trackingNumber, selectedHandlerName } = req.body; // Extract status from request body
+      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -707,14 +707,28 @@ async function run() {
           },
         };
 
-        // Conditionally add trackingNumber if provided and actionType is 'shipped'
-        if (orderStatus === 'Shipped') {
-          if (trackingNumber) {
-            updateDoc.$set.trackingNumber = trackingNumber;
+        // Add shipping-related fields if `orderStatus` is `Shipped`
+        if (orderStatus === "Shipped") {
+          if (!trackingNumber || !selectedShipmentHandlerName) {
+            return res.status(400).json({ error: "Tracking data is required for 'Shipped' status" });
           }
-          if (selectedHandlerName) {
-            updateDoc.$set.selectedHandlerName = selectedHandlerName;
-          }
+
+          // Store all shipping-related fields inside `shipmentInfo` object
+          updateDoc.$set.shipmentInfo = {
+            trackingNumber,
+            selectedShipmentHandlerName,
+            trackingUrl,
+            imageUrl,
+            shippedAt: new Date(shippedAt || Date.now()),
+          };
+        }
+
+        // Add delivery-related fields if `orderStatus` is `Delivered`
+        if (orderStatus === "Delivered") {
+          updateDoc.$set.shipmentInfo = {
+            ...(order.shipmentInfo || {}), // Retain existing shipmentInfo fields if present
+            deliveredAt: new Date(deliveredAt || Date.now()), // Add or update `deliveredAt` field
+          };
         }
 
         const result = await orderListCollection.updateOne(filter, updateDoc);
