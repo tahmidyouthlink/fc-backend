@@ -589,6 +589,35 @@ async function run() {
       }
     });
 
+    app.patch("/updateFeaturedCategories", async (req, res) => {
+      const categoriesToUpdate = req.body; // Array of category objects with label and isFeatured fields
+      let modifiedCount = 0;
+
+      try {
+        // Loop through each category and update its isFeatured status
+        for (const category of categoriesToUpdate) {
+          const result = await categoryCollection.updateOne(
+            { label: category.label }, // Find category by label
+            { $set: { isFeatured: category.isFeatured } } // Set the isFeatured field
+          );
+
+          // Increment the modifiedCount if a document was modified
+          if (result.modifiedCount > 0) {
+            modifiedCount += result.modifiedCount;
+          }
+        }
+
+        console.log(modifiedCount);
+
+
+        // Respond with the modifiedCount
+        res.status(200).send({ modifiedCount });
+      } catch (error) {
+        console.error("Error updating featured category:", error);
+        res.status(500).send({ message: "Failed to update featured categories", error: error.message });
+      }
+    });
+
     // Get All Sizes
     app.get('/allSizeRanges', async (req, res) => {
       try {
