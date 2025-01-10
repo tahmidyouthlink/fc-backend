@@ -699,7 +699,7 @@ async function run() {
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl } = req.body; // Extract status from request body
+      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -727,37 +727,58 @@ async function run() {
           return res.status(404).send({ error: "Order not found" });
         }
 
-        // Prepare the update document
-        const updateDoc = {
-          $set: {
+        const updateDoc = {};
+
+        if (isUndo) {
+          // Undo logic: Revert to the previous status
+          updateDoc.$set = {
             orderStatus: orderStatus,
             previousStatus: order.orderStatus, // Store the current status as the previous status
+            lastStatusChange: new Date(),                 // Update the timestamp for undo
+          };
+        } else {
+          updateDoc.$set = {
+            orderStatus: orderStatus,
+            previousStatus: order.orderStatus, // Save the current status as the previous status
             lastStatusChange: new Date(),      // Record the timestamp of the status change
-          },
-        };
+          };
 
-        // Add shipping-related fields if `orderStatus` is `Shipped`
-        if (orderStatus === "Shipped") {
-          if (!trackingNumber || !selectedShipmentHandlerName) {
-            return res.status(400).json({ error: "Tracking data is required for 'Shipped' status" });
+          // Add shipping-related fields if `orderStatus` is `Shipped`
+          if (orderStatus === "Shipped") {
+            if (!trackingNumber || !selectedShipmentHandlerName) {
+              return res.status(400).json({ error: "Tracking data is required for 'Shipped' status" });
+            }
+
+            // Store all shipping-related fields inside `shipmentInfo` object
+            updateDoc.$set.shipmentInfo = {
+              trackingNumber,
+              selectedShipmentHandlerName,
+              trackingUrl,
+              imageUrl,
+              shippedAt: new Date(shippedAt || Date.now()),
+            };
           }
 
-          // Store all shipping-related fields inside `shipmentInfo` object
-          updateDoc.$set.shipmentInfo = {
-            trackingNumber,
-            selectedShipmentHandlerName,
-            trackingUrl,
-            imageUrl,
-            shippedAt: new Date(shippedAt || Date.now()),
-          };
-        }
+          // Add delivery-related fields if `orderStatus` is `Delivered`
+          if (orderStatus === "Delivered") {
+            updateDoc.$set.shipmentInfo = {
+              ...(order.shipmentInfo || {}), // Retain existing shipmentInfo fields if present
+              deliveredAt: new Date(deliveredAt || Date.now()), // Add or update `deliveredAt` field
+            };
+          }
 
-        // Add delivery-related fields if `orderStatus` is `Delivered`
-        if (orderStatus === "Delivered") {
-          updateDoc.$set.shipmentInfo = {
-            ...(order.shipmentInfo || {}), // Retain existing shipmentInfo fields if present
-            deliveredAt: new Date(deliveredAt || Date.now()), // Add or update `deliveredAt` field
-          };
+          // Add delivery-related fields if `orderStatus` is `On Hold`
+          if (orderStatus === "On Hold") {
+
+            if (!onHoldReason) {
+              return res.status(400).json({ error: "On hold reason is required for 'On Hold' status" });
+            }
+
+            // Store all shipping-related fields inside `shipmentInfo` object
+            updateDoc.$set.onHoldReason = onHoldReason;
+
+          }
+
         }
 
         const result = await orderListCollection.updateOne(filter, updateDoc);
