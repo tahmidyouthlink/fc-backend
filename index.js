@@ -51,6 +51,7 @@ async function run() {
     const marketingBannerCollection = client.db("fashion-commerce").collection("marketing-banner");
     const loginRegisterSlideCollection = client.db("fashion-commerce").collection("login-register-slide");
     const heroBannerCollection = client.db("fashion-commerce").collection("hero-banner");
+    const newsletterCollection = client.db("fashion-commerce").collection("news-letter");
 
     // Define route to handle file upload to cloudinary
     app.post('/uploadFile', upload.single('attachment'), (req, res) => {
@@ -1715,6 +1716,65 @@ async function run() {
       } catch (error) {
         console.error("Error updating hero banner image urls:", error);
         res.status(500).send({ message: "Failed to update hero banner image urls", error: error.message });
+      }
+    });
+
+    // post a newsletter
+    app.post("/addNewsletter", async (req, res) => {
+      try {
+        const newsletterData = req.body;
+        const result = await newsletterCollection.insertOne(newsletterData);
+        res.send(result);
+      } catch (error) {
+        console.error("Error adding newsletter:", error);
+        res.status(500).send({ message: "Failed to add newsletter", error: error.message });
+      }
+    });
+
+    // get all newsletters
+    app.get("/allNewsletters", async (req, res) => {
+      try {
+        const result = await newsletterCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching newsletters:", error);
+        res.status(500).send({ message: "Failed to fetch newsletters", error: error.message });
+      }
+    });
+
+    // get single newsletter
+    app.get("/getSingleNewsletter/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await newsletterCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "newsletter not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching newsletter:", error);
+        res.status(500).send({ message: "Failed to fetch newsletter", error: error.message });
+      }
+    });
+
+    // delete single newsletter
+    app.delete("/deleteNewsletter/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await newsletterCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "newsletter not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting newsletter:", error);
+        res.status(500).send({ message: "Failed to delete newsletter", error: error.message });
       }
     });
 
