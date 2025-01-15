@@ -1742,11 +1742,11 @@ async function run() {
       }
     });
 
-    // get single newsletter
-    app.get("/getSingleNewsletter/:id", async (req, res) => {
+    // get single newsletter via email
+    app.get("/getSingleNewsletter/:email", async (req, res) => {
       try {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
+        const email = req.params.email;
+        const query = { email: email };
         const result = await newsletterCollection.findOne(query);
 
         if (!result) {
