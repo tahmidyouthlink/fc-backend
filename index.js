@@ -120,7 +120,6 @@ async function run() {
           newArrival: 1,
           materialCare: 1,
           sizeFit: 1,
-          subCategories: 1,
           groupOfSizes: 1,
           allSizes: 1,
           discountType: 1,
