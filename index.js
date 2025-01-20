@@ -802,7 +802,10 @@ async function run() {
         "Shipped",
         "On Hold",
         "Delivered",
-        "Requested Return",
+        "Return Requested",
+        "Request Accepted",
+        "Request Declined",
+        "Return Initiated",
         "Refunded"
       ];
 
