@@ -887,7 +887,7 @@ async function run() {
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason } = req.body; // Extract status from request body
+      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason, returnInfo } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -952,8 +952,8 @@ async function run() {
 
           // Add delivery-related fields if `orderStatus` is `Delivered`
           if (orderStatus === "Delivered") {
-            updateDoc.$set.shipmentInfo = {
-              ...(order.shipmentInfo || {}), // Retain existing shipmentInfo fields if present
+            updateDoc.$set.deliveryInfo = {
+              ...(order.deliveryInfo || {}), // Retain existing shipmentInfo fields if present
               deliveredAt: new Date(deliveredAt || Date.now()), // Add or update `deliveredAt` field
             };
           }
@@ -967,6 +967,18 @@ async function run() {
 
             // Store all shipping-related fields inside `shipmentInfo` object
             updateDoc.$set.onHoldReason = onHoldReason;
+
+          }
+
+          // Add delivery-related fields if `orderStatus` is `On Hold`
+          if (orderStatus === "Return Requested") {
+
+            if (!returnInfo) {
+              return res.status(400).json({ error: "Return Requested is required for 'Return Requested' status" });
+            }
+
+            // Store all shipping-related fields inside `shipmentInfo` object
+            updateDoc.$set.returnInfo = returnInfo;
 
           }
 
