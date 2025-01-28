@@ -884,10 +884,104 @@ async function run() {
       }
     });
 
+    const incrementSkuInProduct = async (dataToSend) => {
+      const updateResults = [];
+
+      for (const productDetails of dataToSend) {
+        const { productId, sku, size, color } = productDetails;
+
+        if (!productId || !sku || !size || !color) {
+          updateResults.push({ productId, error: "Missing details in dataToSend" });
+          continue;
+        }
+
+        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        if (!primaryLocation) {
+          return { error: "Primary location not found" };
+        }
+
+        const { locationName } = primaryLocation;
+
+        const updateResult = await productInformationCollection.updateOne(
+          {
+            productId,
+            productVariants: {
+              $elemMatch: {
+                size: size,
+                color: color,
+                location: locationName,
+              },
+            },
+          },
+          {
+            $inc: { "productVariants.$.sku": sku }, // Increment the SKU
+          }
+        );
+
+        if (updateResult.modifiedCount === 0) {
+          updateResults.push({ productId, error: "Failed to increment SKU" });
+        } else {
+          updateResults.push({
+            productId,
+            updatedVariant: { size, color, location: locationName, sku: `+${sku}` },
+          });
+        }
+      }
+
+      return updateResults;
+    };
+
+    const incrementOnHandSkuInProduct = async (dataToSend) => {
+      const updateResults = [];
+
+      for (const productDetails of dataToSend) {
+        const { productId, onHandSku, size, color } = productDetails;
+
+        if (!productId || !onHandSku || !size || !color) {
+          updateResults.push({ productId, error: "Missing details in dataToSend" });
+          continue;
+        }
+
+        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        if (!primaryLocation) {
+          return { error: "Primary location not found" };
+        }
+
+        const { locationName } = primaryLocation;
+
+        const updateResult = await productInformationCollection.updateOne(
+          {
+            productId,
+            productVariants: {
+              $elemMatch: {
+                size: size,
+                color: color,
+                location: locationName,
+              },
+            },
+          },
+          {
+            $inc: { "productVariants.$.onHandSku": onHandSku }, // Increment the onHandSku
+          }
+        );
+
+        if (updateResult.modifiedCount === 0) {
+          updateResults.push({ productId, error: "Failed to increment onHandSku" });
+        } else {
+          updateResults.push({
+            productId,
+            updatedVariant: { size, color, location: locationName, onHandSku: `+${onHandSku}` },
+          });
+        }
+      }
+
+      return updateResults;
+    };
+
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason, returnInfo } = req.body; // Extract status from request body
+      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason, returnInfo, dataToSend } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -921,13 +1015,54 @@ async function run() {
         const updateDoc = {};
 
         if (isUndo) {
+          if (order.orderStatus === "Processing" && orderStatus === "Pending") {
+            // Validate dataToSend before calling the function
+            if (Array.isArray(dataToSend) && dataToSend.length > 0) {
+              // Increment the SKU
+              await incrementSkuInProduct(dataToSend);
+            } else {
+              console.error("Invalid dataToSend: must be a non-empty array for SKU increment.");
+              throw new Error("Invalid dataToSend: must be a non-empty array for SKU increment.");
+            }
+          }
+
+          else if (order.orderStatus === "Shipped" && orderStatus === "Processing") {
+
+            // Validate dataToSend before calling the function
+            if (Array.isArray(dataToSend) && dataToSend.length > 0) {
+              updateDoc.$unset = { shipmentInfo: null }; // Remove shipmentInfo
+              // Increment the onHandSku
+              await incrementOnHandSkuInProduct(dataToSend);
+            } else {
+              console.error("Invalid dataToSend: must be a non-empty array for onHandSku increment.");
+              throw new Error("Invalid dataToSend: must be a non-empty array for onHandSku increment.");
+            }
+
+          }
+
+          else if (order.orderStatus === "On Hold" && orderStatus === "Shipped") {
+            updateDoc.$unset = { onHoldReason: "" }; // Remove onHoldReason
+          }
+
+          else if (order.orderStatus === "Delivered" && (orderStatus === "On Hold" || orderStatus === "Shipped")) {
+            updateDoc.$set = {
+              "deliveryInfo.deliveredAt": null, // Set deliveredAt to null
+            };
+          }
+
+          else if (order.orderStatus === "Request Declined" && orderStatus === "Return Requested") {
+            updateDoc.$unset = { declinedReason: "" }; // Remove declinedReason
+          }
+
           // Undo logic: Revert to the previous status
           updateDoc.$set = {
+            ...updateDoc.$set, // Retain any $set operations defined earlier
             orderStatus: orderStatus,
             previousStatus: order.orderStatus, // Store the current status as the previous status
-            lastStatusChange: new Date(),                 // Update the timestamp for undo
+            lastStatusChange: new Date(), // Update the timestamp for undo
           };
-        } else {
+        }
+        else {
           updateDoc.$set = {
             orderStatus: orderStatus,
             previousStatus: order.orderStatus, // Save the current status as the previous status
