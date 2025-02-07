@@ -251,194 +251,6 @@ async function run() {
       }
     });
 
-    app.put("/decreaseSkuFromProduct", async (req, res) => {
-
-      const productDetailsArray = req.body;
-
-      // Validate the input array
-      if (!Array.isArray(productDetailsArray) || productDetailsArray.length === 0) {
-        return res.status(400).json({ error: "No product details provided or invalid format" });
-      }
-
-      try {
-
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
-        if (!primaryLocation) {
-          return res.status(400).json({ error: "Primary location not found" });
-        }
-
-        const { locationName } = primaryLocation;
-
-        const updateResults = [];
-        for (const productDetails of productDetailsArray) {
-
-          const { productId, sku, size, color } = productDetails;
-
-          if (!productId || !sku || !size || !color) {
-            return res.status(400).json({ error: "Missing details in request body" });
-          };
-
-          // Step 3: Find the product and match variants
-          const product = await productInformationCollection.findOne({ productId });
-          if (!product) {
-            updateResults.push({ productId, error: "Product not found" });
-            continue;
-          }
-
-          const matchingVariant = product?.productVariants?.find(
-            (variant) =>
-              variant.size === size &&
-              variant.color._id === color._id &&
-              variant.location === locationName
-          );
-
-          if (!matchingVariant) {
-            updateResults.push({ productId, error: "Matching product variant not found" });
-            continue;
-          }
-
-          // Step 4: Check if SKU can be subtracted
-          if (matchingVariant.sku < sku) {
-            updateResults.push({ productId, error: "SKU to subtract exceeds current SKU" });
-            continue;
-          }
-
-          // Step 5: Subtract SKU and update the product
-          matchingVariant.sku -= sku;
-
-          const updateResult = await productInformationCollection.updateOne(
-            {
-              productId,
-              productVariants: {
-                $elemMatch: {
-                  size: size,
-                  color: color,
-                  location: locationName,
-                  sku: { $gte: sku }, // Ensure enough SKU to subtract
-                },
-              },
-            },
-            {
-              $inc: { "productVariants.$.sku": -sku }, // Decrement the SKU
-            }
-          );
-
-
-          if (updateResult.modifiedCount === 0) {
-            updateResults.push({ productId, error: "Failed to update SKU" });
-          } else {
-            updateResults.push({
-              productId,
-              updatedVariant: { size, color, location: locationName, sku: matchingVariant.sku },
-            });
-          }
-        }
-
-        // Return response with results of all products
-        return res.status(200).json({ message: "SKU update process completed", results: updateResults });
-
-      } catch (error) {
-        console.error("Error updating SKU:", error.message);
-        return res.status(500).json({ error: "Internal server error" });
-      }
-
-
-    })
-
-    app.put("/decreaseOnHandSkuFromProduct", async (req, res) => {
-
-      const productDetailsArray = req.body;
-
-      // Validate the input array
-      if (!Array.isArray(productDetailsArray) || productDetailsArray.length === 0) {
-        return res.status(400).json({ error: "No product details provided or invalid format" });
-      }
-
-      try {
-
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
-        if (!primaryLocation) {
-          return res.status(400).json({ error: "Primary location not found" });
-        }
-
-        const { locationName } = primaryLocation;
-
-        const updateResults = [];
-        for (const productDetails of productDetailsArray) {
-
-          const { productId, sku, size, color, onHandSku } = productDetails;
-
-          if (!productId || !sku || !size || !color || !onHandSku) {
-            return res.status(400).json({ error: "Missing details in request body" });
-          };
-
-          // Step 3: Find the product and match variants
-          const product = await productInformationCollection.findOne({ productId });
-          if (!product) {
-            updateResults.push({ productId, error: "Product not found" });
-            continue;
-          }
-
-          const matchingVariant = product?.productVariants?.find(
-            (variant) =>
-              variant.size === size &&
-              variant.color._id === color._id &&
-              variant.location === locationName
-          );
-
-          if (!matchingVariant) {
-            updateResults.push({ productId, error: "Matching product variant not found" });
-            continue;
-          }
-
-          // Step 4: Check if SKU can be subtracted
-          if (matchingVariant.onHandSku < onHandSku) {
-            updateResults.push({ productId, error: "SKU to subtract exceeds current SKU" });
-            continue;
-          }
-
-          // Step 5: Subtract SKU and update the product
-          matchingVariant.onHandSku -= onHandSku;
-
-          const updateResult = await productInformationCollection.updateOne(
-            {
-              productId,
-              productVariants: {
-                $elemMatch: {
-                  size: size,
-                  color: color,
-                  location: locationName,
-                  onHandSku: { $gte: onHandSku }, // Ensure enough SKU to subtract
-                },
-              },
-            },
-            {
-              $inc: { "productVariants.$.onHandSku": -onHandSku }, // Decrement the SKU
-            }
-          );
-
-
-          if (updateResult.modifiedCount === 0) {
-            updateResults.push({ productId, error: "Failed to update SKU" });
-          } else {
-            updateResults.push({
-              productId,
-              updatedVariant: { size, color, location: locationName, onHandSku: matchingVariant.onHandSku },
-            });
-          }
-        }
-
-        // Return response with results of all products
-        return res.status(200).json({ message: "SKU update process completed", results: updateResults });
-
-      } catch (error) {
-        console.error("Error updating SKU:", error.message);
-        return res.status(500).json({ error: "Internal server error" });
-      }
-
-
-    });
-
     // post vendors
     app.post("/addVendor", async (req, res) => {
       try {
@@ -884,6 +696,327 @@ async function run() {
       }
     });
 
+    app.put("/addReturnSkuToProduct", async (req, res) => {
+      const returnDataToSend = req.body;
+
+      // Validate input
+      if (!Array.isArray(returnDataToSend) || returnDataToSend.length === 0) {
+        return res.status(400).json({ error: "Invalid or empty return data" });
+      }
+
+      try {
+        // Fetch the primary location
+        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        if (!primaryLocation) {
+          return res.status(400).json({ error: "Primary location not found" });
+        }
+
+        const { locationName } = primaryLocation;
+        const updateResults = [];
+
+        for (const productDetails of returnDataToSend) {
+          const { productId, sku, size, color } = productDetails;
+
+          if (!productId || !sku || !size || !color) {
+            updateResults.push({ productId, error: "Missing details in return data" });
+            continue;
+          }
+
+          // Find the product in the database
+          const product = await productInformationCollection.findOne({ productId });
+          if (!product) {
+            updateResults.push({ productId, error: "Product not found" });
+            continue;
+          }
+
+          // Find the matching variant in productVariants
+          const matchingVariant = product?.productVariants?.find(
+            (variant) =>
+              variant.size === size &&
+              variant.color._id === color._id &&
+              variant.location === locationName
+          );
+
+          if (!matchingVariant) {
+            updateResults.push({ productId, error: "Matching product variant not found" });
+            continue;
+          }
+
+          // If returnSku exists, increment it; otherwise, initialize it
+          const updateResult = await productInformationCollection.updateOne(
+            {
+              productId,
+              productVariants: {
+                $elemMatch: {
+                  size: size,
+                  color: color,
+                  location: locationName, // Ensure this matches exactly
+                }
+              }
+            },
+            {
+              $inc: { "productVariants.$.returnSku": sku }  // This will now correctly increment `returnSku`
+            }
+          );
+
+          if (updateResult.modifiedCount === 0) {
+            updateResults.push({ productId, error: "Failed to update returnSku" });
+          } else {
+            updateResults.push({
+              productId,
+              updatedVariant: {
+                size,
+                color,
+                location: locationName,
+                returnSku: (matchingVariant.returnSku || 0) + sku,
+              },
+            });
+          }
+        }
+
+        return res.status(200).json({ message: "Return SKU update completed", results: updateResults });
+
+      } catch (error) {
+        console.error("Error updating return SKU:", error.message);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    app.put("/decreaseSkuFromProduct", async (req, res) => {
+
+      const productDetailsArray = req.body;
+
+      // Validate the input array
+      if (!Array.isArray(productDetailsArray) || productDetailsArray.length === 0) {
+        return res.status(400).json({ error: "No product details provided or invalid format" });
+      }
+
+      try {
+
+        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        if (!primaryLocation) {
+          return res.status(400).json({ error: "Primary location not found" });
+        }
+
+        const { locationName } = primaryLocation;
+
+        const updateResults = [];
+        for (const productDetails of productDetailsArray) {
+
+          const { productId, sku, size, color } = productDetails;
+
+          if (!productId || !sku || !size || !color) {
+            return res.status(400).json({ error: "Missing details in request body" });
+          };
+
+          // Step 3: Find the product and match variants
+          const product = await productInformationCollection.findOne({ productId });
+          if (!product) {
+            updateResults.push({ productId, error: "Product not found" });
+            continue;
+          }
+
+          const matchingVariant = product?.productVariants?.find(
+            (variant) =>
+              variant.size === size &&
+              variant.color._id === color._id &&
+              variant.location === locationName
+          );
+
+          if (!matchingVariant) {
+            updateResults.push({ productId, error: "Matching product variant not found" });
+            continue;
+          }
+
+          // Step 4: Check if SKU can be subtracted
+          if (matchingVariant.sku < sku) {
+            updateResults.push({ productId, error: "SKU to subtract exceeds current SKU" });
+            continue;
+          }
+
+          // Step 5: Subtract SKU and update the product
+          matchingVariant.sku -= sku;
+
+          const updateResult = await productInformationCollection.updateOne(
+            {
+              productId,
+              productVariants: {
+                $elemMatch: {
+                  size: size,
+                  color: color,
+                  location: locationName,
+                  sku: { $gte: sku }, // Ensure enough SKU to subtract
+                },
+              },
+            },
+            {
+              $inc: { "productVariants.$.sku": -sku }, // Decrement the SKU
+            }
+          );
+
+
+          if (updateResult.modifiedCount === 0) {
+            updateResults.push({ productId, error: "Failed to update SKU" });
+          } else {
+            updateResults.push({
+              productId,
+              updatedVariant: { size, color, location: locationName, sku: matchingVariant.sku },
+            });
+          }
+        }
+
+        // Return response with results of all products
+        return res.status(200).json({ message: "SKU update process completed", results: updateResults });
+
+      } catch (error) {
+        console.error("Error updating SKU:", error.message);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+
+
+    })
+
+    app.put("/decreaseOnHandSkuFromProduct", async (req, res) => {
+
+      const productDetailsArray = req.body;
+
+      // Validate the input array
+      if (!Array.isArray(productDetailsArray) || productDetailsArray.length === 0) {
+        return res.status(400).json({ error: "No product details provided or invalid format" });
+      }
+
+      try {
+
+        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        if (!primaryLocation) {
+          return res.status(400).json({ error: "Primary location not found" });
+        }
+
+        const { locationName } = primaryLocation;
+
+        const updateResults = [];
+        for (const productDetails of productDetailsArray) {
+
+          const { productId, sku, size, color, onHandSku } = productDetails;
+
+          if (!productId || !sku || !size || !color || !onHandSku) {
+            return res.status(400).json({ error: "Missing details in request body" });
+          };
+
+          // Step 3: Find the product and match variants
+          const product = await productInformationCollection.findOne({ productId });
+          if (!product) {
+            updateResults.push({ productId, error: "Product not found" });
+            continue;
+          }
+
+          const matchingVariant = product?.productVariants?.find(
+            (variant) =>
+              variant.size === size &&
+              variant.color._id === color._id &&
+              variant.location === locationName
+          );
+
+          if (!matchingVariant) {
+            updateResults.push({ productId, error: "Matching product variant not found" });
+            continue;
+          }
+
+          // Step 4: Check if SKU can be subtracted
+          if (matchingVariant.onHandSku < onHandSku) {
+            updateResults.push({ productId, error: "SKU to subtract exceeds current SKU" });
+            continue;
+          }
+
+          // Step 5: Subtract SKU and update the product
+          matchingVariant.onHandSku -= onHandSku;
+
+          const updateResult = await productInformationCollection.updateOne(
+            {
+              productId,
+              productVariants: {
+                $elemMatch: {
+                  size: size,
+                  color: color,
+                  location: locationName,
+                  onHandSku: { $gte: onHandSku }, // Ensure enough SKU to subtract
+                },
+              },
+            },
+            {
+              $inc: { "productVariants.$.onHandSku": -onHandSku }, // Decrement the SKU
+            }
+          );
+
+
+          if (updateResult.modifiedCount === 0) {
+            updateResults.push({ productId, error: "Failed to update SKU" });
+          } else {
+            updateResults.push({
+              productId,
+              updatedVariant: { size, color, location: locationName, onHandSku: matchingVariant.onHandSku },
+            });
+          }
+        }
+
+        // Return response with results of all products
+        return res.status(200).json({ message: "SKU update process completed", results: updateResults });
+
+      } catch (error) {
+        console.error("Error updating SKU:", error.message);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+
+    });
+
+    const decrementReturnSkuInProduct = async (returnDataToSend) => {
+      const updateResults = [];
+
+      for (const productDetails of returnDataToSend) {
+        const { productId, sku, size, color } = productDetails;
+
+        if (!productId || !sku || !size || !color) {
+          updateResults.push({ productId, error: "Missing details in returnDataToSend" });
+          continue;
+        }
+
+        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        if (!primaryLocation) {
+          return { error: "Primary location not found" };
+        }
+
+        const { locationName } = primaryLocation;
+
+        const updateResult = await productInformationCollection.updateOne(
+          {
+            productId,
+            productVariants: {
+              $elemMatch: {
+                size: size,
+                color: color,
+                location: locationName,
+                returnSku: { $gte: sku }, // Ensure enough returnSku to subtract
+              },
+            },
+          },
+          {
+            $inc: { "productVariants.$.returnSku": -sku }, // Decrement the SKU
+          }
+        );
+
+        if (updateResult.modifiedCount === 0) {
+          updateResults.push({ productId, error: "Failed to decrement SKU. Either no match found or not enough returnSku." });
+        } else {
+          updateResults.push({
+            productId,
+            updatedVariant: { size, color, location: locationName, returnSku: `-${sku}` },
+          });
+        }
+      }
+
+      return updateResults;
+    };
+
     const incrementSkuInProduct = async (dataToSend) => {
       const updateResults = [];
 
@@ -981,7 +1114,7 @@ async function run() {
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason, returnInfo, dataToSend } = req.body; // Extract status from request body
+      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason, returnInfo, dataToSend, returnDataToSend } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -1010,7 +1143,7 @@ async function run() {
 
         if (!order) {
           return res.status(404).send({ error: "Order not found" });
-        }
+        };
 
         const updateDoc = {};
 
@@ -1052,6 +1185,17 @@ async function run() {
 
           else if (order.orderStatus === "Request Declined" && orderStatus === "Return Requested") {
             updateDoc.$unset = { declinedReason: "" }; // Remove declinedReason
+          }
+
+          else if (order.orderStatus === "Refunded" && orderStatus === "Return Initiated") {
+            // Validate returnDataToSend before calling the function
+            if (Array.isArray(returnDataToSend) && returnDataToSend.length > 0) {
+              // Decrease the returnSku
+              await decrementReturnSkuInProduct(returnDataToSend);
+            } else {
+              console.error("Invalid returnDataToSend: must be a non-empty array for SKU decrement.");
+              throw new Error("Invalid returnDataToSend: must be a non-empty array for SKU decrement.");
+            }
           }
 
           // Undo logic: Revert to the previous status
