@@ -1146,6 +1146,8 @@ async function run() {
         };
 
         const updateDoc = {};
+        const currentTime = new Date();
+        const undoAvailableUntil = new Date(currentTime.getTime() + 6 * 60 * 60 * 1000); // 6 hours later
 
         if (isUndo) {
           if (order.orderStatus === "Processing" && orderStatus === "Pending") {
@@ -1203,14 +1205,16 @@ async function run() {
             ...updateDoc.$set, // Retain any $set operations defined earlier
             orderStatus: orderStatus,
             previousStatus: order.orderStatus, // Store the current status as the previous status
-            lastStatusChange: new Date(), // Update the timestamp for undo
+            lastStatusChange: currentTime, // Update the timestamp for undo
+            undoAvailableUntil: null, // Set undo availability for 6 hours
           };
         }
         else {
           updateDoc.$set = {
             orderStatus: orderStatus,
             previousStatus: order.orderStatus, // Save the current status as the previous status
-            lastStatusChange: new Date(),      // Record the timestamp of the status change
+            lastStatusChange: currentTime,      // Record the timestamp of the status change
+            undoAvailableUntil: undoAvailableUntil, // Set undo availability for 6 hours
           };
 
           // Add shipping-related fields if `orderStatus` is `Shipped`
