@@ -1,4 +1,7 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
@@ -52,6 +55,65 @@ async function run() {
     const loginRegisterSlideCollection = client.db("fashion-commerce").collection("login-register-slide");
     const heroBannerCollection = client.db("fashion-commerce").collection("hero-banner");
     const newsletterCollection = client.db("fashion-commerce").collection("news-letter");
+    const enrollmentCollection = client.db("fashion-commerce").collection("enrollment-admin-staff");
+
+    // Send Email with the Magic Link
+    const transport = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT, // Use 587 for TLS
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    // Generate a 6-digit OTP as a string
+    function generateOtp() {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    async function sendOtpEmail(email, otp, name) {
+      try {
+        await transport.sendMail({
+          from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "OTP for Fashion Commerce Login",
+          text: `Your One-Time Password  
+  
+          Dear ${name},  
+  
+          Here is your One-Time Password (OTP) to securely log in to your Fashion Commerce account:  
+  
+          ${otp}  
+  
+          Note: This OTP is valid for 5 minutes.  
+  
+          If you did not request this OTP, please ignore this email or contact our support team.  
+  
+          Thank you for choosing Fashion Commerce!  
+  
+          Best regards,  
+          Team Fashion Commerce`,
+          html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+          <h2 style="text-align: center; color: #333;">🔑 <b>Your One-Time Password</b></h2>
+          <p>Dear <b>${name}</b>,</p>
+          <p>Here is your One-Time Password (OTP) to securely log in to your <b>Fashion Commerce</b> account:</p>
+          <p style="text-align: center; font-size: 24px; font-weight: bold; color: #ff6600; margin: 20px 0;">${otp}</p>
+          <p><b>Note:</b> This OTP is valid for <b>5 minutes</b>.</p>
+          <p>If you did not request this OTP, please ignore this email or contact our support team.</p>
+          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+          <p style="text-align: center; color: #555;">Thank you for choosing <b>Fashion Commerce</b>! 🛍️</p>
+          <p style="text-align: center; font-size: 14px; color: #888;">Best regards,<br>Team Fashion Commerce</p>
+        </div>
+      `
+        });
+      } catch (emailError) {
+        console.error("Error sending OTP email:", emailError);
+        throw new Error("Error sending OTP email");
+      }
+    }
 
     // Define route to handle file upload to cloudinary
     app.post('/uploadFile', upload.single('attachment'), (req, res) => {
@@ -74,6 +136,410 @@ async function run() {
       );
 
       streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    });
+
+    // Invite API (Super Admin creates an account)
+    app.post("/invite", async (req, res) => {
+      try {
+        const { email, role, fullName } = req.body;
+
+        // Generate JWT Token (Valid for 72 hours)
+        const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "72h" });
+
+        // Check if the email already exists
+        const existingEntry = await enrollmentCollection.findOne({ email });
+
+        if (existingEntry) {
+          return res.status(400).json({ error: "Email already invited." });
+        }
+
+        // Store the hashed token in MongoDB
+        const result = await enrollmentCollection.insertOne({
+          email,
+          fullName,
+          role
+        });
+
+        // Magic Link
+        const magicLink = `${process.env.FRONTEND_URL}/auth/setup?token=${token}`;
+
+        // Send Email
+        let mailResult;
+        try {
+          mailResult = await transport.sendMail({
+            from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "You're Invited to Join Fashion Commerce - Action Required",
+            text: `Hello ${fullName},
+
+            You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
+
+
+
+            🔗 Magic Link: ${magicLink}
+
+
+
+            This link is valid for **72 hours** and will expire on **${new Date(Date.now() + 72 * 60 * 60 * 1000).toLocaleString('en-GB', {
+              timeZone: 'Asia/Dhaka',
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: 'numeric',
+              second: 'numeric',
+              hour12: true
+            })}**.
+
+            If you did not expect this invitation, you can safely ignore this email.
+
+            Best Regards,  
+            Fashion Commerce Team`,
+            html: `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Invitation - Fashion Commerce</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+          }
+          .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #dcdcdc; /* Added border */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+          }
+          .header h1 {
+            margin: 0;
+            color: #007bff;
+          }
+          .content {
+            padding: 20px;
+          }
+          .content p {
+            font-size: 16px;
+            line-height: 1.6;
+          }
+          .cta-button {
+            display: inline-block;
+            font-size: 16px;
+            font-weight: bold;
+            color: #4B5563;
+            background-color: #d4ffce; /* Updated button background */
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 1px solid #d4ffce; /* Button border */
+          }
+          .cta-button:hover {
+            background-color: #a3f0a3; /* Hover effect */
+            border: 1px solid #a3f0a3;
+          }
+          .footer {
+            text-align: center;
+            padding-top: 20px;
+            font-size: 14px;
+            color: #888;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>You're Invited to Fashion Commerce!</h1>
+          </div>
+          <div class="content">
+            <p>Hello <strong>${fullName}</strong>,</p>
+            <p>You have been invited to join <strong>Fashion Commerce</strong> as a <strong>${role}</strong>. Please use the link below to complete your setup:</p>
+            <p>
+              <a href="${magicLink}" class="cta-button">Complete Your Setup</a>
+            </p>
+            <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong> on <strong>${new Date(Date.now() + 72 * 60 * 60 * 1000).toLocaleString('en-GB', {
+              timeZone: 'Asia/Dhaka',
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: 'numeric',
+              second: 'numeric',
+              hour12: true
+            })}</strong>.</p>
+            <p>If you did not expect this invitation, you can ignore this email.</p>
+          </div>
+          <div class="footer">
+            <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+          });
+        } catch (emailError) {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to send invitation email.",
+            userData: result, // The user data is stored but email failed
+            emailError: emailError.message,
+          });
+        }
+
+        // Send response after both operations are completed
+        res.status(200).json({
+          success: true,
+          message: "Invitation sent successfully!",
+          userData: result,
+          emailStatus: mailResult,
+        });
+
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong!",
+          error: error.message,
+        });
+      }
+    });
+
+    app.post("/validate-token", async (req, res) => {
+      const { token } = req.body; // Assuming the token comes in the body of the request.
+
+      if (!token) {
+        return res.status(400).json({ message: "Token is missing" });
+      }
+
+      try {
+        // Decode the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Check if the email exists in the database (optional, if you want extra verification)
+        const enrollment = await enrollmentCollection.findOne({ email: decoded.email });
+
+        if (!enrollment) {
+          return res.status(400).json({ message: "Invalid token" });
+        }
+
+        // Token is valid and not expired
+        res.status(200).json({ message: "Access verified successfully.", enrollment });
+
+      } catch (error) {
+
+        // Handle specific JWT errors
+        if (error.name === "TokenExpiredError") {
+          return res.status(401).json({ message: "Your session has expired. Please request a new link." });
+        }
+
+        if (error.name === "JsonWebTokenError") {
+          return res.status(400).json({ message: "Invalid request. Please try again." });
+        }
+
+        // Generic error message
+        return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
+
+      }
+    });
+
+    // after completed setup, put the information
+    app.patch("/complete-setup/:email", async (req, res) => {
+      try {
+        const { email } = req.params; // Get email from URL parameter
+        const { username, dob, password } = req.body; // Get username, dob, and password from request body
+
+        // Validate if all required fields are provided
+        if (!username || !dob || !password) {
+          return res.status(400).json({ error: "Username, date of birth, and password are required." });
+        }
+
+        // Hash the password before storing it in the database
+        const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
+
+        // Check if the user with this email already exists
+        const existingUser = await enrollmentCollection.findOne({ email });
+
+        if (!existingUser) {
+          return res.status(404).json({ error: "User not found." });
+        }
+
+        // Update the existing user's data with the new information
+        const updatedUser = await enrollmentCollection.updateOne(
+          { email },
+          {
+            $set: {
+              username,
+              dob,
+              password: hashedPassword,
+            },
+          }
+        );
+
+        if (updatedUser.modifiedCount === 0) {
+          return res.status(500).json({ error: "Failed to update user information." });
+        }
+
+        // Send response after the user information is updated
+        res.status(200).json({
+          success: true,
+          message: "Account setup completed successfully!",
+        });
+
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong!",
+          error: error.message,
+        });
+      }
+    });
+
+    // logs in via nextauth
+    app.post("/loginForDashboard", async (req, res) => {
+      const { emailOrUsername, password, otp } = req.body;
+
+      try {
+        // Find user by email OR username
+        const user = await enrollmentCollection.findOne({
+          $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
+        });
+
+        if (!user) {
+          return res.status(401).json({ message: "No account found with this email or username." });
+        }
+        if (!user.password) {
+          return res.status(403).json({ message: "Your account setup is incomplete. Please set up your password before logging in." });
+        }
+
+        // Verify the password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          return res.status(401).json({ message: "Incorrect password. Please try again." });
+        }
+
+        // If OTP is not provided, generate OTP and send email.
+        if (otp === "") {
+          const generatedOtp = generateOtp(); // e.g., "123456"
+          const otpExpiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+
+          // Update the user document with otp and otpExpiresAt.
+          // Use user._id directly (assuming it's already an ObjectId)
+          await enrollmentCollection.updateOne(
+            { _id: user._id },
+            { $set: { otp: generatedOtp, otpExpiresAt: otpExpiresAt } }
+          );
+
+          try {
+            // Send OTP email
+            await sendOtpEmail(user.email, generatedOtp, user.fullName);
+            return res.status(401).json({
+              message: "OTP has been sent to your email. Please enter the OTP to complete login."
+            });
+          } catch (emailError) {
+            console.error("Error sending OTP email:", emailError);
+            return res.status(500).json({ message: "Error sending OTP email. Please try again later." });
+          }
+        } else {
+          // OTP is provided; re-fetch the user document to ensure you have the latest OTP fields.
+          const updatedUser = await enrollmentCollection.findOne({ _id: user._id });
+
+          // Verify OTP fields exist
+          if (!updatedUser.otp || !updatedUser.otpExpiresAt) {
+            return res.status(400).json({ message: "OTP expired or not found. Please try logging in again." });
+          }
+
+          // Check if OTP is expired
+          if (Date.now() > updatedUser.otpExpiresAt) {
+            // Remove the expired OTP fields
+            await enrollmentCollection.updateOne(
+              { _id: user._id },
+              { $unset: { otp: "", otpExpiresAt: "" } }
+            );
+            return res.status(400).json({ message: "OTP has expired. Please try logging in again." });
+          }
+
+          // Check if the provided OTP matches
+          if (otp !== updatedUser.otp) {
+            return res.status(400).json({ message: "Invalid OTP. Please try again." });
+          }
+
+          // OTP is valid—remove the OTP fields and return user data
+          await enrollmentCollection.updateOne(
+            { _id: user._id },
+            { $unset: { otp: "", otpExpiresAt: "" } }
+          );
+
+          return res.json({
+            _id: user._id.toString(),
+            email: user.email,
+            username: user.username,
+            role: user.role,
+            dob: user.dob,
+            fullName: user.fullName
+          });
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({ message: "Something went wrong. Please try again later." });
+      }
+    });
+
+    // Change Password Endpoint
+    app.put("/change-password", async (req, res) => {
+      try {
+        const { email, currentPassword, newPassword } = req.body;
+
+        // Check if email is provided
+        if (!email || !currentPassword || !newPassword) {
+          return res.status(400).json({ message: "All fields are required" });
+        }
+
+        if (currentPassword === newPassword) return res.status(401).json({ message: "New Password should not matched with current password" });
+
+        // Find user by email in the enrollmentCollection
+        const user = await enrollmentCollection.findOne({ email });
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        if (!user.password) return res.status(403).json({ message: "Your account setup is incomplete. Please set up your password before logging in." });
+
+        // Check if current password matches the stored hashed password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(400).json({ message: "Your current password is incorrect. Please double-check and try again." });
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update the password in MongoDB
+        const result = await enrollmentCollection.updateOne(
+          { email },
+          { $set: { password: hashedPassword } }
+        );
+
+        if (result.modifiedCount > 0) {
+          return res.json({ success: true, message: "Password changed successfully." });
+        } else {
+          return res.status(400).json({ message: "No changes detected. Your password remains the same." });
+        }
+      } catch (error) {
+        console.error("Error changing password:", error);
+        res.status(500).json({ message: "Something went wrong on our end. Please try again later." });
+      }
     });
 
     // post a product
@@ -1363,8 +1829,6 @@ async function run() {
         if (updatedData._id) {
           delete updatedData._id;
         }
-
-        console.log(updatedData, "updatedData");
 
         const result = await customerListCollection.updateOne(
           { _id: new ObjectId(id) }, // Match the document by its _id
