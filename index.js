@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
@@ -140,11 +141,13 @@ async function run() {
 
     // Invite API (Super Admin creates an account)
     app.post("/invite", async (req, res) => {
+
       try {
         const { email, role, fullName } = req.body;
 
-        // Generate JWT Token (Valid for 72 hours)
-        const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "72h" });
+        if (!email || !role || !fullName) {
+          return res.status(400).json({ success: false, message: "All fields are required!" });
+        }
 
         // Check if the email already exists
         const existingEntry = await enrollmentCollection.findOne({ email });
@@ -153,20 +156,17 @@ async function run() {
           return res.status(400).json({ error: "Email already invited." });
         }
 
-        // Store the hashed token in MongoDB
-        const result = await enrollmentCollection.insertOne({
-          email,
-          fullName,
-          role
-        });
+        const token = crypto.randomBytes(32).toString("hex"); // Generate secure random token
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex"); // Hash token
+
+        // Set expiration time (72 hours)
+        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
         // Magic Link
         const magicLink = `${process.env.FRONTEND_URL}/auth/setup?token=${token}`;
 
-        // Send Email
-        let mailResult;
         try {
-          mailResult = await transport.sendMail({
+          const mailResult = await transport.sendMail({
             from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "You're Invited to Join Fashion Commerce - Action Required",
@@ -288,28 +288,45 @@ async function run() {
             <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
           </div>
         </div>
-      </body>
-    </html>
-  `
+        </body>
+        </html>`
           });
+
+          // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
+          if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
+            // If email was sent successfully, insert data into MongoDB
+            const result = await enrollmentCollection.insertOne({
+              email,
+              fullName,
+              role,
+              hashedToken,
+              expiresAt,
+            });
+
+            return res.status(200).json({
+              success: true,
+              message: "Invitation sent successfully!",
+              userData: result,
+              emailStatus: mailResult,
+            });
+          } else {
+            // If mailResult is not as expected, handle the failure case
+            return res.status(500).json({
+              success: false,
+              message: "Failed to send invitation email.",
+            });
+          }
+
         } catch (emailError) {
           return res.status(500).json({
             success: false,
             message: "Failed to send invitation email.",
-            userData: result, // The user data is stored but email failed
             emailError: emailError.message,
           });
         }
 
-        // Send response after both operations are completed
-        res.status(200).json({
-          success: true,
-          message: "Invitation sent successfully!",
-          userData: result,
-          emailStatus: mailResult,
-        });
-
-      } catch (error) {
+      }
+      catch (error) {
         res.status(500).json({
           success: false,
           message: "Something went wrong!",
@@ -318,37 +335,53 @@ async function run() {
       }
     });
 
+    // checking token is valid or not
     app.post("/validate-token", async (req, res) => {
+
       const { token } = req.body; // Assuming the token comes in the body of the request.
 
       if (!token) {
-        return res.status(400).json({ message: "Token is missing" });
+        return res.status(400).json({ message: "Token is required. Please provide a valid token." });
       }
 
       try {
-        // Decode the token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Hash the received raw token
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
         // Check if the email exists in the database (optional, if you want extra verification)
-        const enrollment = await enrollmentCollection.findOne({ email: decoded.email });
+        const enrollment = await enrollmentCollection.findOne({
+          hashedToken,
+        });
 
         if (!enrollment) {
-          return res.status(400).json({ message: "Invalid token" });
+          return res.status(400).json({ message: "We could not find your request. Please try again." });
+        };
+
+        // Check if the token has expired
+        if (new Date(enrollment.expiresAt) < new Date()) {
+          // Token has expired, so remove the expired fields
+          await enrollmentCollection.updateOne(
+            { hashedToken },
+            {
+              $unset: { hashedToken: "", expiresAt: "" }, // Remove expired fields
+            }
+          );
+          return res.status(400).json({ message: "This request has expired." });
         }
+
+        // ✅ Check if the user has already set up their account
+        if (enrollment.isSetupComplete) {
+          return res.status(403).json({ message: "You have already set up your account." });
+        }
+
+        // Get user email from the found record
+        const { email } = enrollment;
 
         // Token is valid and not expired
-        res.status(200).json({ message: "Access verified successfully.", enrollment });
+        res.status(200).json({ message: "Access verified successfully.", email });
 
       } catch (error) {
-
-        // Handle specific JWT errors
-        if (error.name === "TokenExpiredError") {
-          return res.status(401).json({ message: "Your session has expired. Please request a new link." });
-        }
-
-        if (error.name === "JsonWebTokenError") {
-          return res.status(400).json({ message: "Invalid request. Please try again." });
-        }
 
         // Generic error message
         return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
@@ -385,6 +418,7 @@ async function run() {
               username,
               dob,
               password: hashedPassword,
+              isSetupComplete: true
             },
           }
         );
