@@ -169,7 +169,7 @@ async function run() {
           const mailResult = await transport.sendMail({
             from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: "You're Invited to Join Fashion Commerce - Action Required",
+            subject: "You're Invited to Join Fashion Commerce",
             text: `Hello ${fullName},
 
             You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
@@ -263,26 +263,22 @@ async function run() {
       <body>
         <div class="container">
           <div class="header">
-            <h1>You're Invited to Fashion Commerce!</h1>
+            <h1>Welcome to Fashion Commerce!</h1>
           </div>
           <div class="content">
             <p>Hello <strong>${fullName}</strong>,</p>
-            <p>You have been invited to join <strong>Fashion Commerce</strong> as a <strong>${role}</strong>. Please use the link below to complete your setup:</p>
-            <p>
-              <a href="${magicLink}" class="cta-button">Complete Your Setup</a>
-            </p>
-            <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong> on <strong>${new Date(Date.now() + 72 * 60 * 60 * 1000).toLocaleString('en-GB', {
-              timeZone: 'Asia/Dhaka',
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: 'numeric',
-              second: 'numeric',
-              hour12: true
-            })}</strong>.</p>
-            <p>If you did not expect this invitation, you can ignore this email.</p>
+            <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "admin" ? "an Admin" : "a Staff member"}</strong>. To accept this invitation, create <strong>${role === "admin" ? "an Admin" : "a Staff"}</strong> account:</p>
+             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+             <tr>
+              <td align="center">
+                 <a href="${magicLink}" class="cta-button">Create account</a>
+              </td>
+             </tr>
+            </table>
+
+            <p>If you weren't expecting this invitation, you can ignore this email.</p>
+            <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong>.</p>
+            
           </div>
           <div class="footer">
             <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
@@ -358,6 +354,11 @@ async function run() {
           return res.status(400).json({ message: "We could not find your request. Please try again." });
         };
 
+        // ✅ Check if the user has already set up their account
+        if (enrollment.isSetupComplete) {
+          return res.status(403).json({ message: "You have already set up your account." });
+        }
+
         // Check if the token has expired
         if (new Date(enrollment.expiresAt) < new Date()) {
           // Token has expired, so remove the expired fields
@@ -368,11 +369,6 @@ async function run() {
             }
           );
           return res.status(400).json({ message: "This request has expired." });
-        }
-
-        // ✅ Check if the user has already set up their account
-        if (enrollment.isSetupComplete) {
-          return res.status(403).json({ message: "You have already set up your account." });
         }
 
         // Get user email from the found record
@@ -386,6 +382,19 @@ async function run() {
         // Generic error message
         return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
 
+      }
+    });
+
+    app.get("/all-existing-users", async (req, res) => {
+      try {
+        // Retrieve only specific fields from the collection
+        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1 } }).toArray();
+
+        // Return the list of specific fields (email, fullName, hashedToken, expiresAt)
+        res.status(200).json(users);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Something went wrong. Please try again later." });
       }
     });
 
@@ -442,7 +451,7 @@ async function run() {
       }
     });
 
-    // logs in via nextauth
+    // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", async (req, res) => {
       const { emailOrUsername, password, otp } = req.body;
 
@@ -526,6 +535,74 @@ async function run() {
             fullName: user.fullName
           });
         }
+      } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({ message: "Something went wrong. Please try again later." });
+      }
+    });
+
+    // after completed setup, put the information
+    app.post("/customer-signup", async (req, res) => {
+      try {
+
+        const { email, password, userInfo, cartItems, wishlistItems } = req.body; // Get username, dob, and password from request body
+
+        // Validate if all required fields are provided
+        if (!email || !password) {
+          return res.status(400).json({ error: "Email, and password are required." });
+        }
+
+        // Hash the password before storing it in the database
+        const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
+
+        // Check if the user with this email already exists
+        const existingUser = await customerListCollection.findOne({ email });
+
+        if (existingUser) {
+          return res.status(401).json({ error: "Account already exists!" });
+        }
+
+        const result = await customerListCollection.insertOne({
+          email,
+          hashedPassword,
+          userInfo,
+          cartItems,
+          wishlistItems
+        });
+
+        // Send response after the user information is updated
+        res.status(200).send(result);
+
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong!",
+          error: error.message,
+        });
+      }
+    });
+
+    // frontend log in via nextAuth
+    app.post("/customer-login", async (req, res) => {
+
+      const { email, password } = req.body;
+
+      try {
+        // Find user by email OR username
+        const user = await customerListCollection.findOne({ email });
+
+        if (!user) {
+          return res.status(404).json({ message: "No account found with this email." });
+        };
+
+        // Verify the password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          return res.status(401).json({ message: "Incorrect password. Please try again." });
+        }
+
+        return res.status(200).send(user);
+
       } catch (error) {
         console.error("Login error:", error);
         return res.status(500).json({ message: "Something went wrong. Please try again later." });
