@@ -153,7 +153,167 @@ async function run() {
         const existingEntry = await enrollmentCollection.findOne({ email });
 
         if (existingEntry) {
-          return res.status(400).json({ error: "Email already invited." });
+
+          const isExpired = (!existingEntry.hashedToken && !existingEntry.expiresAt) || new Date(existingEntry.expiresAt) < new Date();
+
+          // Check if the existing invitation is expired
+          if (isExpired) {
+            // If expired, allow re-invitation by generating a new token
+            const token = crypto.randomBytes(32).toString("hex");
+            const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+            const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // New expiry
+
+            const magicLink = `${process.env.FRONTEND_URL}/auth/setup?token=${token}`;
+
+            try {
+              const mailResult = await transport.sendMail({
+                from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: "You're Invited to Join Fashion Commerce",
+                text: `Hello ${fullName},
+    
+                You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
+    
+    
+    
+                🔗 Magic Link: ${magicLink}
+    
+    
+    
+                This link is valid for **72 hours** and will expire on **${new Date(Date.now() + 72 * 60 * 60 * 1000).toLocaleString('en-GB', {
+                  timeZone: 'Asia/Dhaka',
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                  second: 'numeric',
+                  hour12: true
+                })}**.
+    
+                If you did not expect this invitation, you can safely ignore this email.
+    
+                Best Regards,  
+                Fashion Commerce Team`,
+                html: `
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Invitation - Fashion Commerce</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f7f7f7;
+              }
+              .container {
+                width: 100%;
+                max-width: 600px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid #dcdcdc; /* Added border */
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+              }
+              .header {
+                text-align: center;
+                padding-bottom: 20px;
+                border-bottom: 1px solid #ddd;
+              }
+              .header h1 {
+                margin: 0;
+                color: #007bff;
+              }
+              .content {
+                padding: 20px;
+              }
+              .content p {
+                font-size: 16px;
+                line-height: 1.6;
+              }
+              .cta-button {
+                display: inline-block;
+                font-size: 16px;
+                font-weight: bold;
+                color: #4B5563;
+                background-color: #d4ffce; /* Updated button background */
+                padding: 12px 30px;
+                text-decoration: none;
+                border-radius: 5px;
+                margin-top: 20px;
+                border: 1px solid #d4ffce; /* Button border */
+              }
+              .cta-button:hover {
+                background-color: #a3f0a3; /* Hover effect */
+                border: 1px solid #a3f0a3;
+              }
+              .footer {
+                text-align: center;
+                padding-top: 20px;
+                font-size: 14px;
+                color: #888;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Welcome to Fashion Commerce!</h1>
+              </div>
+              <div class="content">
+                <p>Hello <strong>${fullName}</strong>,</p>
+                <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "admin" ? "an Admin" : "a Staff member"}</strong>. To accept this invitation, create <strong>${role === "admin" ? "an Admin" : "a Staff"}</strong> account:</p>
+                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                 <tr>
+                  <td align="center">
+                     <a href="${magicLink}" class="cta-button">Create account</a>
+                  </td>
+                 </tr>
+                </table>
+    
+                <p>If you weren't expecting this invitation, you can ignore this email.</p>
+                <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong>.</p>
+                
+              </div>
+              <div class="footer">
+                <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+              </div>
+            </div>
+            </body>
+            </html>`
+              });
+
+              if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
+                // Update the existing document with new token and expiry
+                await enrollmentCollection.updateOne(
+                  { email },
+                  { $set: { hashedToken, expiresAt } }
+                );
+
+                return res.status(200).json({
+                  success: true,
+                  message: "Invitation resent successfully!",
+                  emailStatus: mailResult,
+                });
+              } else {
+                return res.status(500).json({ success: false, message: "Failed to resend invitation email." });
+              }
+            } catch (emailError) {
+              return res.status(500).json({
+                success: false,
+                message: "Failed to resend invitation email.",
+                emailError: emailError.message,
+              });
+            }
+          }
+          else {
+            return res.status(400).json({ error: "Email already invited and still valid." });
+          }
         }
 
         const token = crypto.randomBytes(32).toString("hex"); // Generate secure random token
@@ -388,7 +548,7 @@ async function run() {
     app.get("/all-existing-users", async (req, res) => {
       try {
         // Retrieve only specific fields from the collection
-        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1 } }).toArray();
+        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1, role: 1 } }).toArray();
 
         // Return the list of specific fields (email, fullName, hashedToken, expiresAt)
         res.status(200).json(users);
