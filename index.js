@@ -564,7 +564,7 @@ async function run() {
 
         const result = await customerListCollection.insertOne({
           email,
-          hashedPassword,
+          password: hashedPassword,
           userInfo,
           cartItems,
           wishlistItems
@@ -601,7 +601,12 @@ async function run() {
           return res.status(401).json({ message: "Incorrect password. Please try again." });
         }
 
-        return res.status(200).send(user);
+        return res.json({
+          email: user.email,
+          userInfo: user.userInfo,
+          cartItems: user.cartItems,
+          wishlistItems: user.wishlistItems
+        });
 
       } catch (error) {
         console.error("Login error:", error);
