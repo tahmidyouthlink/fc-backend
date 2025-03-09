@@ -579,6 +579,13 @@ async function run() {
           return res.status(404).json({ error: "User not found." });
         }
 
+        // Check if the username already exists in the database
+        const usernameExists = await enrollmentCollection.findOne({ username });
+
+        if (usernameExists) {
+          return res.status(400).json({ error: "Username already exists." });
+        }
+
         // Update the existing user's data with the new information
         const updatedUser = await enrollmentCollection.updateOne(
           { email },
