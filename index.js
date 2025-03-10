@@ -16,6 +16,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 const cors = require("cors");
+const { permission } = require("process");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -143,9 +144,9 @@ async function run() {
     app.post("/invite", async (req, res) => {
 
       try {
-        const { email, role, fullName } = req.body;
+        const { email, role, fullName, permissions } = req.body;
 
-        if (!email || !role || !fullName) {
+        if (!email || !role || !fullName || !permissions) {
           return res.status(400).json({ success: false, message: "All fields are required!" });
         }
 
@@ -455,6 +456,7 @@ async function run() {
               email,
               fullName,
               role,
+              permissions,
               hashedToken,
               expiresAt,
             });
@@ -548,7 +550,7 @@ async function run() {
     app.get("/all-existing-users", async (req, res) => {
       try {
         // Retrieve only specific fields from the collection
-        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1, role: 1 } }).toArray();
+        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1, role: 1, permissions: 1 } }).toArray();
 
         // Return the list of specific fields (email, fullName, hashedToken, expiresAt)
         res.status(200).json(users);
