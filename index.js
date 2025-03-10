@@ -575,9 +575,6 @@ async function run() {
           projection: {
             email: 1,
             fullName: 1,
-            hashedToken: 1,
-            expiresAt: 1,
-            isSetupComplete: 1,
             role: 1,
             permissions: 1,
           },
