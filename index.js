@@ -560,6 +560,43 @@ async function run() {
       }
     });
 
+    // Get single existing user info
+    app.get("/single-existing-user/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        // Validate if the id is a valid ObjectId
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send({ message: "Invalid user ID format" });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const result = await enrollmentCollection.findOne(query, {
+          projection: {
+            email: 1,
+            fullName: 1,
+            hashedToken: 1,
+            expiresAt: 1,
+            isSetupComplete: 1,
+            role: 1,
+            permissions: 1,
+          },
+        });
+
+        if (!result) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Single Existing User Information:", error);
+        res.status(500).send({
+          message: "Failed to fetch Single Existing User Information",
+          error: error.message,
+        });
+      }
+    });
+
     // after completed setup, put the information
     app.patch("/complete-setup/:email", async (req, res) => {
       try {
