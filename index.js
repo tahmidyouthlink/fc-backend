@@ -817,6 +817,430 @@ async function run() {
       }
     });
 
+    // Set a user password in frontend
+    app.put("/user-set-password", async (req, res) => {
+      try {
+        const { email, newPassword } = req.body;
+
+        // Find user by email from customer collection
+        const user = await customerListCollection.findOne({ email });
+
+        if (!user) return res.status(404).json({ message: "User not found." });
+
+        // Check if the user already set a password
+        if (user.password) {
+          return res.status(400).json({
+            message: "You already have a password set.",
+          });
+        }
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update the password in MongoDB
+        const result = await customerListCollection.updateOne(
+          { email },
+          { $set: { password: hashedPassword } }
+        );
+
+        if (result.modifiedCount > 0) {
+          return res.json({
+            success: true,
+            message: "Password set successfully.",
+          });
+        } else {
+          return res.status(400).json({
+            message: "Failed to set password. Please try again.",
+          });
+        }
+      } catch (error) {
+        console.error("Error changing password:", error);
+        res.status(500).json({
+          message: "Something went wrong. Please try again.",
+        });
+      }
+    });
+
+    // Update user password in frontend
+    app.put("/user-update-password", async (req, res) => {
+      try {
+        const { email, oldPassword, newPassword } = req.body;
+
+        // Find user by email from customer collection
+        const user = await customerListCollection.findOne({ email });
+
+        if (!user) return res.status(404).json({ message: "User not found." });
+
+        // Check if the user is linked with Google only (no password set)
+        if (!user.password && user.isLinkedWithGoogle) {
+          return res.status(400).json({
+            message:
+              "Your account is linked with Google only. Please set a password first.",
+          });
+        }
+
+        // Check if old password matches the stored hashed password
+        const doesOldPasswordMatch = await bcrypt.compare(
+          oldPassword,
+          user.password
+        );
+        if (!doesOldPasswordMatch)
+          return res.status(400).json({
+            message: "Your current password is incorrect.",
+          });
+
+        // Check if new password matches the stored hashed password
+        const doesNewPasswordMatch = await bcrypt.compare(
+          newPassword,
+          user.password
+        );
+        if (doesNewPasswordMatch)
+          return res.status(401).json({
+            message: "Your current and new passwords cannot be same.",
+          });
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update the password in MongoDB
+        const result = await customerListCollection.updateOne(
+          { email },
+          { $set: { password: hashedPassword } }
+        );
+
+        if (result.modifiedCount > 0) {
+          return res.json({
+            success: true,
+            message: "Password updated successfully.",
+          });
+        } else {
+          return res.status(400).json({
+            message: "Failed to update password. Please try again.",
+          });
+        }
+      } catch (error) {
+        console.error("Error changing password:", error);
+        res.status(500).json({
+          message: "Something went wrong. Please try again.",
+        });
+      }
+    });
+
+    // Send password reset email
+    app.put("/request-password-reset", async (req, res) => {
+      const { email } = req.body;
+
+      if (!email) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Email is required." });
+      }
+
+      try {
+        const userData = await customerListCollection.findOne({ email });
+
+        if (!userData) {
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found." });
+        }
+
+        // Generate token and expiry time
+        const token = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(token)
+          .digest("hex");
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // Expires in 30 mins
+
+        const result = await customerListCollection.updateOne(
+          { email },
+          {
+            $set: {
+              passwordReset: {
+                token: hashedToken,
+                expiresAt: expiresAt,
+              },
+            },
+          }
+        );
+
+        if (!result.modifiedCount)
+          return res.status(500).json({
+            success: false,
+            message: "Failed to create a token for password reset.",
+          });
+
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+        const fullName = userData?.userInfo?.personalInfo?.customerName;
+
+        const mailResult = await transport.sendMail({
+          from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "Reset Password for F-commerce",
+          text: `Hello ${fullName},
+            
+              You have requested to reset your F-commerce password for your ${email} account. Please use the button below to reset your password:
+            
+              Reset Link: ${resetLink}
+            
+              Please note that this is valid for **30 minutes**. If you didn't ask to reset your password, you can safely ignore this email.
+            
+              Thanks,  
+              F-commerce Team`,
+          html: `
+              <!DOCTYPE html>
+              <html lang="en">
+                <head>
+                  <meta charset="UTF-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                  <link
+                    href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap"
+                    rel="stylesheet"
+                  />
+                </head>
+                <body style="font-family: 'Oxygen', sans-serif; margin: 0; padding: 0">
+                  <div
+                    style="
+                      width: 100%;
+                      max-width: 600px;
+                      margin: 0 auto;
+                      background-color: #ffffff;
+                      border-radius: 14px;
+                      border: 1px solid #dfdfdf;
+                      padding: 32px;
+                    "
+                  >
+                    <div
+                      style="
+                        text-align: center;
+                        border-bottom: 1px solid #dfdfdf;
+                        height: fit-content;
+                      "
+                    >
+                      <h2
+                        style="
+                          color: #404040;
+                          font-size: 1.5rem;
+                          margin: 0;
+                          padding-bottom: 10px;
+                        "
+                      >
+                        Reset Password for Fashion Commerce
+                      </h2>
+                    </div>
+                    <div>
+                      <p
+                        style="
+                          color: #525252;
+                          font-size: 1rem;
+                          line-height: 1.6;
+                          padding-top: 10px;
+                        "
+                      >
+                        Hello ${fullName},
+                      </p>
+                      <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                        You have requested to reset your F-commerce password for your
+                        <a href="mailto:${email}" style="color: #4d8944"
+                          >${email}</a
+                        >
+                        account. Please use the button below to reset your password:
+                      </p>
+                      <table
+                        role="presentation"
+                        width="100%"
+                        cellspacing="0"
+                        cellpadding="0"
+                        border="0"
+                      >
+                        <tr>
+                          <td align="center">
+                            <a
+                              href="${resetLink}"
+                              style="
+                                display: inline-block;
+                                font-size: 0.825rem;
+                                font-weight: 700;
+                                color: #404040;
+                                background-color: #d4ffce;
+                                padding: 12px 30px;
+                                text-decoration: none;
+                                border-radius: 8px;
+                                margin-top: 12px;
+                                margin-bottom: 24px;
+                              "
+                              >Reset Password</a
+                            >
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                        Please note that this is valid for <strong>30 minutes</strong>. If you
+                        didn't ask to reset your password, you can safely ignore this email.
+                      </p>
+                    </div>
+                    <div
+                      style="
+                        text-align: center;
+                        padding-top: 10px;
+                        font-size: 0.825rem;
+                        color: #737373;
+                      "
+                    >
+                      <p>
+                        Best Regards,<span style="display: block; margin-top: 2px"
+                          >Fashion Commerce Team</span
+                        >
+                      </p>
+                    </div>
+                  </div>
+                </body>
+              </html>`,
+        });
+
+        // Check if email was sent successfully
+        if (
+          mailResult &&
+          mailResult.accepted &&
+          mailResult.accepted.length > 0
+        ) {
+          return res.status(200).json({
+            success: true,
+            message: "Password reset email sent successfully.",
+          });
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to send password reset email.",
+          });
+        }
+      } catch (error) {
+        console.error("Error while requesting for password reset:", error);
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong. Please try again.",
+          error: error.message,
+        });
+      }
+    });
+
+    // Validate token for password reset
+    app.put("/validate-reset-token", async (req, res) => {
+      const { token } = req.body;
+
+      if (!token) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Your token is invalid token." });
+      }
+
+      try {
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(token)
+          .digest("hex");
+
+        const user = await customerListCollection.findOne({
+          "passwordReset.token": hashedToken,
+          "passwordReset.expiresAt": { $gt: new Date() },
+        });
+
+        if (!user) {
+          await customerListCollection.updateOne(
+            { "passwordReset.token": hashedToken },
+            { $unset: { passwordReset: "" } }
+          );
+
+          return res.status(400).json({
+            success: false,
+            message: "Your token is either invalid or it has been expired.",
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Token is valid.",
+          email: user.email,
+        });
+      } catch (error) {
+        console.error("Error validating reset token:", error);
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong.",
+          error: error.message,
+        });
+      }
+    });
+
+    // Reset user password
+    app.put("/reset-password", async (req, res) => {
+      const { token, newPassword } = req.body;
+
+      if (!token)
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid token." });
+
+      if (!newPassword) {
+        return res
+          .status(400)
+          .json({ success: false, message: "New password are required." });
+      }
+
+      try {
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(token)
+          .digest("hex");
+
+        const user = await customerListCollection.findOne({
+          "passwordReset.token": hashedToken,
+          "passwordReset.expiresAt": { $gt: new Date() },
+        });
+
+        if (!user) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid or expired token." });
+        }
+
+        // Hash the new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Reset password and remove token
+        const result = await customerListCollection.updateOne(
+          { email: user.email },
+          {
+            $set: { password: hashedPassword },
+            $unset: { passwordReset: "" },
+          }
+        );
+
+        if (result.modifiedCount > 0) {
+          return res.status(200).json({
+            success: true,
+            message: "Password reset successfully.",
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "Failed to reset password. Please try again.",
+          });
+        }
+      } catch (error) {
+        console.error("Error resetting password:", error);
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong.",
+          error: error.message,
+        });
+      }
+    });
+
     // Change Password Endpoint
     app.put("/change-password", async (req, res) => {
       try {
