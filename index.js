@@ -58,6 +58,11 @@ async function run() {
     const heroBannerCollection = client.db("fashion-commerce").collection("hero-banner");
     const newsletterCollection = client.db("fashion-commerce").collection("news-letter");
     const enrollmentCollection = client.db("fashion-commerce").collection("enrollment-admin-staff");
+    const termsNConditionCollection = client.db("fashion-commerce").collection("terms-and-conditions");
+    const privacyPolicyCollection = client.db("fashion-commerce").collection("privacy-policy");
+    const refundPolicyCollection = client.db("fashion-commerce").collection("refund-policy");
+    const shippingPolicyCollection = client.db("fashion-commerce").collection("shipping-policy");
+    const returnPolicyCollection = client.db("fashion-commerce").collection("return-policy");
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -3479,6 +3484,336 @@ async function run() {
       } catch (error) {
         console.error("Error deleting newsletter:", error);
         res.status(500).send({ message: "Failed to delete newsletter", error: error.message });
+      }
+    });
+
+    // add terms and conditions
+    app.post("/add-terms-conditions", async (req, res) => {
+      try {
+        const conditions = req.body; // Should be an array
+        const result = await termsNConditionCollection.insertOne(conditions);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding terms and conditions:', error);
+        res.status(500).send({ error: 'Failed to add terms and conditions' }); // Send 500 status on error
+      }
+    });
+
+    // get all terms and conditions
+    app.get("/all-terms-conditions", async (req, res) => {
+      try {
+        const result = await termsNConditionCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching terms and conditions:", error);
+        res.status(500).send({ message: "Failed to fetch terms and conditions", error: error.message });
+      }
+    });
+
+    //update a single terms and conditions
+    app.put("/update-terms-conditions/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const conditions = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedTermsNConditions = {
+          $set: {
+            ...conditions
+          }
+        };
+
+        const result = await termsNConditionCollection.updateOne(filter, updatedTermsNConditions);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "terms and conditions not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating terms and conditions:", error);
+        res.status(500).send({ message: "Failed to update terms and conditions", error: error.message });
+      }
+    });
+
+    // get single terms and conditions
+    app.get("/get-single-terms-conditions/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await termsNConditionCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "terms and conditions not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching terms and conditions:", error);
+        res.status(500).send({ message: "Failed to fetch terms and conditions", error: error.message });
+      }
+    });
+
+    // add privacy policy
+    app.post("/add-privacy-policy", async (req, res) => {
+      try {
+        const policies = req.body; // Should be an array
+        const result = await privacyPolicyCollection.insertOne(policies);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding privacy policy:', error);
+        res.status(500).send({ error: 'Failed to add privacy policy' }); // Send 500 status on error
+      }
+    });
+
+    // get all privacy policy
+    app.get("/all-privacy-policies", async (req, res) => {
+      try {
+        const result = await privacyPolicyCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching privacy policy:", error);
+        res.status(500).send({ message: "Failed to fetch privacy policy", error: error.message });
+      }
+    });
+
+    //update a single privacy policy
+    app.put("/update-privacy-policies/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const policies = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedPrivacyPolicies = {
+          $set: {
+            ...policies
+          }
+        };
+
+        const result = await privacyPolicyCollection.updateOne(filter, updatedPrivacyPolicies);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "privacy policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating privacy policy:", error);
+        res.status(500).send({ message: "Failed to update privacy policy", error: error.message });
+      }
+    });
+
+    // get single privacy policy
+    app.get("/get-single-privacy-policy/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await privacyPolicyCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "privacy policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching privacy policy:", error);
+        res.status(500).send({ message: "Failed to fetch privacy policy", error: error.message });
+      }
+    });
+
+    // add refund policy
+    app.post("/add-refund-policy", async (req, res) => {
+      try {
+        const policies = req.body; // Should be an array
+        const result = await refundPolicyCollection.insertOne(policies);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding refund policy:', error);
+        res.status(500).send({ error: 'Failed to add refund policy' }); // Send 500 status on error
+      }
+    });
+
+    // get all refund policy
+    app.get("/all-refund-policies", async (req, res) => {
+      try {
+        const result = await refundPolicyCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching refund policy:", error);
+        res.status(500).send({ message: "Failed to fetch refund policy", error: error.message });
+      }
+    });
+
+    //update a single refund policy
+    app.put("/update-refund-policies/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const policies = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedRefundPolicies = {
+          $set: {
+            ...policies
+          }
+        };
+
+        const result = await refundPolicyCollection.updateOne(filter, updatedRefundPolicies);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "refund policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating refund policy:", error);
+        res.status(500).send({ message: "Failed to update refund policy", error: error.message });
+      }
+    });
+
+    // get single refund policy
+    app.get("/get-single-refund-policy/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await refundPolicyCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "refund policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching refund policy:", error);
+        res.status(500).send({ message: "Failed to fetch refund policy", error: error.message });
+      }
+    });
+
+    // add shipping policy
+    app.post("/add-shipping-policy", async (req, res) => {
+      try {
+        const policies = req.body; // Should be an array
+        const result = await shippingPolicyCollection.insertOne(policies);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding shipping policy:', error);
+        res.status(500).send({ error: 'Failed to add shipping policy' }); // Send 500 status on error
+      }
+    });
+
+    // get all shipping policy
+    app.get("/all-shipping-policies", async (req, res) => {
+      try {
+        const result = await shippingPolicyCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching shipping policy:", error);
+        res.status(500).send({ message: "Failed to fetch shipping policy", error: error.message });
+      }
+    });
+
+    //update a single shipping policy
+    app.put("/update-shipping-policies/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const policies = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedShippingPolicies = {
+          $set: {
+            ...policies
+          }
+        };
+
+        const result = await shippingPolicyCollection.updateOne(filter, updatedShippingPolicies);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "shipping policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating shipping policy:", error);
+        res.status(500).send({ message: "Failed to update shipping policy", error: error.message });
+      }
+    });
+
+    // get single shipping policy
+    app.get("/get-single-shipping-policy/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await shippingPolicyCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "shipping policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching shipping policy:", error);
+        res.status(500).send({ message: "Failed to fetch shipping policy", error: error.message });
+      }
+    });
+
+    // add return policy
+    app.post("/add-return-policy", async (req, res) => {
+      try {
+        const policies = req.body; // Should be an array
+        const result = await returnPolicyCollection.insertOne(policies);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding return policy:', error);
+        res.status(500).send({ error: 'Failed to add return policy' }); // Send 500 status on error
+      }
+    });
+
+    // get all return policy
+    app.get("/all-return-policies", async (req, res) => {
+      try {
+        const result = await returnPolicyCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching return policy:", error);
+        res.status(500).send({ message: "Failed to fetch return policy", error: error.message });
+      }
+    });
+
+    //update a single return policy
+    app.put("/update-return-policies/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const policies = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedReturnPolicies = {
+          $set: {
+            ...policies
+          }
+        };
+
+        const result = await returnPolicyCollection.updateOne(filter, updatedReturnPolicies);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "return policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating return policy:", error);
+        res.status(500).send({ message: "Failed to update return policy", error: error.message });
+      }
+    });
+
+    // get single return policy
+    app.get("/get-single-return-policy/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await returnPolicyCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "return policy not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching return policy:", error);
+        res.status(500).send({ message: "Failed to fetch return policy", error: error.message });
       }
     });
 
