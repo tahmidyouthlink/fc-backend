@@ -63,6 +63,8 @@ async function run() {
     const refundPolicyCollection = client.db("fashion-commerce").collection("refund-policy");
     const shippingPolicyCollection = client.db("fashion-commerce").collection("shipping-policy");
     const returnPolicyCollection = client.db("fashion-commerce").collection("return-policy");
+    const faqCollection = client.db("fashion-commerce").collection("faqs");
+    const ourStoryCollection = client.db("fashion-commerce").collection("our-story");
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -362,96 +364,96 @@ async function run() {
 
             Best Regards,  
             Fashion Commerce Team`,
-            html: `
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Invitation - Fashion Commerce</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f7f7f7;
-          }
-          .container {
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #dcdcdc; /* Added border */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-          }
-          .header {
-            text-align: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-          }
-          .header h1 {
-            margin: 0;
-            color: #007bff;
-          }
-          .content {
-            padding: 20px;
-          }
-          .content p {
-            font-size: 16px;
-            line-height: 1.6;
-          }
-          .cta-button {
-            display: inline-block;
-            font-size: 16px;
-            font-weight: bold;
-            color: #4B5563;
-            background-color: #d4ffce; /* Updated button background */
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 20px;
-            border: 1px solid #d4ffce; /* Button border */
-          }
-          .cta-button:hover {
-            background-color: #a3f0a3; /* Hover effect */
-            border: 1px solid #a3f0a3;
-          }
-          .footer {
-            text-align: center;
-            padding-top: 20px;
-            font-size: 14px;
-            color: #888;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Welcome to Fashion Commerce!</h1>
-          </div>
-          <div class="content">
-            <p>Hello <strong>${fullName}</strong>,</p>
-            <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "admin" ? "an Admin" : "a Staff member"}</strong>. To accept this invitation, create <strong>${role === "admin" ? "an Admin" : "a Staff"}</strong> account:</p>
-             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-             <tr>
-              <td align="center">
-                 <a href="${magicLink}" class="cta-button">Create account</a>
-              </td>
-             </tr>
-            </table>
+            html: `<!DOCTYPE html>
+                  <html lang="en">
+                  <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Invitation - Fashion Commerce</title>
+                  <style>
+                  body {
+                  font-family: Arial, sans-serif;
+                  margin: 0;
+                  padding: 0;
+                  background-color: #f7f7f7;
+                }
+                .container {
+                  width: 100%;
+                  max-width: 600px;
+                  margin: 0 auto;
+                  background-color: #ffffff;
+                  padding: 20px;
+                  border-radius: 10px;
+                  border: 1px solid #dcdcdc; /* Added border */
+                  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                }
+                .header {
+                  text-align: center;
+                  padding-bottom: 20px;
+                  border-bottom: 1px solid #ddd;
+                }
+                .header h1 {
+                  margin: 0;
+                  color: #007bff;
+                }
+                .content {
+                  padding: 20px;
+                }
+                .content p {
+                  font-size: 16px;
+                  line-height: 1.6;
+                }
+                .cta-button {
+                  display: inline-block;
+                  font-size: 16px;
+                  font-weight: bold;
+                  color: #4B5563;
+                  background-color: #d4ffce; /* Updated button background */
+                  padding: 12px 30px;
+                  text-decoration: none;
+                  border-radius: 5px;
+                  margin-top: 20px;
+                  border: 1px solid #d4ffce; /* Button border */
+                }
+                .cta-button:hover {
+                  background-color: #a3f0a3; /* Hover effect */
+                  border: 1px solid #a3f0a3;
+                }
+                .footer {
+                  text-align: center;
+                  padding-top: 20px;
+                  font-size: 14px;
+                  color: #888;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>Welcome to Fashion Commerce!</h1>
+              </div>
+                <div class="content">
+                  <p>Hello <strong>${fullName}</strong>,</p>
+                  <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "Owner"
+                ? "an Owner" : role === "Editor" ? "an Editor" : "a Viewer"}</strong>. To accept this invitation, create <strong>${role === "Owner" ? "an Owner" : role === "Editor" ? "an Editor" : "a Viewer"}</strong> account:</p>
+                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                   <tr>
+                    <td align="center">
+                       <a href="${magicLink}" class="cta-button">Create account</a>
+                    </td>
+                   </tr>
+                  </table>
 
-            <p>If you weren't expecting this invitation, you can ignore this email.</p>
-            <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong>.</p>
+                  <p>If you weren't expecting this invitation, you can ignore this email.</p>
+                  <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong>.</p>
             
-          </div>
-          <div class="footer">
-            <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
-          </div>
-        </div>
-        </body>
-        </html>`
+                </div>
+                <div class="footer">
+                  <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+                </div>
+              </div>
+              </body>
+              </html>`
           });
 
           // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
@@ -1287,6 +1289,24 @@ async function run() {
       } catch (error) {
         console.error("Error changing password:", error);
         res.status(500).json({ message: "Something went wrong on our end. Please try again later." });
+      }
+    });
+
+    // delete single user
+    app.delete("/delete-existing-user/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await enrollmentCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        res.status(500).send({ message: "Failed to delete user", error: error.message });
       }
     });
 
@@ -3814,6 +3834,72 @@ async function run() {
       } catch (error) {
         console.error("Error fetching return policy:", error);
         res.status(500).send({ message: "Failed to fetch return policy", error: error.message });
+      }
+    });
+
+    // add faq
+    app.post("/add-faq", async (req, res) => {
+      try {
+        const faqData = req.body; // Should be an array
+        const result = await faqCollection.insertOne(faqData);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding faq:', error);
+        res.status(500).send({ error: 'Failed to add faq' }); // Send 500 status on error
+      }
+    });
+
+    // get all faq
+    app.get("/all-faqs", async (req, res) => {
+      try {
+        const result = await faqCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching faq:", error);
+        res.status(500).send({ message: "Failed to fetch faq", error: error.message });
+      }
+    });
+
+    //update a single faq
+    app.put("/update-faqs/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const faqData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedFAQSData = {
+          $set: {
+            ...faqData
+          }
+        };
+
+        const result = await faqCollection.updateOne(filter, updatedFAQSData);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "faq not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating faq:", error);
+        res.status(500).send({ message: "Failed to update faq", error: error.message });
+      }
+    });
+
+    // get single faq
+    app.get("/get-single-faq/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await faqCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "faq not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching faq:", error);
+        res.status(500).send({ message: "Failed to fetch faq", error: error.message });
       }
     });
 
