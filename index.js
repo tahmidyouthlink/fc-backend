@@ -661,6 +661,33 @@ async function run() {
       }
     });
 
+    app.put("/update-user-permissions/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const query = { _id: new ObjectId(id) };
+        const { role, permissions } = req.body;
+
+        const updatedUserPermissions = {
+          $set: {
+            role,
+            permissions
+          }
+        };
+
+        const result = await enrollmentCollection.updateOne(query, updatedUserPermissions);
+
+        if (result.modifiedCount > 0) {
+          res.send({ success: true, message: "User permissions updated successfully" });
+        } else {
+          res.send({ success: false, message: "No changes were made to user permissions" });
+        }
+
+      } catch (error) {
+        console.error("Error updating user permission:", error);
+        res.status(500).send({ message: "Failed to update user permission", error: error.message });
+      }
+    })
+
     // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", async (req, res) => {
       const { emailOrUsername, password, otp } = req.body;
