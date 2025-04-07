@@ -65,6 +65,7 @@ async function run() {
     const returnPolicyCollection = client.db("fashion-commerce").collection("return-policy");
     const faqCollection = client.db("fashion-commerce").collection("faqs");
     const ourStoryCollection = client.db("fashion-commerce").collection("our-story");
+    const topHeaderCollection = client.db("fashion-commerce").collection("top-header");
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -3927,6 +3928,54 @@ async function run() {
       } catch (error) {
         console.error("Error fetching faq:", error);
         res.status(500).send({ message: "Failed to fetch faq", error: error.message });
+      }
+    });
+
+    // add top header
+    app.post("/add-top-header", async (req, res) => {
+      try {
+        const headerData = req.body; // Should be an array
+        const result = await topHeaderCollection.insertOne(headerData);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding top header:', error);
+        res.status(500).send({ error: 'Failed to add top header' }); // Send 500 status on error
+      }
+    });
+
+    // all header collection
+    app.get("/get-all-header-collection", async (req, res) => {
+      try {
+        const result = await topHeaderCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching header collection:", error);
+        res.status(500).send({ message: "Failed to fetch header collection", error: error.message });
+      }
+    });
+
+    //update a TOP HEADER Collection
+    app.put("/update-top-header/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const topHeaderData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedTopHeaderData = {
+          $set: {
+            ...topHeaderData
+          }
+        };
+
+        const result = await topHeaderCollection.updateOne(filter, updatedTopHeaderData);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "top header not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating top header:", error);
+        res.status(500).send({ message: "Failed to update top header", error: error.message });
       }
     });
 
