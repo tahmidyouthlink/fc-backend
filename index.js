@@ -820,6 +820,147 @@ async function run() {
       }
     });
 
+    // Send contact email
+    app.post("/contact", async (req, res) => {
+      const { name, email, phone, topic, message } = req.body;
+
+
+      if (!name || !email || !phone || !topic || !message) {
+        return res.status(400).json({
+          success: false,
+          message: "Required fields are not filled up.",
+        });
+      }
+
+
+      try {
+        const mailResult = await transport.sendMail({
+          from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+          to: "rahilbinmushfiq@gmail.com", // Need to change it to admin email(s)
+          subject: `Contact Request from ${name.split(" ")[0]} — "${topic}"`,
+          text: `Contact Request for Fashion Commerce
+
+
+          Name: ${name}
+          Email: ${email}
+          Mobile Number: ${phone}
+          Topic: ${topic}
+          Message:
+          ${message}
+
+
+          This message was sent via the Fashion Commerce contact form. Please respond to it at your earliest convenience.
+
+
+          — Fashion Commerce Contact System`,
+          html: `
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <link
+                href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap"
+                rel="stylesheet"
+              />
+            </head>
+            <body style="font-family: 'Oxygen', sans-serif; margin: 0; padding: 0">
+              <div
+                style="
+                  width: 100%;
+                  max-width: 600px;
+                  margin: 0 auto;
+                  background-color: #ffffff;
+                  border-radius: 14px;
+                  border: 1px solid #dfdfdf;
+                  padding: 32px;
+                "
+              >
+                <div style="text-align: center; border-bottom: 1px solid #dfdfdf">
+                  <h2
+                    style="
+                      color: #404040;
+                      font-size: 1.5rem;
+                      margin: 0;
+                      padding-bottom: 10px;
+                    "
+                  >
+                    Contact Request for Fashion Commerce
+                  </h2>
+                </div>
+                <div style="padding-top: 20px">
+                  <p style="color: #525252; font-size: 1rem; margin: 0 0 8px">
+                    <strong>Name:</strong> ${name}
+                  </p>
+                  <p style="color: #525252; font-size: 1rem; margin: 0 0 8px">
+                    <strong>Email:</strong>
+                    <a href="mailto:${email}" style="color: #4d8944"
+                      >${email}</a
+                    >
+                  </p>
+                  <p style="color: #525252; font-size: 1rem; margin: 0 0 8px">
+                    <strong>Mobile Number:</strong> ${phone}
+                  </p>
+                  <p style="color: #525252; font-size: 1rem; margin: 0 0 8px">
+                    <strong>Topic:</strong> ${topic}
+                  </p>
+                  <div>
+                    <p style="color: #525252; font-size: 1rem; margin: 0">
+                      <strong>Message:</strong>
+                    </p>
+                    <p
+                      style="
+                        color: #404040;
+                        background-color: #f8f8f8;
+                        padding: 24px;
+                        border-radius: 8px;
+                        font-size: 1rem;
+                      "
+                    >
+                      ${message}
+                    </p>
+                  </div>
+                </div>
+                <p style="margin-top: 36px; font-size: 0.825rem; color: #737373">
+                  This message was sent via the Fashion Commerce contact form. Please
+                  respond to it at your earliest convenience.
+                </p>
+                <p style="font-size: 0.825rem; color: #737373">
+                  — Fashion Commerce Contact System
+                </p>
+              </div>
+            </body>
+          </html>
+          `,
+        });
+
+
+        // Check if email was sent successfully
+        if (
+          mailResult &&
+          mailResult.accepted &&
+          mailResult.accepted.length > 0
+        ) {
+          return res.status(200).json({
+            success: true,
+            message: "Submitted successfully. We'll contact you soon.",
+          });
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to submit. Please try again.",
+          });
+        }
+      } catch (error) {
+        console.error("Error while sending contact form email:", error);
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong. Please try again.",
+          error: error.message,
+        });
+      }
+    });
+
     // frontend log in via nextAuth
     app.post("/customer-login", async (req, res) => {
 
