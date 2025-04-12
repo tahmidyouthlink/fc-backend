@@ -691,7 +691,7 @@ async function run() {
 
     // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", async (req, res) => {
-      const { emailOrUsername, password, otp } = req.body;
+      const { emailOrUsername, password, otp, isOtpShouldNotSend } = req.body;
 
       try {
         // Find user by email OR username
@@ -710,6 +710,13 @@ async function run() {
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
           return res.status(401).json({ message: "Incorrect password. Please try again." });
+        }
+
+        // ✅ If OTP should not be sent (trusted device), log in directly
+        if (isOtpShouldNotSend === "true" && otp === "") {
+          return res.json({
+            _id: user._id.toString(),
+          });
         }
 
         // If OTP is not provided, generate OTP and send email.
@@ -766,11 +773,6 @@ async function run() {
 
           return res.json({
             _id: user._id.toString(),
-            email: user.email,
-            username: user.username,
-            role: user.role,
-            dob: user.dob,
-            fullName: user.fullName
           });
         }
       } catch (error) {
