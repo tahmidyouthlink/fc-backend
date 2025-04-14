@@ -152,9 +152,9 @@ async function run() {
     app.post("/invite", async (req, res) => {
 
       try {
-        const { email, role, fullName, permissions } = req.body;
+        const { email, role, permissions } = req.body;
 
-        if (!email || !role || !fullName || !permissions) {
+        if (!email || !role || !permissions) {
           return res.status(400).json({ success: false, message: "All fields are required!" });
         }
 
@@ -179,7 +179,7 @@ async function run() {
                 from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
                 to: email,
                 subject: "You're Invited to Join Fashion Commerce",
-                text: `Hello ${fullName},
+                text: `Hello ${email},
     
                 You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
     
@@ -275,7 +275,7 @@ async function run() {
                 <h1>Welcome to Fashion Commerce!</h1>
               </div>
               <div class="content">
-                <p>Hello <strong>${fullName}</strong>,</p>
+                <p>Hello <strong>${email}</strong>,</p>
                 <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "admin" ? "an Admin" : "a Staff member"}</strong>. To accept this invitation, create <strong>${role === "admin" ? "an Admin" : "a Staff"}</strong> account:</p>
                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                  <tr>
@@ -339,7 +339,7 @@ async function run() {
             from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "You're Invited to Join Fashion Commerce",
-            text: `Hello ${fullName},
+            text: `Hello ${email},
 
             You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
 
@@ -434,7 +434,7 @@ async function run() {
                   <h1>Welcome to Fashion Commerce!</h1>
               </div>
                 <div class="content">
-                  <p>Hello <strong>${fullName}</strong>,</p>
+                  <p>Hello <strong>${email}</strong>,</p>
                   <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "Owner"
                 ? "an Owner" : role === "Editor" ? "an Editor" : "a Viewer"}</strong>. To accept this invitation, create <strong>${role === "Owner" ? "an Owner" : role === "Editor" ? "an Editor" : "a Viewer"}</strong> account:</p>
                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -462,7 +462,6 @@ async function run() {
             // If email was sent successfully, insert data into MongoDB
             const result = await enrollmentCollection.insertOne({
               email,
-              fullName,
               role,
               permissions,
               hashedToken,
@@ -606,11 +605,20 @@ async function run() {
     app.patch("/complete-setup/:email", async (req, res) => {
       try {
         const { email } = req.params; // Get email from URL parameter
-        const { username, dob, password } = req.body; // Get username, dob, and password from request body
+        const { username, dob, password, fullName } = req.body; // Get username, dob, and password from request body
 
         // Validate if all required fields are provided
-        if (!username || !dob || !password) {
-          return res.status(400).json({ error: "Username, date of birth, and password are required." });
+        if (!username) {
+          return res.status(400).json({ error: "Username is required." });
+        }
+        else if (!dob) {
+          return res.status(400).json({ error: "Date of Birth is required." });
+        }
+        else if (!password) {
+          return res.status(400).json({ error: "Password is required." });
+        }
+        else if (!fullName) {
+          return res.status(400).json({ error: "Full Name is required." });
         }
 
         // Hash the password before storing it in the database
@@ -636,6 +644,7 @@ async function run() {
           {
             $set: {
               username,
+              fullName,
               dob,
               password: hashedPassword,
               isSetupComplete: true
@@ -691,7 +700,7 @@ async function run() {
 
     // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", async (req, res) => {
-      const { emailOrUsername, password, otp, isOtpShouldNotSend } = req.body;
+      const { emailOrUsername, password, otp } = req.body;
 
       try {
         // Find user by email OR username
@@ -713,11 +722,11 @@ async function run() {
         }
 
         // ✅ If OTP should not be sent (trusted device), log in directly
-        if (isOtpShouldNotSend === "true" && otp === "") {
-          return res.json({
-            _id: user._id.toString(),
-          });
-        }
+        // if (isOtpShouldNotSend === "true" && otp === "") {
+        //   return res.json({
+        //     _id: user._id.toString(),
+        //   });
+        // }
 
         // If OTP is not provided, generate OTP and send email.
         if (otp === "") {
