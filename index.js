@@ -152,10 +152,13 @@ async function run() {
     app.post("/invite", async (req, res) => {
 
       try {
-        const { email, role, permissions } = req.body;
+        const { email, permissions } = req.body;
 
-        if (!email || !role || !permissions) {
-          return res.status(400).json({ success: false, message: "All fields are required!" });
+        if (!email) {
+          return res.status(400).json({ success: false, message: "Email is required!" });
+        }
+        else if (!permissions) {
+          return res.status(400).json({ success: false, message: "Permissions are required!" });
         }
 
         // Check if the email already exists
@@ -181,7 +184,7 @@ async function run() {
                 subject: "You're Invited to Join Fashion Commerce",
                 text: `Hello ${email},
     
-                You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
+                You have been invited to join Fashion Commerce. Please use the link below to complete your setup:
     
     
     
@@ -276,7 +279,7 @@ async function run() {
               </div>
               <div class="content">
                 <p>Hello <strong>${email}</strong>,</p>
-                <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "admin" ? "an Admin" : "a Staff member"}</strong>. To accept this invitation, create <strong>${role === "admin" ? "an Admin" : "a Staff"}</strong> account:</p>
+                <p>You are invited to join <strong>Fashion Commerce</strong>. To accept this invitation, create account:</p>
                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                  <tr>
                   <td align="center">
@@ -341,7 +344,7 @@ async function run() {
             subject: "You're Invited to Join Fashion Commerce",
             text: `Hello ${email},
 
-            You have been invited to join Fashion Commerce as a ${role}. Please use the link below to complete your setup:
+            You have been invited to join Fashion Commerce. Please use the link below to complete your setup:
 
 
 
@@ -435,8 +438,7 @@ async function run() {
               </div>
                 <div class="content">
                   <p>Hello <strong>${email}</strong>,</p>
-                  <p>You are invited to join <strong>Fashion Commerce</strong> as <strong>${role === "Owner"
-                ? "an Owner" : role === "Editor" ? "an Editor" : "a Viewer"}</strong>. To accept this invitation, create <strong>${role === "Owner" ? "an Owner" : role === "Editor" ? "an Editor" : "a Viewer"}</strong> account:</p>
+                  <p>You are invited to join <strong>Fashion Commerce</strong>. To accept this invitation, create account:</p>
                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                    <tr>
                     <td align="center">
@@ -462,7 +464,6 @@ async function run() {
             // If email was sent successfully, insert data into MongoDB
             const result = await enrollmentCollection.insertOne({
               email,
-              role,
               permissions,
               hashedToken,
               expiresAt,
