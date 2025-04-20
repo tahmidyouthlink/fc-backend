@@ -676,11 +676,10 @@ async function run() {
       try {
         const { id } = req.params;
         const query = { _id: new ObjectId(id) };
-        const { role, permissions } = req.body;
+        const { permissions } = req.body;
 
         const updatedUserPermissions = {
           $set: {
-            role,
             permissions
           }
         };
