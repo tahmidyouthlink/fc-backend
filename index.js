@@ -66,6 +66,7 @@ async function run() {
     const faqCollection = client.db("fashion-commerce").collection("faqs");
     const ourStoryCollection = client.db("fashion-commerce").collection("our-story");
     const topHeaderCollection = client.db("fashion-commerce").collection("top-header");
+    const availabilityNotifications = client.db("fashion-commerce").collection("availability-notifications");
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -1664,6 +1665,106 @@ async function run() {
         res.status(500).send({ message: "Failed to update product details", error: error.message });
       }
     });
+
+    // POST: Add customer to product's notification list
+    app.post("/add-availability-notifications", async (req, res) => {
+      try {
+        const { productId, size, colorCode, email, quantity } = req.body;
+
+        if (!productId || !size || !colorCode || !email || !quantity) {
+          return res.status(400).send({ error: "Missing required fields" });
+        }
+
+        const existingDoc = await availabilityNotifications.findOne({
+          productId,
+          size,
+          colorCode,
+        });
+
+        if (existingDoc) {
+          const alreadyExists = existingDoc.emails.some(
+            (entry) => entry.email === email
+          );
+
+          if (alreadyExists) {
+            return res.status(409).send({ message: "Already subscribed" });
+          }
+
+          const result = await availabilityNotifications.updateOne(
+            { productId, size, colorCode },
+            {
+              $push: {
+                emails: {
+                  email,
+                  quantity,
+                  notified: false
+                },
+              },
+            }
+          );
+
+          return res.status(200).send(result);
+        } else {
+          const newEntry = {
+            productId,
+            size,
+            colorCode,
+            emails: [
+              {
+                email,
+                quantity,
+                notified: false,
+              },
+            ],
+          };
+
+          const result = await availabilityNotifications.insertOne(newEntry);
+          return res.status(201).send(result);
+        }
+      } catch (error) {
+        console.error("Error adding availability notification:", error);
+        res.status(500).send({ error: "Failed to add notification request" });
+      }
+    });
+
+    // get all availability info
+    app.get("/get-all-availability-notifications", async (req, res) => {
+      try {
+        const notifications = await availabilityNotifications.find().toArray();
+        res.send(notifications);
+      } catch (error) {
+        console.error("Error fetching availability info:", error);
+        res.status(500).send({ message: "Failed to fetch availability info", error: error.message });
+      }
+    });
+
+    // get single availability info
+    // app.get("/get-single-availability-notifications/:email", async (req, res) => {
+    //   try {
+    //     const email = req.params.email;
+
+    //     const notifications = await availabilityNotifications
+    //       .find({ "emails.email": email })
+    //       .project({
+    //         productId: 1,
+    //         size: 1,
+    //         colorCode: 1,
+    //         emails: {
+    //           $filter: {
+    //             input: "$emails",
+    //             as: "emailEntry",
+    //             cond: { $eq: ["$$emailEntry.email", email] },
+    //           },
+    //         },
+    //       })
+    //       .toArray();
+
+    //     res.status(200).send(notifications);
+    //   } catch (error) {
+    //     console.error("Error fetching availability notifications:", error);
+    //     res.status(500).send({ error: "Failed to fetch notifications" });
+    //   }
+    // });
 
     // post vendors
     app.post("/addVendor", async (req, res) => {
