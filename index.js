@@ -1703,7 +1703,7 @@ async function run() {
                 if (notified) continue;
 
                 // Create a cart URL with the product info
-                const cartLink = `https://fashion-commerce-pi.vercel.app/shop?productId=${productId}&color=${encodeURIComponent(colorCode)}&size=${encodeURIComponent(size)}`;
+                const cartLink = `https://fashion-commerce-pi.vercel.app/shop?productId=${productId}&colorCode=${encodeURIComponent(colorCode)}&size=${encodeURIComponent(size)}`;
 
                 try {
                   const mailResult = await transport.sendMail({
