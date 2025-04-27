@@ -1631,18 +1631,222 @@ async function run() {
       }
     });
 
-    //update a single product details
+    // update a single product details
     app.put("/editProductDetails/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const productDetails = req.body;
+        const updatedProductDetails = req.body;
         const filter = { _id: new ObjectId(id) };
-        const updateProductDetails = {
-          $set: { ...productDetails }
-        };
 
-        const result = await productInformationCollection.updateOne(filter, updateProductDetails);
-        res.send(result);
+        // 1. Fetch the current product (before update)
+        const existingProduct = await productInformationCollection.findOne(filter);
+
+        if (!existingProduct) {
+          return res.status(404).send({ message: "Product not found" });
+        }
+
+        // 2. Update the product
+        const result = await productInformationCollection.updateOne(filter, {
+          $set: { ...updatedProductDetails },
+        });
+
+        // 3. Find product variants whose sku updated from 0 ➔ >0
+        const oldVariants = existingProduct.productVariants || [];
+        const newVariants = updatedProductDetails.productVariants || [];
+
+        const updatedVariants = [];
+
+        oldVariants.forEach((oldVariant) => {
+          const matchingNewVariant = newVariants.find((newVariant) =>
+            oldVariant.color.color === newVariant.color.color &&
+            oldVariant.size === newVariant.size &&
+            oldVariant.location === newVariant.location
+          );
+
+          // console.log(matchingNewVariant, "matchingNewVariant");
+
+          if (matchingNewVariant) {
+            if (oldVariant.sku === 0 && matchingNewVariant.sku > 0) {
+              updatedVariants.push({
+                colorCode: oldVariant.color.color, // e.g., "#3B7A57"
+                size: oldVariant.size,
+                productId: id,
+              });
+            }
+          }
+        });
+
+        // console.log(updatedVariants, "updatedVariants");
+
+        if (updatedVariants.length > 0) {
+          // 4. For each updated variant, find matching availabilityNotifications
+          for (const variant of updatedVariants) {
+            const { colorCode, size, productId } = variant;
+
+            const notificationDoc = await availabilityNotifications.findOne({
+              productId: productId,
+              colorCode: colorCode,
+              size: size,
+            });
+
+            // console.log(notificationDoc, "notificationDoc");
+
+            if (notificationDoc) {
+              const emailsToNotify = notificationDoc.emails.filter(emailObj => emailObj.notified === false);
+
+              // console.log(emailsToNotify, "emailsToNotify");
+
+              for (const emailObj of emailsToNotify) {
+                const { email, notified } = emailObj;
+
+                // Skip already notified emails
+                if (notified) continue;
+
+                // Create a cart URL with the product info
+                const cartLink = `https://fashion-commerce-pi.vercel.app/shop?productId=${productId}&color=${encodeURIComponent(colorCode)}&size=${encodeURIComponent(size)}`;
+
+                try {
+                  const mailResult = await transport.sendMail({
+                    from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+                    to: email,
+                    subject: "Good news! The product you wanted is back in stock!",
+                    text: `Hello ${email},
+        
+                    The product you requested is now available!
+    
+                    🔗 Add to cart: ${cartLink}
+        
+                    If you did not expect this email, you can safely ignore this email.
+        
+                    Best Regards,  
+                    Fashion Commerce Team`,
+                    html: `<!DOCTYPE html>
+                          <html lang="en">
+                          <head>
+                          <meta charset="UTF-8">
+                          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                          <title>Invitation - Fashion Commerce</title>
+                          <style>
+                          body {
+                          font-family: Arial, sans-serif;
+                          margin: 0;
+                          padding: 0;
+                          background-color: #f7f7f7;
+                        }
+                        .container {
+                          width: 100%;
+                          max-width: 600px;
+                          margin: 0 auto;
+                          background-color: #ffffff;
+                          padding: 20px;
+                          border-radius: 10px;
+                          border: 1px solid #dcdcdc; /* Added border */
+                          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                        }
+                        .header {
+                          text-align: center;
+                          padding-bottom: 20px;
+                          border-bottom: 1px solid #ddd;
+                        }
+                        .header h1 {
+                          margin: 0;
+                          color: #007bff;
+                        }
+                        .content {
+                          padding: 20px;
+                        }
+                        .content p {
+                          font-size: 16px;
+                          line-height: 1.6;
+                        }
+                        .cta-button {
+                          display: inline-block;
+                          font-size: 16px;
+                          font-weight: bold;
+                          color: #4B5563;
+                          background-color: #d4ffce; /* Updated button background */
+                          padding: 12px 30px;
+                          text-decoration: none;
+                          border-radius: 5px;
+                          margin-top: 20px;
+                          border: 1px solid #d4ffce; /* Button border */
+                        }
+                        .cta-button:hover {
+                          background-color: #a3f0a3; /* Hover effect */
+                          border: 1px solid #a3f0a3;
+                        }
+                        .footer {
+                          text-align: center;
+                          padding-top: 20px;
+                          font-size: 14px;
+                          color: #888;
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="container">
+                        <div class="header">
+                          <h1>Welcome to Fashion Commerce!</h1>
+                      </div>
+                        <div class="content">
+                          <p>Hello <strong>${email}</strong>,</p>
+                          <p>The product you requested is now available! You can now add to cart that item :</p>
+                           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                           <tr>
+                            <td align="center">
+                               <a href="${cartLink}" class="cta-button">Add to cart</a>
+                            </td>
+                           </tr>
+                          </table>
+        
+                          <p>If you weren't expecting this email, you can ignore this email.</p>
+                    
+                        </div>
+                        <div class="footer">
+                          <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+                        </div>
+                      </div>
+                      </body>
+                      </html>`
+                  });
+
+                  // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
+                  if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
+
+                    // Update notified:true inside emails array
+                    await availabilityNotifications.updateOne(
+                      { _id: new ObjectId(notificationDoc._id), "emails.email": email },
+                      { $set: { "emails.$.notified": true } }
+                    );
+
+                    // return res.status(200).json({
+                    //   success: true,
+                    //   message: "Invitation sent successfully!",
+                    //   userData: result,
+                    //   emailStatus: mailResult,
+                    // });
+
+                  }
+
+                }
+                catch (emailError) {
+                  console.error(`Failed to send email to ${email}:`, emailError.message);
+                }
+
+              }
+            }
+
+          }
+        }
+
+        // After update
+        if (result.modifiedCount > 0) {
+          res.send({ success: true, message: "Product updated successfully", modifiedCount: result.modifiedCount });
+        } else {
+          res.send({ success: false, message: "No changes made", modifiedCount: result.modifiedCount });
+        }
+
+
       } catch (error) {
         console.error("Error updating product details:", error);
         res.status(500).send({ message: "Failed to update product details", error: error.message });
@@ -1669,9 +1873,9 @@ async function run() {
     // POST: Add customer to product's notification list
     app.post("/add-availability-notifications", async (req, res) => {
       try {
-        const { productId, size, colorCode, email, quantity } = req.body;
+        const { productId, size, colorCode, email } = req.body;
 
-        if (!productId || !size || !colorCode || !email || !quantity) {
+        if (!productId || !size || !colorCode || !email) {
           return res.status(400).send({ error: "Missing required fields" });
         }
 
@@ -1696,7 +1900,6 @@ async function run() {
               $push: {
                 emails: {
                   email,
-                  quantity,
                   notified: false
                 },
               },
@@ -1712,7 +1915,6 @@ async function run() {
             emails: [
               {
                 email,
-                quantity,
                 notified: false,
               },
             ],
