@@ -1635,7 +1635,7 @@ async function run() {
     app.put("/editProductDetails/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const updatedProductDetails = req.body;
+        const { _id, ...productDetails } = req.body;
         const filter = { _id: new ObjectId(id) };
 
         // 1. Fetch the current product (before update)
@@ -1647,12 +1647,12 @@ async function run() {
 
         // 2. Update the product
         const result = await productInformationCollection.updateOne(filter, {
-          $set: { ...updatedProductDetails },
+          $set: { ...productDetails },
         });
 
         // 3. Find product variants whose sku updated from 0 ➔ >0
         const oldVariants = existingProduct.productVariants || [];
-        const newVariants = updatedProductDetails.productVariants || [];
+        const newVariants = productDetails.productVariants || [];
 
         const updatedVariants = [];
 
@@ -1847,23 +1847,6 @@ async function run() {
         }
 
 
-      } catch (error) {
-        console.error("Error updating product details:", error);
-        res.status(500).send({ message: "Failed to update product details", error: error.message });
-      }
-    });
-
-    app.put("/editProductDetailsInventory/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const { _id, ...productDetails } = req.body;
-        const filter = { _id: new ObjectId(id) };
-        const updateProductDetails = {
-          $set: { ...productDetails }
-        };
-
-        const result = await productInformationCollection.updateOne(filter, updateProductDetails);
-        res.send(result);
       } catch (error) {
         console.error("Error updating product details:", error);
         res.status(500).send({ message: "Failed to update product details", error: error.message });
