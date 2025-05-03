@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const multer = require("multer");
+const { Storage } = require('@google-cloud/storage');
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const app = express();
@@ -16,10 +17,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 const cors = require("cors");
-const { permission } = require("process");
+const path = require("path");
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+// You can also load from a JSON key file if you're not using env vars
+const storage = new Storage({
+  projectId: process.env.PROJECT_ID,
+  keyFilename: path.join(__dirname, process.env.KEYFILENAME),
+});
+
+const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket exists
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
 app.use(express.json());
@@ -63,6 +71,7 @@ async function run() {
     const refundPolicyCollection = client.db("fashion-commerce").collection("refund-policy");
     const shippingPolicyCollection = client.db("fashion-commerce").collection("shipping-policy");
     const returnPolicyCollection = client.db("fashion-commerce").collection("return-policy");
+    const policyPagesCollection = client.db("fashion-commerce").collection("policy-pages");
     const faqCollection = client.db("fashion-commerce").collection("faqs");
     const ourStoryCollection = client.db("fashion-commerce").collection("our-story");
     const topHeaderCollection = client.db("fashion-commerce").collection("top-header");
@@ -147,6 +156,49 @@ async function run() {
       );
 
       streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    });
+
+    // Route to upload multiple PDFs
+    app.post('/upload-pdfs', upload.any(), async (req, res) => {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      try {
+        const uploadPromises = req.files.map((file) => {
+          return new Promise((resolve, reject) => {
+            const blob = bucket.file(`${Date.now()}_${file.originalname}`);
+            const blobStream = blob.createWriteStream({
+              resumable: false,
+              contentType: file.mimetype,
+              metadata: {
+                contentType: file.mimetype
+              }
+            });
+
+            blobStream.on('error', reject);
+
+            blobStream.on('finish', async () => {
+              // Set the file to be publicly accessible by default
+              await blob.acl.add({
+                entity: 'allUsers',
+                role: 'READER',
+              });
+
+              const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+              resolve(publicUrl);
+            });
+
+            blobStream.end(file.buffer);
+          });
+        });
+
+        const urls = await Promise.all(uploadPromises);
+        res.status(200).json({ urls });
+      } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: 'Failed to upload files' });
+      }
     });
 
     // Invite API (Super Admin creates an account)
@@ -1960,6 +2012,66 @@ async function run() {
       } catch (error) {
         console.error('Error adding vendors:', error);
         res.status(500).send({ error: 'Failed to add vendors' }); // Send 500 status on error
+      }
+    });
+
+    // post policy pages pdfs
+    app.post("/add-policy-pdfs", async (req, res) => {
+      try {
+        const pdfs = req.body; // Should be an array
+        const result = await policyPagesCollection.insertOne(pdfs);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error('Error adding pdfs:', error);
+        res.status(500).send({ error: 'Failed to add pdfs' }); // Send 500 status on error
+      }
+    });
+
+    // get single policy pages pdfs
+    app.get("/get-single-policy-pdfs/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await policyPagesCollection.findOne(query);
+
+        if (!result) {
+          return res.status(404).send({ message: "Policy pdfs not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Policy pdfs:", error);
+        res.status(500).send({ message: "Failed to fetch Policy pdfs", error: error.message });
+      }
+    });
+
+    // Get All Policy Pages Pdfs
+    app.get("/get-all-policy-pdfs", async (req, res) => {
+      try {
+        const result = await policyPagesCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Policy pdfs:", error);
+        res.status(500).send({ message: "Failed to fetch Policy pdfs", error: error.message });
+      }
+    });
+
+    // edit policy pages pdf
+    app.put("/edit-policy-pdfs/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const policiesData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedPoliciesPdfs = {
+          $set: { ...policiesData }
+        };
+
+        const result = await policyPagesCollection.updateOne(filter, updatedPoliciesPdfs);
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating policy pages pdfs:", error);
+        res.status(500).send({ message: "Failed to update policy pages pdfs", error: error.message });
       }
     });
 
