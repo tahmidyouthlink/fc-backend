@@ -17,12 +17,24 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 const cors = require("cors");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
+
+if (!base64Key) {
+  throw new Error('Missing GCP_SERVICE_ACCOUNT_BASE64 env variable');
+}
+
+// Convert the base64 string to JSON and store it in a temporary file
+const keyFilePath = path.join(os.tmpdir(), 'gcs-key.json');
+fs.writeFileSync(keyFilePath, Buffer.from(base64Key, 'base64').toString('utf-8'));
 
 // You can also load from a JSON key file if you're not using env vars
 const storage = new Storage({
   projectId: process.env.PROJECT_ID,
-  keyFilename: path.join(__dirname, process.env.KEYFILENAME),
+  keyFilename: keyFilePath,
 });
 
 const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket exists
