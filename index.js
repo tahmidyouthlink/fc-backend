@@ -1714,7 +1714,7 @@ async function run() {
           $set: { ...productDetails },
         });
 
-        // 3. Find product variants whose sku updated from 0 ➔ >0
+        // 3. Find product variants whose sku updated from 0 ➔ > 0
         const oldVariants = existingProduct.productVariants || [];
         const newVariants = productDetails.productVariants || [];
 
@@ -2431,9 +2431,6 @@ async function run() {
           }
         }
 
-        console.log(modifiedCount);
-
-
         // Respond with the modifiedCount
         res.status(200).send({ modifiedCount });
       } catch (error) {
@@ -2492,6 +2489,50 @@ async function run() {
         res.status(500).send(error.message);
       }
     });
+
+    app.get("/get-todays-orders", async (req, res) => {
+      try {
+
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yy = String(today.getFullYear()).slice(2); // '25'
+
+        const todayStr = `${dd}-${mm}-${yy}`; // '03-05-25'
+
+        const allOrders = await orderListCollection.find().toArray();
+
+        const todayOrders = allOrders.filter(order => {
+          if (!order.dateTime) return false;
+          return order.dateTime.startsWith(todayStr);
+        });
+
+        const pendingOrders = todayOrders.filter(order => order.orderStatus === 'Pending');
+        const processingOrders = todayOrders.filter(order => order.orderStatus === 'Processing');
+        const completedOrders = todayOrders.filter(order => order.orderStatus === 'Delivered');
+
+        const calculateSummary = (orders) => {
+          return {
+            totalOrders: orders.length,
+            totalAmount: orders.reduce((sum, order) => sum + (order.total || 0), 0),
+          };
+        };
+
+        const allSummary = calculateSummary(todayOrders);
+        const pendingSummary = calculateSummary(pendingOrders);
+        const processingSummary = calculateSummary(processingOrders);
+        const completedSummary = calculateSummary(completedOrders);
+
+        res.status(200).json({
+          all: allSummary,
+          pending: pendingSummary,
+          processing: processingSummary,
+          delivered: completedSummary
+        });
+      } catch (error) {
+        res.status(500).send(error.message);
+      }
+    })
 
     // applying pagination in orderList
     app.get("/orderList", async (req, res) => {
@@ -2640,12 +2681,13 @@ async function run() {
             continue;
           }
 
-          const matchingVariant = product?.productVariants?.find(
-            (variant) =>
+          const matchingVariant = product?.productVariants?.find((variant) => {
+            return (
               variant.size === size &&
               variant.color._id === color._id &&
               variant.location === locationName
-          );
+            );
+          });
 
           if (!matchingVariant) {
             updateResults.push({ productId, error: "Matching product variant not found" });
