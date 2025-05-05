@@ -20,6 +20,7 @@ const cors = require("cors");
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const moment = require('moment-timezone');
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -1617,27 +1618,6 @@ async function run() {
       }
     });
 
-    // POST /getProductNames
-    app.post("/getProductNames", async (req, res) => {
-      const { ids } = req.body; // array of productIds
-
-      if (!Array.isArray(ids)) {
-        return res.status(400).send({ message: "Invalid request. 'ids' should be an array." });
-      }
-
-      try {
-        const objectIds = ids.map((id) => new ObjectId(String(id)));
-        const products = await productInformationCollection
-          .find({ _id: { $in: objectIds } })
-          .project({ _id: 1, productTitle: 1 }) // or use 'name' based on your schema
-          .toArray();
-        res.send(products);
-      } catch (error) {
-        console.error("Error fetching product names:", error);
-        res.status(500).send({ message: "Failed to fetch product names", error: error.message });
-      }
-    });
-
     // Get all unique sizes
     app.get("/allSizes", async (req, res) => {
       try {
@@ -1938,6 +1918,34 @@ async function run() {
       }
     });
 
+    // POST /getProductNames
+    app.post("/getProductIds", async (req, res) => {
+      const { ids } = req.body; // array of productIds
+
+      if (!Array.isArray(ids)) {
+        return res.status(400).send({ message: "Invalid request. 'ids' should be an array." });
+      }
+
+      try {
+        const objectIds = ids.map((id) => new ObjectId(String(id)));
+        const products = await productInformationCollection
+          .find({ _id: { $in: objectIds } })
+          .project({ _id: 1, productId: 1 }) // or use 'name' based on your schema
+          .toArray();
+
+        res.send(products);
+      } catch (error) {
+        console.error("Error fetching product names:", error);
+        res.status(500).send({ message: "Failed to fetch product names", error: error.message });
+      }
+    });
+
+    // for availability info, sorting
+    const parseDate = (dateTimeString) => {
+      const [date, time] = dateTimeString.split(" | ");
+      return moment(date + " " + time, "MMM D, YYYY h:mm A").toDate();
+    };
+
     // POST: Add customer to product's notification list
     app.post("/add-availability-notifications", async (req, res) => {
       try {
@@ -1946,6 +1954,11 @@ async function run() {
         if (!productId || !size || !colorCode || !email) {
           return res.status(400).send({ error: "Missing required fields" });
         }
+
+        // Use moment-timezone to format dateTime
+        const now = moment().tz("Asia/Dhaka");
+        const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
+        const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
 
         const existingDoc = await availabilityNotifications.findOne({
           productId,
@@ -1968,8 +1981,9 @@ async function run() {
               $push: {
                 emails: {
                   email,
-                  notified: false
-                },
+                  notified: false,
+                  dateTime,
+                }
               },
             }
           );
@@ -1984,6 +1998,7 @@ async function run() {
               {
                 email,
                 notified: false,
+                dateTime,
               },
             ],
           };
