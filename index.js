@@ -1617,6 +1617,27 @@ async function run() {
       }
     });
 
+    // POST /getProductNames
+    app.post("/getProductNames", async (req, res) => {
+      const { ids } = req.body; // array of productIds
+
+      if (!Array.isArray(ids)) {
+        return res.status(400).send({ message: "Invalid request. 'ids' should be an array." });
+      }
+
+      try {
+        const objectIds = ids.map((id) => new ObjectId(String(id)));
+        const products = await productInformationCollection
+          .find({ _id: { $in: objectIds } })
+          .project({ _id: 1, productTitle: 1 }) // or use 'name' based on your schema
+          .toArray();
+        res.send(products);
+      } catch (error) {
+        console.error("Error fetching product names:", error);
+        res.status(500).send({ message: "Failed to fetch product names", error: error.message });
+      }
+    });
+
     // Get all unique sizes
     app.get("/allSizes", async (req, res) => {
       try {
