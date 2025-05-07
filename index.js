@@ -1946,6 +1946,21 @@ async function run() {
       return moment(date + " " + time, "MMM D, YYYY h:mm A").toDate();
     };
 
+    // Function to format and convert the date (24-hour system)
+    const convertToDateTime = (dateTimeString) => {
+
+      // Correct format: DD-MM-YY | HH:mm
+      const parsedDate = moment.tz(dateTimeString, "DD-MM-YY | HH:mm", true, "Asia/Dhaka");
+
+      if (!parsedDate.isValid()) {
+        console.error("Invalid date format:");
+        return null;
+      }
+
+      const isoDate = parsedDate.toISOString();
+      return isoDate;
+    }
+
     // POST: Add customer to product's notification list
     app.post("/add-availability-notifications", async (req, res) => {
       try {
@@ -1982,6 +1997,7 @@ async function run() {
                 emails: {
                   email,
                   notified: false,
+                  isRead: false,
                   dateTime,
                 }
               },
@@ -1998,6 +2014,7 @@ async function run() {
               {
                 email,
                 notified: false,
+                isRead: false,
                 dateTime,
               },
             ],
@@ -2023,33 +2040,86 @@ async function run() {
       }
     });
 
-    // get single availability info
-    // app.get("/get-single-availability-notifications/:email", async (req, res) => {
-    //   try {
-    //     const email = req.params.email;
+    app.get("/get-merged-notifications", async (req, res) => {
+      try {
+        const notifications = await availabilityNotifications.find({}).toArray();
+        const orders = await orderListCollection.find({
+          orderStatus: { $in: ["Pending", "Return Requested"] }
+        }).toArray();
 
-    //     const notifications = await availabilityNotifications
-    //       .find({ "emails.email": email })
-    //       .project({
-    //         productId: 1,
-    //         size: 1,
-    //         colorCode: 1,
-    //         emails: {
-    //           $filter: {
-    //             input: "$emails",
-    //             as: "emailEntry",
-    //             cond: { $eq: ["$$emailEntry.email", email] },
-    //           },
-    //         },
-    //       })
-    //       .toArray();
+        const notificationEntries = notifications.flatMap(doc =>
+          doc.emails.map(email => ({
+            type: "Notified",
+            email: email?.email,
+            dateTime: email.dateTime,
+            productId: doc.productId,
+            size: doc.size,
+            colorCode: doc.colorCode,
+            notified: email.notified,
+            isRead: email.isRead,
+            orderNumber: null,
+            orderStatus: null,
+          }))
+        );
 
-    //     res.status(200).send(notifications);
-    //   } catch (error) {
-    //     console.error("Error fetching availability notifications:", error);
-    //     res.status(500).send({ error: "Failed to fetch notifications" });
-    //   }
-    // });
+        const orderEntries = orders.map(order =>
+        ({
+          type: "Ordered",
+          email: order?.customerInfo?.email,
+          dateTime: convertToDateTime(order.dateTime),
+          productId: "",
+          size: null,
+          colorCode: null,
+          notified: null,
+          isRead: order.isRead || null,
+          orderNumber: order.orderNumber,
+          orderStatus: order.orderStatus
+        })
+        );
+
+        const mergedNotifications = [...notificationEntries, ...orderEntries];
+
+        // Sort by dateTime (newest first)
+        mergedNotifications.sort((a, b) => {
+          const dateA = new Date(a.dateTime);
+          const dateB = new Date(b.dateTime);
+          return dateB - dateA; // For newest first. Use dateA - dateB for oldest first
+        });
+
+        res.json(mergedNotifications);
+      } catch (error) {
+        console.error("Error merging notifications:", error);
+        res.status(500).json({ message: "Server error merging notifications." });
+      }
+    });
+
+    app.post("/mark-notification-read", async (req, res) => {
+      const { type, orderNumber, productId, dateTime, email } = req.body;
+
+      try {
+        if (type === "Ordered") {
+          await orderListCollection.updateOne(
+            { orderNumber },
+            { $set: { isRead: true } }
+          );
+        } else if (type === "Notified") {
+          await availabilityNotifications.updateOne(
+            {
+              productId,
+              "emails.email": email
+            },
+            {
+              $set: { "emails.$.isRead": true }
+            }
+          );
+        }
+
+        res.status(200).json({ message: "Notification marked as read" });
+      } catch (error) {
+        console.error("Error updating isRead:", error);
+        res.status(500).json({ message: "Failed to update notification" });
+      }
+    });
 
     // post vendors
     app.post("/addVendor", async (req, res) => {
