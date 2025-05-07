@@ -2040,8 +2040,24 @@ async function run() {
       }
     });
 
+    const hasModuleAccess = (permissionsArray, moduleName) => {
+      return permissionsArray.some(role =>
+        role.modules?.[moduleName]?.access === true
+      );
+    }
+
+    // get all notifications e,g. (products, orders)
     app.get("/get-merged-notifications", async (req, res) => {
+      const { email } = req.query;
+
+      if (!email) return res.status(400).json({ error: 'Email is required' });
+
       try {
+
+        const user = await enrollmentCollection.findOne({ email });
+
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
         const notifications = await availabilityNotifications.find({}).toArray();
         const orders = await orderListCollection.find({
           orderStatus: { $in: ["Pending", "Return Requested"] }
@@ -2086,7 +2102,19 @@ async function run() {
           return dateB - dateA; // For newest first. Use dateA - dateB for oldest first
         });
 
-        res.json(mergedNotifications);
+        // Filter based on permissions
+        const filteredNotifications = mergedNotifications.filter(notification => {
+          if (notification.type === "Notified") {
+            // Requires access to "Product Hub"
+            return hasModuleAccess(user.permissions, "Product Hub");
+          } else if (notification.type === "Ordered") {
+            // Requires access to "Orders"
+            return hasModuleAccess(user.permissions, "Orders");
+          }
+          return false; // Block unknown types
+        });
+
+        res.json(filteredNotifications);
       } catch (error) {
         console.error("Error merging notifications:", error);
         res.status(500).json({ message: "Server error merging notifications." });
