@@ -2067,7 +2067,7 @@ async function run() {
           doc.emails.map(email => ({
             type: "Notified",
             email: email?.email,
-            dateTime: email.dateTime,
+            dateTime: new Date(email.dateTime).toISOString(),
             productId: doc.productId,
             size: doc.size,
             colorCode: doc.colorCode,
