@@ -2082,12 +2082,12 @@ async function run() {
         ({
           type: "Ordered",
           email: order?.customerInfo?.email,
-          dateTime: convertToDateTime(order.dateTime),
+          dateTime: order.orderStatus === "Return Requested" ? convertToDateTime(order.returnInfo.dateTime) : convertToDateTime(order.dateTime),
           productId: "",
           size: null,
           colorCode: null,
           notified: null,
-          isRead: order.isRead || null,
+          isRead: order.orderStatus === "Return Requested" ? order.returnInfo.isRead || null : order.isRead || null,
           orderNumber: order.orderNumber,
           orderStatus: order.orderStatus
         })
@@ -2122,13 +2122,19 @@ async function run() {
     });
 
     app.post("/mark-notification-read", async (req, res) => {
-      const { type, orderNumber, productId, dateTime, email } = req.body;
+      const { type, orderNumber, productId, dateTime, email, orderStatus } = req.body;
 
       try {
-        if (type === "Ordered") {
+        if (type === "Ordered" && orderStatus === "Pending") {
           await orderListCollection.updateOne(
             { orderNumber },
             { $set: { isRead: true } }
+          );
+        }
+        else if (type === "Ordered" && orderStatus === "Return Requested") {
+          await orderListCollection.updateOne(
+            { orderNumber },
+            { $set: { "returnInfo.isRead": true } }
           );
         } else if (type === "Notified") {
           await availabilityNotifications.updateOne(
@@ -3262,6 +3268,7 @@ async function run() {
 
             // Store all shipping-related fields inside `shipmentInfo` object
             updateDoc.$set.returnInfo = returnInfo;
+            updateDoc.$set.returnInfo.isRead = false;
 
           }
 
