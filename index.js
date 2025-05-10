@@ -4,18 +4,12 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const multer = require("multer");
+const rateLimit = require('express-rate-limit');
 const { Storage } = require('@google-cloud/storage');
-const cloudinary = require("cloudinary").v2;
-const streamifier = require("streamifier");
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT | 5000;
 require("dotenv").config();
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 const cors = require("cors");
 const fs = require('fs');
 const path = require('path');
@@ -42,8 +36,18 @@ const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Create a limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true, // ✅ Adds `RateLimit-*` headers
+  legacyHeaders: false,  // ✅ Disables `X-RateLimit-*` headers (old standard)
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+});
+
 app.use(cors());
 app.use(express.json());
+app.use(limiter);
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
 
@@ -148,27 +152,44 @@ async function run() {
       }
     }
 
-    // Define route to handle file upload to cloudinary
-    app.post('/uploadFile', upload.single('attachment'), (req, res) => {
+    // Route to upload single file
+    app.post('/uploadFile', upload.single('attachment'), async (req, res) => {
       if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
+        return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      // Determine file type for Cloudinary storage type
-      const fileType = req.file.mimetype.split('/')[0];
-
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { resource_type: fileType === 'image' ? 'image' : 'raw' },
-        (error, result) => {
-          if (error) {
-            console.error('Error uploading file to Cloudinary:', error);
-            return res.status(500).json({ message: 'Cloudinary upload failed', error: error.message });
+      try {
+        const file = req.file;
+        const blob = bucket.file(`${Date.now()}_${file.originalname}`);
+        const blobStream = blob.createWriteStream({
+          resumable: false,
+          contentType: file.mimetype,
+          metadata: {
+            contentType: file.mimetype
           }
-          res.json({ fileUrl: result.secure_url });
-        }
-      );
+        });
 
-      streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+        blobStream.on('error', (err) => {
+          console.error('Upload error:', err);
+          res.status(500).json({ error: 'Failed to upload file' });
+        });
+
+        blobStream.on('finish', async () => {
+          // Make file public
+          await blob.acl.add({
+            entity: 'allUsers',
+            role: 'READER',
+          });
+
+          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+          res.status(200).json({ fileUrl: publicUrl });
+        });
+
+        blobStream.end(file.buffer);
+      } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: 'Failed to upload file' });
+      }
     });
 
     // Route to upload multiple PDFs
