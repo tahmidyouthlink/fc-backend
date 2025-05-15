@@ -7,7 +7,7 @@ const multer = require("multer");
 const rateLimit = require('express-rate-limit');
 const { Storage } = require('@google-cloud/storage');
 const app = express();
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { ObjectId } = require('mongodb');
 const port = process.env.PORT | 5000;
 require("dotenv").config();
 const cors = require("cors");
@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const moment = require('moment-timezone');
+const getCollections = require("./lib/collections");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -49,50 +50,12 @@ app.use(cors());
 app.use(express.json());
 app.use(limiter);
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
+let collections;
 
 async function run() {
   try {
-    const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
-    const orderListCollection = client.db("fashion-commerce").collection("orderList");
-    const customerListCollection = client.db("fashion-commerce").collection("customerList");
-    const seasonCollection = client.db("fashion-commerce").collection("seasons");
-    const categoryCollection = client.db("fashion-commerce").collection("category");
-    const colorCollection = client.db("fashion-commerce").collection("colors");
-    const vendorCollection = client.db("fashion-commerce").collection("vendors");
-    const tagCollection = client.db("fashion-commerce").collection("tags");
-    const promoCollection = client.db("fashion-commerce").collection("promo-code");
-    const offerCollection = client.db("fashion-commerce").collection("offers");
-    const shippingZoneCollection = client.db("fashion-commerce").collection("shipping-zone");
-    const shipmentHandlerCollection = client.db("fashion-commerce").collection("shipment-handler");
-    const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
-    const locationCollection = client.db("fashion-commerce").collection("locations");
-    const purchaseOrderCollection = client.db("fashion-commerce").collection("purchase-order");
-    const transferOrderCollection = client.db("fashion-commerce").collection("transfer-order");
-    const marketingBannerCollection = client.db("fashion-commerce").collection("marketing-banner");
-    const loginRegisterSlideCollection = client.db("fashion-commerce").collection("login-register-slide");
-    const heroBannerCollection = client.db("fashion-commerce").collection("hero-banner");
-    const newsletterCollection = client.db("fashion-commerce").collection("news-letter");
-    const enrollmentCollection = client.db("fashion-commerce").collection("enrollment-admin-staff");
-    const termsNConditionCollection = client.db("fashion-commerce").collection("terms-and-conditions");
-    const privacyPolicyCollection = client.db("fashion-commerce").collection("privacy-policy");
-    const refundPolicyCollection = client.db("fashion-commerce").collection("refund-policy");
-    const shippingPolicyCollection = client.db("fashion-commerce").collection("shipping-policy");
-    const returnPolicyCollection = client.db("fashion-commerce").collection("return-policy");
-    const policyPagesCollection = client.db("fashion-commerce").collection("policy-pages");
-    const faqCollection = client.db("fashion-commerce").collection("faqs");
-    const ourStoryCollection = client.db("fashion-commerce").collection("our-story");
-    const topHeaderCollection = client.db("fashion-commerce").collection("top-header");
-    const availabilityNotifications = client.db("fashion-commerce").collection("availability-notifications");
+
+    collections = await getCollections(); // ✅ Connected only once here
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -249,7 +212,7 @@ async function run() {
         }
 
         // Check if the email already exists
-        const existingEntry = await enrollmentCollection.findOne({ email });
+        const existingEntry = await collections.enrollmentCollection.findOne({ email });
 
         if (existingEntry) {
 
@@ -389,7 +352,7 @@ async function run() {
 
               if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
                 // Update the existing document with new token and expiry
-                await enrollmentCollection.updateOne(
+                await collections.enrollmentCollection.updateOne(
                   { email },
                   { $set: { hashedToken, expiresAt } }
                 );
@@ -549,7 +512,7 @@ async function run() {
           // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
           if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
             // If email was sent successfully, insert data into MongoDB
-            const result = await enrollmentCollection.insertOne({
+            const result = await collections.enrollmentCollection.insertOne({
               email,
               permissions,
               hashedToken,
@@ -603,7 +566,7 @@ async function run() {
         const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
         // Check if the email exists in the database (optional, if you want extra verification)
-        const enrollment = await enrollmentCollection.findOne({
+        const enrollment = await collections.enrollmentCollection.findOne({
           hashedToken,
         });
 
@@ -619,7 +582,7 @@ async function run() {
         // Check if the token has expired
         if (new Date(enrollment.expiresAt) < new Date()) {
           // Token has expired, so remove the expired fields
-          await enrollmentCollection.updateOne(
+          await collections.enrollmentCollection.updateOne(
             { hashedToken },
             {
               $unset: { hashedToken: "", expiresAt: "" }, // Remove expired fields
@@ -645,7 +608,7 @@ async function run() {
     app.get("/all-existing-users", async (req, res) => {
       try {
         // Retrieve only specific fields from the collection
-        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1, role: 1, permissions: 1 } }).toArray();
+        const users = await collections.enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1, role: 1, permissions: 1 } }).toArray();
 
         // Return the list of specific fields (email, fullName, hashedToken, expiresAt)
         res.status(200).json(users);
@@ -666,7 +629,7 @@ async function run() {
         }
 
         const query = { _id: new ObjectId(id) };
-        const result = await enrollmentCollection.findOne(query, {
+        const result = await collections.enrollmentCollection.findOne(query, {
           projection: {
             email: 1,
             fullName: 1,
@@ -713,21 +676,21 @@ async function run() {
         const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
 
         // Check if the user with this email already exists
-        const existingUser = await enrollmentCollection.findOne({ email });
+        const existingUser = await collections.enrollmentCollection.findOne({ email });
 
         if (!existingUser) {
           return res.status(404).json({ error: "User not found." });
         }
 
         // Check if the username already exists in the database
-        const usernameExists = await enrollmentCollection.findOne({ username });
+        const usernameExists = await collections.enrollmentCollection.findOne({ username });
 
         if (usernameExists) {
           return res.status(400).json({ error: "Username already exists." });
         }
 
         // Update the existing user's data with the new information
-        const updatedUser = await enrollmentCollection.updateOne(
+        const updatedUser = await collections.enrollmentCollection.updateOne(
           { email },
           {
             $set: {
@@ -771,7 +734,7 @@ async function run() {
           }
         };
 
-        const result = await enrollmentCollection.updateOne(query, updatedUserPermissions);
+        const result = await collections.enrollmentCollection.updateOne(query, updatedUserPermissions);
 
         if (result.modifiedCount > 0) {
           res.send({ success: true, message: "User permissions updated successfully" });
@@ -791,7 +754,7 @@ async function run() {
 
       try {
         // Find user by email OR username
-        const user = await enrollmentCollection.findOne({
+        const user = await collections.enrollmentCollection.findOne({
           $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
         });
 
@@ -822,7 +785,7 @@ async function run() {
 
           // Update the user document with otp and otpExpiresAt.
           // Use user._id directly (assuming it's already an ObjectId)
-          await enrollmentCollection.updateOne(
+          await collections.enrollmentCollection.updateOne(
             { _id: user._id },
             { $set: { otp: generatedOtp, otpExpiresAt: otpExpiresAt } }
           );
@@ -839,7 +802,7 @@ async function run() {
           }
         } else {
           // OTP is provided; re-fetch the user document to ensure you have the latest OTP fields.
-          const updatedUser = await enrollmentCollection.findOne({ _id: user._id });
+          const updatedUser = await collections.enrollmentCollection.findOne({ _id: user._id });
 
           // Verify OTP fields exist
           if (!updatedUser.otp || !updatedUser.otpExpiresAt) {
@@ -849,7 +812,7 @@ async function run() {
           // Check if OTP is expired
           if (Date.now() > updatedUser.otpExpiresAt) {
             // Remove the expired OTP fields
-            await enrollmentCollection.updateOne(
+            await collections.enrollmentCollection.updateOne(
               { _id: user._id },
               { $unset: { otp: "", otpExpiresAt: "" } }
             );
@@ -862,13 +825,15 @@ async function run() {
           }
 
           // OTP is valid—remove the OTP fields and return user data
-          await enrollmentCollection.updateOne(
+          await collections.enrollmentCollection.updateOne(
             { _id: user._id },
             { $unset: { otp: "", otpExpiresAt: "" } }
           );
 
           return res.json({
             _id: user._id.toString(),
+            email: user.email,
+            name: user.fullName,
           });
         }
       } catch (error) {
@@ -892,13 +857,13 @@ async function run() {
         const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
 
         // Check if the user with this email already exists
-        const existingUser = await customerListCollection.findOne({ email });
+        const existingUser = await collections.customerListCollection.findOne({ email });
 
         if (existingUser) {
           return res.status(401).json({ error: "Account already exists!" });
         }
 
-        const result = await customerListCollection.insertOne({
+        const result = await collections.customerListCollection.insertOne({
           email,
           password: hashedPassword,
           userInfo,
@@ -1066,7 +1031,7 @@ async function run() {
 
       try {
         // Find user by email OR username
-        const user = await customerListCollection.findOne({ email });
+        const user = await collections.customerListCollection.findOne({ email });
 
         if (!user) {
           return res.status(404).json({ message: "No account found with this email." });
@@ -1097,7 +1062,7 @@ async function run() {
         const { email, newPassword } = req.body;
 
         // Find user by email from customer collection
-        const user = await customerListCollection.findOne({ email });
+        const user = await collections.customerListCollection.findOne({ email });
 
         if (!user) return res.status(404).json({ message: "User not found." });
 
@@ -1113,7 +1078,7 @@ async function run() {
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Update the password in MongoDB
-        const result = await customerListCollection.updateOne(
+        const result = await collections.customerListCollection.updateOne(
           { email },
           { $set: { password: hashedPassword } }
         );
@@ -1142,7 +1107,7 @@ async function run() {
         const { email, oldPassword, newPassword } = req.body;
 
         // Find user by email from customer collection
-        const user = await customerListCollection.findOne({ email });
+        const user = await collections.customerListCollection.findOne({ email });
 
         if (!user) return res.status(404).json({ message: "User not found." });
 
@@ -1179,7 +1144,7 @@ async function run() {
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Update the password in MongoDB
-        const result = await customerListCollection.updateOne(
+        const result = await collections.customerListCollection.updateOne(
           { email },
           { $set: { password: hashedPassword } }
         );
@@ -1213,7 +1178,7 @@ async function run() {
       }
 
       try {
-        const userData = await customerListCollection.findOne({ email });
+        const userData = await collections.customerListCollection.findOne({ email });
 
         if (!userData) {
           return res
@@ -1229,7 +1194,7 @@ async function run() {
           .digest("hex");
         const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // Expires in 30 mins
 
-        const result = await customerListCollection.updateOne(
+        const result = await collections.customerListCollection.updateOne(
           { email },
           {
             $set: {
@@ -1417,13 +1382,13 @@ async function run() {
           .update(token)
           .digest("hex");
 
-        const user = await customerListCollection.findOne({
+        const user = await collections.customerListCollection.findOne({
           "passwordReset.token": hashedToken,
           "passwordReset.expiresAt": { $gt: new Date() },
         });
 
         if (!user) {
-          await customerListCollection.updateOne(
+          await collections.customerListCollection.updateOne(
             { "passwordReset.token": hashedToken },
             { $unset: { passwordReset: "" } }
           );
@@ -1470,7 +1435,7 @@ async function run() {
           .update(token)
           .digest("hex");
 
-        const user = await customerListCollection.findOne({
+        const user = await collections.customerListCollection.findOne({
           "passwordReset.token": hashedToken,
           "passwordReset.expiresAt": { $gt: new Date() },
         });
@@ -1486,7 +1451,7 @@ async function run() {
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Reset password and remove token
-        const result = await customerListCollection.updateOne(
+        const result = await collections.customerListCollection.updateOne(
           { email: user.email },
           {
             $set: { password: hashedPassword },
@@ -1527,8 +1492,8 @@ async function run() {
 
         if (currentPassword === newPassword) return res.status(401).json({ message: "New Password should not matched with current password" });
 
-        // Find user by email in the enrollmentCollection
-        const user = await enrollmentCollection.findOne({ email });
+        // Find user by email in the collections.enrollmentCollection
+        const user = await collections.enrollmentCollection.findOne({ email });
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -1543,7 +1508,7 @@ async function run() {
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Update the password in MongoDB
-        const result = await enrollmentCollection.updateOne(
+        const result = await collections.enrollmentCollection.updateOne(
           { email },
           { $set: { password: hashedPassword } }
         );
@@ -1564,7 +1529,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await enrollmentCollection.deleteOne(query);
+        const result = await collections.enrollmentCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "User not found" });
@@ -1581,7 +1546,7 @@ async function run() {
     app.post("/addProduct", async (req, res) => {
       try {
         const productData = req.body;
-        const result = await productInformationCollection.insertOne(productData);
+        const result = await collections.productInformationCollection.insertOne(productData);
         res.send(result);
       } catch (error) {
         console.error("Error adding product:", error);
@@ -1592,7 +1557,7 @@ async function run() {
     // get all products
     app.get("/allProducts", async (req, res) => {
       try {
-        const result = await productInformationCollection.find().toArray();
+        const result = await collections.productInformationCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -1628,7 +1593,7 @@ async function run() {
         };
 
         // Fetch all products with the specified fields
-        const result = await productInformationCollection
+        const result = await collections.productInformationCollection
           .find({}, { projection }) // Apply projection here
           .toArray();
 
@@ -1643,7 +1608,7 @@ async function run() {
     app.get("/allSizes", async (req, res) => {
       try {
         // Fetch all products
-        const products = await productInformationCollection.find().toArray();
+        const products = await collections.productInformationCollection.find().toArray();
 
         // Extract all sizes from the products
         const allSizes = products.flatMap(product => product.allSizes || []);
@@ -1663,7 +1628,7 @@ async function run() {
     app.get("/allUniqueColors", async (req, res) => {
       try {
         // Fetch all products
-        const products = await productInformationCollection.find().toArray();
+        const products = await collections.productInformationCollection.find().toArray();
 
         // Extract all color names from the availableColors array
         const allColors = products.flatMap(product =>
@@ -1686,7 +1651,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await productInformationCollection.findOne(query);
+        const result = await collections.productInformationCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Product not found" });
@@ -1704,7 +1669,7 @@ async function run() {
       try {
         const categoryName = req.params.categoryName;
         const query = { category: categoryName };
-        const result = await productInformationCollection.find(query).toArray();
+        const result = await collections.productInformationCollection.find(query).toArray();
 
         if (!result) {
           return res.status(404).send({ message: "Product not found" });
@@ -1725,14 +1690,14 @@ async function run() {
         const filter = { _id: new ObjectId(id) };
 
         // 1. Fetch the current product (before update)
-        const existingProduct = await productInformationCollection.findOne(filter);
+        const existingProduct = await collections.productInformationCollection.findOne(filter);
 
         if (!existingProduct) {
           return res.status(404).send({ message: "Product not found" });
         }
 
         // 2. Update the product
-        const result = await productInformationCollection.updateOne(filter, {
+        const result = await collections.productInformationCollection.updateOne(filter, {
           $set: { ...productDetails },
         });
 
@@ -1765,11 +1730,11 @@ async function run() {
         // console.log(updatedVariants, "updatedVariants");
 
         if (updatedVariants.length > 0) {
-          // 4. For each updated variant, find matching availabilityNotifications
+          // 4. For each updated variant, find matching collections.availabilityNotifications
           for (const variant of updatedVariants) {
             const { colorCode, size, productId } = variant;
 
-            const notificationDoc = await availabilityNotifications.findOne({
+            const notificationDoc = await collections.availabilityNotifications.findOne({
               productId: productId,
               colorCode: colorCode,
               size: size,
@@ -1900,7 +1865,7 @@ async function run() {
                   if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
 
                     // Update notified:true inside emails array
-                    await availabilityNotifications.updateOne(
+                    await collections.availabilityNotifications.updateOne(
                       { _id: new ObjectId(notificationDoc._id), "emails.email": email },
                       { $set: { "emails.$.notified": true } }
                     );
@@ -1949,7 +1914,7 @@ async function run() {
 
       try {
         const objectIds = ids.map((id) => new ObjectId(String(id)));
-        const products = await productInformationCollection
+        const products = await collections.productInformationCollection
           .find({ _id: { $in: objectIds } })
           .project({ _id: 1, productId: 1 }) // or use 'name' based on your schema
           .toArray();
@@ -1996,7 +1961,7 @@ async function run() {
         const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
         const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
 
-        const existingDoc = await availabilityNotifications.findOne({
+        const existingDoc = await collections.availabilityNotifications.findOne({
           productId,
           size,
           colorCode,
@@ -2011,7 +1976,7 @@ async function run() {
             return res.status(409).send({ message: "Already subscribed" });
           }
 
-          const result = await availabilityNotifications.updateOne(
+          const result = await collections.availabilityNotifications.updateOne(
             { productId, size, colorCode },
             {
               $push: {
@@ -2041,7 +2006,7 @@ async function run() {
             ],
           };
 
-          const result = await availabilityNotifications.insertOne(newEntry);
+          const result = await collections.availabilityNotifications.insertOne(newEntry);
           return res.status(201).send(result);
         }
       } catch (error) {
@@ -2053,7 +2018,7 @@ async function run() {
     // get all availability info
     app.get("/get-all-availability-notifications", async (req, res) => {
       try {
-        const notifications = await availabilityNotifications.find().toArray();
+        const notifications = await collections.availabilityNotifications.find().toArray();
         res.send(notifications);
       } catch (error) {
         console.error("Error fetching availability info:", error);
@@ -2075,12 +2040,12 @@ async function run() {
 
       try {
 
-        const user = await enrollmentCollection.findOne({ email });
+        const user = await collections.enrollmentCollection.findOne({ email });
 
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        const notifications = await availabilityNotifications.find({}).toArray();
-        const orders = await orderListCollection.find({
+        const notifications = await collections.availabilityNotifications.find({}).toArray();
+        const orders = await collections.orderListCollection.find({
           orderStatus: { $in: ["Pending", "Return Requested"] }
         }).toArray();
 
@@ -2147,18 +2112,18 @@ async function run() {
 
       try {
         if (type === "Ordered" && orderStatus === "Pending") {
-          await orderListCollection.updateOne(
+          await collections.orderListCollection.updateOne(
             { orderNumber },
             { $set: { isRead: true } }
           );
         }
         else if (type === "Ordered" && orderStatus === "Return Requested") {
-          await orderListCollection.updateOne(
+          await collections.orderListCollection.updateOne(
             { orderNumber },
             { $set: { "returnInfo.isRead": true } }
           );
         } else if (type === "Notified") {
-          await availabilityNotifications.updateOne(
+          await collections.availabilityNotifications.updateOne(
             {
               productId,
               "emails.email": email
@@ -2180,7 +2145,7 @@ async function run() {
     app.post("/addVendor", async (req, res) => {
       try {
         const vendors = req.body; // Should be an array
-        const result = await vendorCollection.insertOne(vendors);
+        const result = await collections.vendorCollection.insertOne(vendors);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding vendors:', error);
@@ -2192,7 +2157,7 @@ async function run() {
     app.post("/add-policy-pdfs", async (req, res) => {
       try {
         const pdfs = req.body; // Should be an array
-        const result = await policyPagesCollection.insertOne(pdfs);
+        const result = await collections.policyPagesCollection.insertOne(pdfs);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding pdfs:', error);
@@ -2205,7 +2170,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await policyPagesCollection.findOne(query);
+        const result = await collections.policyPagesCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Policy pdfs not found" });
@@ -2221,7 +2186,7 @@ async function run() {
     // Get All Policy Pages Pdfs
     app.get("/get-all-policy-pdfs", async (req, res) => {
       try {
-        const result = await policyPagesCollection.find().toArray();
+        const result = await collections.policyPagesCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching Policy pdfs:", error);
@@ -2239,7 +2204,7 @@ async function run() {
           $set: { ...policiesData }
         };
 
-        const result = await policyPagesCollection.updateOne(filter, updatedPoliciesPdfs);
+        const result = await collections.policyPagesCollection.updateOne(filter, updatedPoliciesPdfs);
 
         res.send(result);
       } catch (error) {
@@ -2253,7 +2218,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await vendorCollection.deleteOne(query);
+        const result = await collections.vendorCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Vendor not found" });
@@ -2269,7 +2234,7 @@ async function run() {
     // get all vendors
     app.get("/allVendors", async (req, res) => {
       try {
-        const result = await vendorCollection.find().toArray();
+        const result = await collections.vendorCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching vendors:", error);
@@ -2282,7 +2247,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await vendorCollection.findOne(query);
+        const result = await collections.vendorCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Vendor not found" });
@@ -2305,7 +2270,7 @@ async function run() {
           $set: { ...vendorData }
         };
 
-        const result = await vendorCollection.updateOne(filter, updatedVendorDetails);
+        const result = await collections.vendorCollection.updateOne(filter, updatedVendorDetails);
 
         res.send(result);
       } catch (error) {
@@ -2321,7 +2286,7 @@ async function run() {
         if (!Array.isArray(tags)) {
           return res.status(400).send({ error: 'Expected an array of tags' });
         }
-        const result = await tagCollection.insertMany(tags);
+        const result = await collections.tagCollection.insertMany(tags);
         res.status(201).send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding tags:', error);
@@ -2334,7 +2299,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await tagCollection.deleteOne(query);
+        const result = await collections.tagCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Tag not found" });
@@ -2350,7 +2315,7 @@ async function run() {
     // get all tags
     app.get("/allTags", async (req, res) => {
       try {
-        const result = await tagCollection.find().toArray();
+        const result = await collections.tagCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching tags:", error);
@@ -2365,7 +2330,7 @@ async function run() {
         if (!Array.isArray(colors)) {
           return res.status(400).send({ error: 'Expected an array of colors' });
         }
-        const result = await colorCollection.insertMany(colors);
+        const result = await collections.colorCollection.insertMany(colors);
         res.status(201).send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding colors:', error);
@@ -2378,7 +2343,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await colorCollection.deleteOne(query);
+        const result = await collections.colorCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Color not found" });
@@ -2394,7 +2359,7 @@ async function run() {
     // get all colors
     app.get("/allColors", async (req, res) => {
       try {
-        const result = await colorCollection.find().toArray();
+        const result = await collections.colorCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching colors:", error);
@@ -2406,7 +2371,7 @@ async function run() {
     app.post('/addSeason', async (req, res) => {
       const seasonData = req.body;
       try {
-        const result = await seasonCollection.insertOne(seasonData);
+        const result = await collections.seasonCollection.insertOne(seasonData);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding season:", error);
@@ -2417,7 +2382,7 @@ async function run() {
     // Get All Seasons
     app.get('/allSeasons', async (req, res) => {
       try {
-        const seasons = await seasonCollection.find().toArray();
+        const seasons = await collections.seasonCollection.find().toArray();
         res.status(200).send(seasons);
       } catch (error) {
         res.status(500).send(error.message);
@@ -2429,7 +2394,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await seasonCollection.findOne(query);
+        const result = await collections.seasonCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Season not found" });
@@ -2447,7 +2412,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await seasonCollection.deleteOne(query);
+        const result = await collections.seasonCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Season not found" });
@@ -2470,7 +2435,7 @@ async function run() {
           $set: { ...season }
         };
 
-        const result = await seasonCollection.updateOne(filter, updateSeason);
+        const result = await collections.seasonCollection.updateOne(filter, updateSeason);
 
         res.send(result);
       } catch (error) {
@@ -2484,7 +2449,7 @@ async function run() {
       try {
         const seasonName = req.params.seasonName;
         const query = { season: seasonName };
-        const result = await productInformationCollection.find(query).toArray();
+        const result = await collections.productInformationCollection.find(query).toArray();
 
         if (!result) {
           return res.status(404).send({ message: "Product not found" });
@@ -2501,7 +2466,7 @@ async function run() {
     app.post('/addCategory', async (req, res) => {
       const categoryData = req.body;
       try {
-        const result = await categoryCollection.insertOne(categoryData);
+        const result = await collections.categoryCollection.insertOne(categoryData);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding category:", error);
@@ -2512,7 +2477,7 @@ async function run() {
     // Get All Categories
     app.get('/allCategories', async (req, res) => {
       try {
-        const categories = await categoryCollection.find().toArray();
+        const categories = await collections.categoryCollection.find().toArray();
         res.status(200).send(categories);
       } catch (error) {
         res.status(500).send(error.message);
@@ -2524,7 +2489,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await categoryCollection.findOne(query);
+        const result = await collections.categoryCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Category not found" });
@@ -2542,7 +2507,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await categoryCollection.deleteOne(query);
+        const result = await collections.categoryCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Category not found" });
@@ -2565,7 +2530,7 @@ async function run() {
           $set: { ...category }
         };
 
-        const result = await categoryCollection.updateOne(filter, updateCategory);
+        const result = await collections.categoryCollection.updateOne(filter, updateCategory);
 
         res.send(result);
       } catch (error) {
@@ -2581,7 +2546,7 @@ async function run() {
       try {
         // Loop through each category and update its isFeatured status
         for (const category of categoriesToUpdate) {
-          const result = await categoryCollection.updateOne(
+          const result = await collections.categoryCollection.updateOne(
             { label: category.label }, // Find category by label
             { $set: { isFeatured: category.isFeatured } } // Set the isFeatured field
           );
@@ -2603,7 +2568,7 @@ async function run() {
     // Get All Sizes
     app.get('/allSizeRanges', async (req, res) => {
       try {
-        const categories = await categoryCollection.find().toArray();
+        const categories = await collections.categoryCollection.find().toArray();
         const sizeOptions = categories.reduce((acc, category) => {
           acc[category.key] = category.sizes || []; // Ensure sizes exist
           return acc;
@@ -2617,7 +2582,7 @@ async function run() {
     // Get All Sub-Categories
     app.get('/allSubCategories', async (req, res) => {
       try {
-        const categories = await categoryCollection.find().toArray();
+        const categories = await collections.categoryCollection.find().toArray();
         const subCategoryOptions = categories.reduce((acc, category) => {
           acc[category.key] = category.subCategories || [];  // Ensure subCategories exist
           return acc;
@@ -2632,7 +2597,7 @@ async function run() {
     app.post("/addOrder", async (req, res) => {
       try {
         const orderData = req.body;
-        const result = await orderListCollection.insertOne(orderData);
+        const result = await collections.orderListCollection.insertOne(orderData);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding order:", error);
@@ -2644,7 +2609,7 @@ async function run() {
     app.get('/allOrders', async (req, res) => {
       try {
         // Sort by a field in descending order (e.g., by '_id' or 'dateTime' if you have a date field)
-        const orders = await orderListCollection.find().sort({ _id: -1 }).toArray();
+        const orders = await collections.orderListCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(orders);
       } catch (error) {
         res.status(500).send(error.message);
@@ -2661,7 +2626,7 @@ async function run() {
 
         const todayStr = `${dd}-${mm}-${yy}`; // '03-05-25'
 
-        const allOrders = await orderListCollection.find().toArray();
+        const allOrders = await collections.orderListCollection.find().toArray();
 
         const todayOrders = allOrders.filter(order => {
           if (!order.dateTime) return false;
@@ -2705,10 +2670,10 @@ async function run() {
         const skip = pageNumber * itemsPerPage;
 
         // Fetching the total number of orders
-        const totalOrderList = await orderListCollection.estimatedDocumentCount();
+        const totalOrderList = await collections.orderListCollection.estimatedDocumentCount();
 
         // Fetching the reversed data for the specific page
-        const result = await orderListCollection.find()
+        const result = await collections.orderListCollection.find()
           .sort({ _id: -1 })
           .skip(skip)
           .limit(itemsPerPage)
@@ -2732,7 +2697,7 @@ async function run() {
 
       try {
         // Fetch the primary location
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await collections.locationCollection.findOne({ isPrimaryLocation: true });
         if (!primaryLocation) {
           return res.status(400).json({ error: "Primary location not found" });
         }
@@ -2749,7 +2714,7 @@ async function run() {
           }
 
           // Find the product in the database
-          const product = await productInformationCollection.findOne({ productId });
+          const product = await collections.productInformationCollection.findOne({ productId });
           if (!product) {
             updateResults.push({ productId, error: "Product not found" });
             continue;
@@ -2769,7 +2734,7 @@ async function run() {
           }
 
           // If returnSku exists, increment it; otherwise, initialize it
-          const updateResult = await productInformationCollection.updateOne(
+          const updateResult = await collections.productInformationCollection.updateOne(
             {
               productId,
               productVariants: {
@@ -2819,7 +2784,7 @@ async function run() {
 
       try {
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await collections.locationCollection.findOne({ isPrimaryLocation: true });
         if (!primaryLocation) {
           return res.status(400).json({ error: "Primary location not found" });
         }
@@ -2836,7 +2801,7 @@ async function run() {
           };
 
           // Step 3: Find the product and match variants
-          const product = await productInformationCollection.findOne({ productId });
+          const product = await collections.productInformationCollection.findOne({ productId });
           if (!product) {
             updateResults.push({ productId, error: "Product not found" });
             continue;
@@ -2864,7 +2829,7 @@ async function run() {
           // Step 5: Subtract SKU and update the product
           matchingVariant.sku -= sku;
 
-          const updateResult = await productInformationCollection.updateOne(
+          const updateResult = await collections.productInformationCollection.updateOne(
             {
               productId,
               productVariants: {
@@ -2914,7 +2879,7 @@ async function run() {
 
       try {
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await collections.locationCollection.findOne({ isPrimaryLocation: true });
         if (!primaryLocation) {
           return res.status(400).json({ error: "Primary location not found" });
         }
@@ -2931,7 +2896,7 @@ async function run() {
           };
 
           // Step 3: Find the product and match variants
-          const product = await productInformationCollection.findOne({ productId });
+          const product = await collections.productInformationCollection.findOne({ productId });
           if (!product) {
             updateResults.push({ productId, error: "Product not found" });
             continue;
@@ -2958,7 +2923,7 @@ async function run() {
           // Step 5: Subtract SKU and update the product
           matchingVariant.onHandSku -= onHandSku;
 
-          const updateResult = await productInformationCollection.updateOne(
+          const updateResult = await collections.productInformationCollection.updateOne(
             {
               productId,
               productVariants: {
@@ -3007,14 +2972,14 @@ async function run() {
           continue;
         }
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await collections.locationCollection.findOne({ isPrimaryLocation: true });
         if (!primaryLocation) {
           return { error: "Primary location not found" };
         }
 
         const { locationName } = primaryLocation;
 
-        const updateResult = await productInformationCollection.updateOne(
+        const updateResult = await collections.productInformationCollection.updateOne(
           {
             productId,
             productVariants: {
@@ -3055,14 +3020,14 @@ async function run() {
           continue;
         }
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await collections.locationCollection.findOne({ isPrimaryLocation: true });
         if (!primaryLocation) {
           return { error: "Primary location not found" };
         }
 
         const { locationName } = primaryLocation;
 
-        const updateResult = await productInformationCollection.updateOne(
+        const updateResult = await collections.productInformationCollection.updateOne(
           {
             productId,
             productVariants: {
@@ -3102,14 +3067,14 @@ async function run() {
           continue;
         }
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await collections.locationCollection.findOne({ isPrimaryLocation: true });
         if (!primaryLocation) {
           return { error: "Primary location not found" };
         }
 
         const { locationName } = primaryLocation;
 
-        const updateResult = await productInformationCollection.updateOne(
+        const updateResult = await collections.productInformationCollection.updateOne(
           {
             productId,
             productVariants: {
@@ -3166,7 +3131,7 @@ async function run() {
 
       try {
         // Find the current order to get its current status
-        const order = await orderListCollection.findOne(filter);
+        const order = await collections.orderListCollection.findOne(filter);
 
         if (!order) {
           return res.status(404).send({ error: "Order not found" });
@@ -3307,7 +3272,7 @@ async function run() {
 
         }
 
-        const result = await orderListCollection.updateOne(filter, updateDoc);
+        const result = await collections.orderListCollection.updateOne(filter, updateDoc);
 
         if (result.modifiedCount > 0) {
           res.send(result);
@@ -3328,7 +3293,7 @@ async function run() {
     //   }
 
     //   try {
-    //     const order = await orderListCollection.findOne({ orderNumber });
+    //     const order = await collections.orderListCollection.findOne({ orderNumber });
 
     //     if (order) {
     //       res.send(order);
@@ -3344,7 +3309,7 @@ async function run() {
     app.post("/addCustomerDetails", async (req, res) => {
       try {
         const customerData = req.body;
-        const result = await customerListCollection.insertOne(customerData);
+        const result = await collections.customerListCollection.insertOne(customerData);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding customer details:", error);
@@ -3355,7 +3320,7 @@ async function run() {
     // Get All Customer Information
     app.get('/allCustomerDetails', async (req, res) => {
       try {
-        const customers = await customerListCollection.find().toArray();
+        const customers = await collections.customerListCollection.find().toArray();
         res.status(200).send(customers);
       } catch (error) {
         res.status(500).send(error.message);
@@ -3371,7 +3336,7 @@ async function run() {
       };
 
       try {
-        const customer = await customerListCollection.findOne({ email }); // Query the database
+        const customer = await collections.customerListCollection.findOne({ email }); // Query the database
         if (!customer) {
           return res.status(404).send('Customer not found'); // Handle case where no customer is found
         }
@@ -3392,7 +3357,7 @@ async function run() {
           delete updatedData._id;
         }
 
-        const result = await customerListCollection.updateOne(
+        const result = await collections.customerListCollection.updateOne(
           { _id: new ObjectId(id) }, // Match the document by its _id
           { $set: { ...updatedData } } // Set the new data for specific user information
         );
@@ -3418,10 +3383,10 @@ async function run() {
         const skip = pageNumber * itemsPerPage;
 
         // Fetching the total number of orders
-        const totalCustomerList = await customerListCollection.estimatedDocumentCount();
+        const totalCustomerList = await collections.customerListCollection.estimatedDocumentCount();
 
         // Fetching the reversed data for the specific page
-        const result = await customerListCollection.find()
+        const result = await collections.customerListCollection.find()
           .skip(skip)
           .limit(itemsPerPage)
           .toArray();
@@ -3438,7 +3403,7 @@ async function run() {
     app.post("/addPromoCode", async (req, res) => {
       try {
         const discountData = req.body;
-        const result = await promoCollection.insertOne(discountData);
+        const result = await collections.promoCollection.insertOne(discountData);
         res.send(result);
       } catch (error) {
         console.error("Error adding promo code:", error);
@@ -3449,7 +3414,7 @@ async function run() {
     // Get All Promo Codes
     app.get('/allPromoCodes', async (req, res) => {
       try {
-        const promos = await promoCollection.find().sort({ _id: -1 }).toArray();
+        const promos = await collections.promoCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(promos);
       } catch (error) {
         res.status(500).send(error.message);
@@ -3461,7 +3426,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await promoCollection.findOne(query);
+        const result = await collections.promoCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Promo not found" });
@@ -3479,7 +3444,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await promoCollection.deleteOne(query);
+        const result = await collections.promoCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Promo not found" });
@@ -3502,7 +3467,7 @@ async function run() {
           $set: { ...promo }
         };
 
-        const result = await promoCollection.updateOne(filter, updatePromo);
+        const result = await collections.promoCollection.updateOne(filter, updatePromo);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Promo not found" });
@@ -3519,7 +3484,7 @@ async function run() {
     app.post("/addOffer", async (req, res) => {
       try {
         const offerData = req.body;
-        const result = await offerCollection.insertOne(offerData);
+        const result = await collections.offerCollection.insertOne(offerData);
         res.send(result);
       } catch (error) {
         console.error("Error adding offer:", error);
@@ -3530,7 +3495,7 @@ async function run() {
     // Get All Offer
     app.get('/allOffers', async (req, res) => {
       try {
-        const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
+        const offers = await collections.offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
       } catch (error) {
         res.status(500).send(error.message);
@@ -3542,7 +3507,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await offerCollection.findOne(query);
+        const result = await collections.offerCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Offer not found" });
@@ -3565,7 +3530,7 @@ async function run() {
           $set: { ...promo }
         };
 
-        const result = await offerCollection.updateOne(filter, updateOffer);
+        const result = await collections.offerCollection.updateOne(filter, updateOffer);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Offer not found" });
@@ -3583,7 +3548,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await offerCollection.deleteOne(query);
+        const result = await collections.offerCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Offer not found" });
@@ -3600,7 +3565,7 @@ async function run() {
     app.post("/addShippingZone", async (req, res) => {
       try {
         const shippingData = req.body;
-        const result = await shippingZoneCollection.insertOne(shippingData);
+        const result = await collections.shippingZoneCollection.insertOne(shippingData);
         res.send(result);
       } catch (error) {
         console.error("Error adding shipping details:", error);
@@ -3611,7 +3576,7 @@ async function run() {
     // get all shipping zones
     app.get("/allShippingZones", async (req, res) => {
       try {
-        const result = await shippingZoneCollection.find().toArray();
+        const result = await collections.shippingZoneCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipping zones:", error);
@@ -3624,7 +3589,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await shippingZoneCollection.deleteOne(query);
+        const result = await collections.shippingZoneCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "shipping not found" });
@@ -3642,7 +3607,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await shippingZoneCollection.findOne(query);
+        const result = await collections.shippingZoneCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "shipping not found" });
@@ -3665,7 +3630,7 @@ async function run() {
           $set: { ...zone }
         };
 
-        const result = await shippingZoneCollection.updateOne(filter, updateShippingZone);
+        const result = await collections.shippingZoneCollection.updateOne(filter, updateShippingZone);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Shipping Zone not found" });
@@ -3682,7 +3647,7 @@ async function run() {
     app.post("/addShipmentHandler", async (req, res) => {
       try {
         const shipmentData = req.body;
-        const result = await shipmentHandlerCollection.insertOne(shipmentData);
+        const result = await collections.shipmentHandlerCollection.insertOne(shipmentData);
         res.send(result);
       } catch (error) {
         console.error("Error adding shipment details:", error);
@@ -3693,7 +3658,7 @@ async function run() {
     // get all shipment handler
     app.get("/allShipmentHandlers", async (req, res) => {
       try {
-        const result = await shipmentHandlerCollection.find().toArray();
+        const result = await collections.shipmentHandlerCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipment handlers:", error);
@@ -3706,7 +3671,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await shipmentHandlerCollection.deleteOne(query);
+        const result = await collections.shipmentHandlerCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Shipment Handler not found" });
@@ -3724,7 +3689,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await shipmentHandlerCollection.findOne(query);
+        const result = await collections.shipmentHandlerCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "shipment handler not found" });
@@ -3747,7 +3712,7 @@ async function run() {
           $set: { ...shipmentDetails }
         };
 
-        const result = await shipmentHandlerCollection.updateOne(filter, updateShipmentHandler);
+        const result = await collections.shipmentHandlerCollection.updateOne(filter, updateShipmentHandler);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Shipment handler not found" });
@@ -3764,7 +3729,7 @@ async function run() {
     app.post("/addPaymentMethod", async (req, res) => {
       try {
         const paymentData = req.body;
-        const result = await paymentMethodCollection.insertOne(paymentData);
+        const result = await collections.paymentMethodCollection.insertOne(paymentData);
         res.send(result);
       } catch (error) {
         console.error("Error adding payment method:", error);
@@ -3775,7 +3740,7 @@ async function run() {
     // get all payment methods
     app.get("/allPaymentMethods", async (req, res) => {
       try {
-        const result = await paymentMethodCollection.find().toArray();
+        const result = await collections.paymentMethodCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching payment method:", error);
@@ -3788,7 +3753,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await paymentMethodCollection.deleteOne(query);
+        const result = await collections.paymentMethodCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Payment Method not found" });
@@ -3806,7 +3771,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await paymentMethodCollection.findOne(query);
+        const result = await collections.paymentMethodCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Payment Method not found" });
@@ -3829,7 +3794,7 @@ async function run() {
           $set: { ...method }
         };
 
-        const result = await paymentMethodCollection.updateOne(filter, updatePaymentMethod);
+        const result = await collections.paymentMethodCollection.updateOne(filter, updatePaymentMethod);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Payment method not found" });
@@ -3849,11 +3814,11 @@ async function run() {
 
         // If the location is set as primary, update all other locations to set `isPrimaryLocation` to false
         if (locationData.isPrimaryLocation) {
-          await locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
+          await collections.locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
         }
 
         // Insert the new location
-        const result = await locationCollection.insertOne(locationData);
+        const result = await collections.locationCollection.insertOne(locationData);
 
         res.send(result);
       } catch (error) {
@@ -3865,7 +3830,7 @@ async function run() {
     // get all locations
     app.get("/allLocations", async (req, res) => {
       try {
-        const result = await locationCollection.find().toArray();
+        const result = await collections.locationCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching locations:", error);
@@ -3878,7 +3843,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await locationCollection.deleteOne(query);
+        const result = await collections.locationCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Location not found" });
@@ -3899,7 +3864,7 @@ async function run() {
 
         // If the updated location is set as primary, update all other locations to set `isPrimaryLocation` to false
         if (locationData.isPrimaryLocation) {
-          await locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
+          await collections.locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
         }
 
         // Update the specific location
@@ -3908,7 +3873,7 @@ async function run() {
           $set: { ...locationData }
         };
 
-        const result = await locationCollection.updateOne(filter, updateLocation);
+        const result = await collections.locationCollection.updateOne(filter, updateLocation);
 
         // Handle case where no location was found
         if (result.matchedCount === 0) {
@@ -3927,7 +3892,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await locationCollection.findOne(query);
+        const result = await collections.locationCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Location not found" });
@@ -3944,7 +3909,7 @@ async function run() {
     app.post("/addPurchaseOrder", async (req, res) => {
       try {
         const purchaseOrderData = req.body;
-        const result = await purchaseOrderCollection.insertOne(purchaseOrderData);
+        const result = await collections.purchaseOrderCollection.insertOne(purchaseOrderData);
         res.send(result);
       } catch (error) {
         console.error("Error adding purchase order:", error);
@@ -3955,7 +3920,7 @@ async function run() {
     // get all purchase orders
     app.get("/allPurchaseOrders", async (req, res) => {
       try {
-        const result = await purchaseOrderCollection.find().toArray();
+        const result = await collections.purchaseOrderCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching purchase order:", error);
@@ -3968,7 +3933,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await purchaseOrderCollection.deleteOne(query);
+        const result = await collections.purchaseOrderCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Purchase order not found" });
@@ -3986,7 +3951,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await purchaseOrderCollection.findOne(query);
+        const result = await collections.purchaseOrderCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Purchase order not found" });
@@ -4009,7 +3974,7 @@ async function run() {
           $set: { ...order }
         };
 
-        const result = await purchaseOrderCollection.updateOne(filter, updatePurchaseOrder);
+        const result = await collections.purchaseOrderCollection.updateOne(filter, updatePurchaseOrder);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Purchase order not found" });
@@ -4026,7 +3991,7 @@ async function run() {
     app.post("/addTransferOrder", async (req, res) => {
       try {
         const transferOrderData = req.body;
-        const result = await transferOrderCollection.insertOne(transferOrderData);
+        const result = await collections.transferOrderCollection.insertOne(transferOrderData);
         res.send(result);
       } catch (error) {
         console.error("Error adding transfer order:", error);
@@ -4037,7 +4002,7 @@ async function run() {
     // get all transfer orders
     app.get("/allTransferOrders", async (req, res) => {
       try {
-        const result = await transferOrderCollection.find().toArray();
+        const result = await collections.transferOrderCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching transfer orders:", error);
@@ -4050,7 +4015,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await transferOrderCollection.findOne(query);
+        const result = await collections.transferOrderCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "Transfer order not found" });
@@ -4073,7 +4038,7 @@ async function run() {
           $set: { ...order }
         };
 
-        const result = await transferOrderCollection.updateOne(filter, updateTransferOrder);
+        const result = await collections.transferOrderCollection.updateOne(filter, updateTransferOrder);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Transfer order not found" });
@@ -4091,7 +4056,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await transferOrderCollection.deleteOne(query);
+        const result = await collections.transferOrderCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Transfer order not found" });
@@ -4108,7 +4073,7 @@ async function run() {
     app.post("/addMarketingBanner", async (req, res) => {
       try {
         const marketingBannerData = req.body;
-        const result = await marketingBannerCollection.insertOne(marketingBannerData);
+        const result = await collections.marketingBannerCollection.insertOne(marketingBannerData);
         res.send(result);
       } catch (error) {
         console.error("Error adding marketing banner:", error);
@@ -4126,7 +4091,7 @@ async function run() {
           $set: { ...urls }
         };
 
-        const result = await marketingBannerCollection.updateOne(filter, updateUrlOrder);
+        const result = await collections.marketingBannerCollection.updateOne(filter, updateUrlOrder);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Login register image urls not found" });
@@ -4142,7 +4107,7 @@ async function run() {
     // get all marketing banner
     app.get("/allMarketingBanners", async (req, res) => {
       try {
-        const result = await marketingBannerCollection.find().toArray();
+        const result = await collections.marketingBannerCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching marketing banner:", error);
@@ -4154,7 +4119,7 @@ async function run() {
     app.post("/addLoginRegisterImageUrls", async (req, res) => {
       try {
         const loginRegisterImageUrlsData = req.body;
-        const result = await loginRegisterSlideCollection.insertOne(loginRegisterImageUrlsData);
+        const result = await collections.loginRegisterSlideCollection.insertOne(loginRegisterImageUrlsData);
         res.send(result);
       } catch (error) {
         console.error("Error adding login register slides:", error);
@@ -4165,7 +4130,7 @@ async function run() {
     // get all login register slides
     app.get("/allLoginRegisterImageUrls", async (req, res) => {
       try {
-        const result = await loginRegisterSlideCollection.find().toArray();
+        const result = await collections.loginRegisterSlideCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching login register slides:", error);
@@ -4183,7 +4148,7 @@ async function run() {
           $set: { ...urls }
         };
 
-        const result = await loginRegisterSlideCollection.updateOne(filter, updateUrlOrder);
+        const result = await collections.loginRegisterSlideCollection.updateOne(filter, updateUrlOrder);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Login register image urls not found" });
@@ -4200,7 +4165,7 @@ async function run() {
     app.post("/addHeroBannerImageUrls", async (req, res) => {
       try {
         const heroBannerImageUrlsData = req.body;
-        const result = await heroBannerCollection.insertOne(heroBannerImageUrlsData);
+        const result = await collections.heroBannerCollection.insertOne(heroBannerImageUrlsData);
         res.send(result);
       } catch (error) {
         console.error("Error adding hero banner slides:", error);
@@ -4211,7 +4176,7 @@ async function run() {
     // get all hero banner slides
     app.get("/allHeroBannerImageUrls", async (req, res) => {
       try {
-        const result = await heroBannerCollection.find().toArray();
+        const result = await collections.heroBannerCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching hero banner slides:", error);
@@ -4229,7 +4194,7 @@ async function run() {
           $set: { ...urls }
         };
 
-        const result = await heroBannerCollection.updateOne(filter, updateUrlOrder);
+        const result = await collections.heroBannerCollection.updateOne(filter, updateUrlOrder);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "hero banner image urls not found" });
@@ -4246,7 +4211,7 @@ async function run() {
     app.post("/addNewsletter", async (req, res) => {
       try {
         const newsletterData = req.body;
-        const result = await newsletterCollection.insertOne(newsletterData);
+        const result = await collections.newsletterCollection.insertOne(newsletterData);
         res.send(result);
       } catch (error) {
         console.error("Error adding newsletter:", error);
@@ -4257,7 +4222,7 @@ async function run() {
     // get all newsletters
     app.get("/allNewsletters", async (req, res) => {
       try {
-        const result = await newsletterCollection.find().toArray();
+        const result = await collections.newsletterCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching newsletters:", error);
@@ -4270,7 +4235,7 @@ async function run() {
       try {
         const email = req.params.email;
         const query = { email: email };
-        const result = await newsletterCollection.findOne(query);
+        const result = await collections.newsletterCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "newsletter not found" });
@@ -4288,7 +4253,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await newsletterCollection.deleteOne(query);
+        const result = await collections.newsletterCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "newsletter not found" });
@@ -4305,7 +4270,7 @@ async function run() {
     app.post("/add-terms-conditions", async (req, res) => {
       try {
         const conditions = req.body; // Should be an array
-        const result = await termsNConditionCollection.insertOne(conditions);
+        const result = await collections.termsNConditionCollection.insertOne(conditions);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding terms and conditions:', error);
@@ -4316,7 +4281,7 @@ async function run() {
     // get all terms and conditions
     app.get("/all-terms-conditions", async (req, res) => {
       try {
-        const result = await termsNConditionCollection.find().toArray();
+        const result = await collections.termsNConditionCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching terms and conditions:", error);
@@ -4336,7 +4301,7 @@ async function run() {
           }
         };
 
-        const result = await termsNConditionCollection.updateOne(filter, updatedTermsNConditions);
+        const result = await collections.termsNConditionCollection.updateOne(filter, updatedTermsNConditions);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "terms and conditions not found" });
@@ -4354,7 +4319,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await termsNConditionCollection.findOne(query);
+        const result = await collections.termsNConditionCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "terms and conditions not found" });
@@ -4371,7 +4336,7 @@ async function run() {
     app.post("/add-privacy-policy", async (req, res) => {
       try {
         const policies = req.body; // Should be an array
-        const result = await privacyPolicyCollection.insertOne(policies);
+        const result = await collections.privacyPolicyCollection.insertOne(policies);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding privacy policy:', error);
@@ -4382,7 +4347,7 @@ async function run() {
     // get all privacy policy
     app.get("/all-privacy-policies", async (req, res) => {
       try {
-        const result = await privacyPolicyCollection.find().toArray();
+        const result = await collections.privacyPolicyCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching privacy policy:", error);
@@ -4402,7 +4367,7 @@ async function run() {
           }
         };
 
-        const result = await privacyPolicyCollection.updateOne(filter, updatedPrivacyPolicies);
+        const result = await collections.privacyPolicyCollection.updateOne(filter, updatedPrivacyPolicies);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "privacy policy not found" });
@@ -4420,7 +4385,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await privacyPolicyCollection.findOne(query);
+        const result = await collections.privacyPolicyCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "privacy policy not found" });
@@ -4437,7 +4402,7 @@ async function run() {
     app.post("/add-refund-policy", async (req, res) => {
       try {
         const policies = req.body; // Should be an array
-        const result = await refundPolicyCollection.insertOne(policies);
+        const result = await collections.refundPolicyCollection.insertOne(policies);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding refund policy:', error);
@@ -4448,7 +4413,7 @@ async function run() {
     // get all refund policy
     app.get("/all-refund-policies", async (req, res) => {
       try {
-        const result = await refundPolicyCollection.find().toArray();
+        const result = await collections.refundPolicyCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching refund policy:", error);
@@ -4468,7 +4433,7 @@ async function run() {
           }
         };
 
-        const result = await refundPolicyCollection.updateOne(filter, updatedRefundPolicies);
+        const result = await collections.refundPolicyCollection.updateOne(filter, updatedRefundPolicies);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "refund policy not found" });
@@ -4486,7 +4451,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await refundPolicyCollection.findOne(query);
+        const result = await collections.refundPolicyCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "refund policy not found" });
@@ -4503,7 +4468,7 @@ async function run() {
     app.post("/add-shipping-policy", async (req, res) => {
       try {
         const policies = req.body; // Should be an array
-        const result = await shippingPolicyCollection.insertOne(policies);
+        const result = await collections.shippingPolicyCollection.insertOne(policies);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding shipping policy:', error);
@@ -4514,7 +4479,7 @@ async function run() {
     // get all shipping policy
     app.get("/all-shipping-policies", async (req, res) => {
       try {
-        const result = await shippingPolicyCollection.find().toArray();
+        const result = await collections.shippingPolicyCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipping policy:", error);
@@ -4534,7 +4499,7 @@ async function run() {
           }
         };
 
-        const result = await shippingPolicyCollection.updateOne(filter, updatedShippingPolicies);
+        const result = await collections.shippingPolicyCollection.updateOne(filter, updatedShippingPolicies);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "shipping policy not found" });
@@ -4552,7 +4517,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await shippingPolicyCollection.findOne(query);
+        const result = await collections.shippingPolicyCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "shipping policy not found" });
@@ -4569,7 +4534,7 @@ async function run() {
     app.post("/add-return-policy", async (req, res) => {
       try {
         const policies = req.body; // Should be an array
-        const result = await returnPolicyCollection.insertOne(policies);
+        const result = await collections.returnPolicyCollection.insertOne(policies);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding return policy:', error);
@@ -4580,7 +4545,7 @@ async function run() {
     // get all return policy
     app.get("/all-return-policies", async (req, res) => {
       try {
-        const result = await returnPolicyCollection.find().toArray();
+        const result = await collections.returnPolicyCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching return policy:", error);
@@ -4600,7 +4565,7 @@ async function run() {
           }
         };
 
-        const result = await returnPolicyCollection.updateOne(filter, updatedReturnPolicies);
+        const result = await collections.returnPolicyCollection.updateOne(filter, updatedReturnPolicies);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "return policy not found" });
@@ -4618,7 +4583,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await returnPolicyCollection.findOne(query);
+        const result = await collections.returnPolicyCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "return policy not found" });
@@ -4635,7 +4600,7 @@ async function run() {
     app.post("/add-faq", async (req, res) => {
       try {
         const faqData = req.body; // Should be an array
-        const result = await faqCollection.insertOne(faqData);
+        const result = await collections.faqCollection.insertOne(faqData);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding faq:', error);
@@ -4646,7 +4611,7 @@ async function run() {
     // get all faq
     app.get("/all-faqs", async (req, res) => {
       try {
-        const result = await faqCollection.find().toArray();
+        const result = await collections.faqCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching faq:", error);
@@ -4666,7 +4631,7 @@ async function run() {
           }
         };
 
-        const result = await faqCollection.updateOne(filter, updatedFAQSData);
+        const result = await collections.faqCollection.updateOne(filter, updatedFAQSData);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "faq not found" });
@@ -4684,7 +4649,7 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
-        const result = await faqCollection.findOne(query);
+        const result = await collections.faqCollection.findOne(query);
 
         if (!result) {
           return res.status(404).send({ message: "faq not found" });
@@ -4701,7 +4666,7 @@ async function run() {
     app.post("/add-top-header", async (req, res) => {
       try {
         const headerData = req.body; // Should be an array
-        const result = await topHeaderCollection.insertOne(headerData);
+        const result = await collections.topHeaderCollection.insertOne(headerData);
         res.send(result); // Send 201 status on success
       } catch (error) {
         console.error('Error adding top header:', error);
@@ -4712,7 +4677,7 @@ async function run() {
     // all header collection
     app.get("/get-all-header-collection", async (req, res) => {
       try {
-        const result = await topHeaderCollection.find().toArray();
+        const result = await collections.topHeaderCollection.find().toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching header collection:", error);
@@ -4732,7 +4697,7 @@ async function run() {
           }
         };
 
-        const result = await topHeaderCollection.updateOne(filter, updatedTopHeaderData);
+        const result = await collections.topHeaderCollection.updateOne(filter, updatedTopHeaderData);
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "top header not found" });
@@ -4745,7 +4710,7 @@ async function run() {
       }
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
 
