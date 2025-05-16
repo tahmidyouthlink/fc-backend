@@ -1,3 +1,40 @@
+const shutdown = async (server = null, exitCode = 0) => {
+  try {
+    console.log("Shutting down gracefully...");
+
+    // Close server if it exists (useful on VPS/GCP)
+    if (server && server.close) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+
+    // Close DB connection
+    if (client && client.close) {
+      await client.close();
+    }
+
+    console.log("All resources closed. Exiting.");
+    process.exit(exitCode);
+  } catch (err) {
+    console.error("Error during shutdown:", err);
+    process.exit(1);
+  }
+};
+
+// Error Handling
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  shutdown(null, 1); // No server in Vercel
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  shutdown(null, 1);
+});
+
+// Graceful shutdown for VPS or GCP
+process.on("SIGTERM", () => shutdown(null, 0));
+process.on("SIGINT", () => shutdown(null, 0));
+
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -8,13 +45,15 @@ const rateLimit = require('express-rate-limit');
 const { Storage } = require('@google-cloud/storage');
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const port = process.env.PORT | 5000;
+const port = process.env.PORT || 5000;
 require("dotenv").config();
 const cors = require("cors");
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const moment = require('moment-timezone');
+const compression = require("compression");
+const helmet = require("helmet");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -58,11 +97,13 @@ const client = new MongoClient(uri, {
 
 app.use(cors());
 app.use(express.json());
+app.use(compression());
+app.use(helmet());
 app.use(limiter);
 
 async function run() {
   try {
-
+    await client.connect(); // 👈 ADD THIS LINE
     const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
     const orderListCollection = client.db("fashion-commerce").collection("orderList");
     const customerListCollection = client.db("fashion-commerce").collection("customerList");
