@@ -8,7 +8,7 @@ const shutdown = async (server = null, exitCode = 0) => {
     }
 
     // Close DB connection
-    if (client && client.close) {
+    if (client && client.topology?.isConnected?.()) {
       await client.close();
     }
 
@@ -23,17 +23,13 @@ const shutdown = async (server = null, exitCode = 0) => {
 // Error Handling
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
-  shutdown(null, 1); // No server in Vercel
+  shutdown(server, 1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  shutdown(null, 1);
+  shutdown(server, 1);
 });
-
-// Graceful shutdown for VPS or GCP
-process.on("SIGTERM", () => shutdown(null, 0));
-process.on("SIGINT", () => shutdown(null, 0));
 
 const express = require("express");
 const bcrypt = require("bcryptjs");
@@ -103,7 +99,7 @@ app.use(limiter);
 
 async function run() {
   try {
-    await client.connect(); // 👈 ADD THIS LINE
+    // await client.connect();
     const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
     const orderListCollection = client.db("fashion-commerce").collection("orderList");
     const customerListCollection = client.db("fashion-commerce").collection("customerList");
@@ -4802,6 +4798,10 @@ app.get("/", (req, res) => {
   res.send("Fashion-Commerce server is running");
 })
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Fashion-Commerce server is running on port ${port}`);
-})
+});
+
+//Pass the server instance
+process.once("SIGTERM", () => shutdown(server, 0));
+process.once("SIGINT", () => shutdown(server, 0));
