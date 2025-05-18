@@ -920,12 +920,14 @@ async function run() {
     // after completed setup, put the information
     app.post("/customer-signup", async (req, res) => {
       try {
-
-        const { email, password, userInfo, cartItems, wishlistItems } = req.body; // Get username, dob, and password from request body
+        const { email, password, isLinkedWithCredentials, isLinkedWithGoogle, userInfo, cartItems, wishlistItems } =
+          req.body; // Get username, dob, and password from request body
 
         // Validate if all required fields are provided
         if (!email || !password) {
-          return res.status(400).json({ error: "Email, and password are required." });
+          return res
+            .status(400)
+            .json({ error: "Email, and password are required." });
         }
 
         // Hash the password before storing it in the database
@@ -941,14 +943,15 @@ async function run() {
         const result = await customerListCollection.insertOne({
           email,
           password: hashedPassword,
+          isLinkedWithCredentials,
+          isLinkedWithGoogle,
           userInfo,
           cartItems,
-          wishlistItems
+          wishlistItems,
         });
 
         // Send response after the user information is updated
         res.status(200).send(result);
-
       } catch (error) {
         res.status(500).json({
           success: false,
