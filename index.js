@@ -1767,6 +1767,11 @@ async function run() {
         const { _id, ...productDetails } = req.body;
         const filter = { _id: new ObjectId(id) };
 
+        // Use moment-timezone to format dateTime
+        const now = moment().tz("Asia/Dhaka");
+        const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
+        const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+
         // 1. Fetch the current product (before update)
         const existingProduct = await productInformationCollection.findOne(filter);
 
@@ -1945,7 +1950,12 @@ async function run() {
                     // Update notified:true inside emails array
                     await availabilityNotifications.updateOne(
                       { _id: new ObjectId(notificationDoc._id), "emails.email": email },
-                      { $set: { "emails.$.notified": true } }
+                      {
+                        $set: {
+                          "emails.$.notified": true,
+                          updatedDateTime: dateTime
+                        }
+                      }
                     );
 
                     // return res.status(200).json({
@@ -2110,6 +2120,19 @@ async function run() {
       );
     }
 
+    function isValidDate(date) {
+      return date && !isNaN(new Date(date).getTime());
+    }
+
+    function isWithinLast3Days(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date)) return false; // this alone is enough
+      const now = new Date();
+      const diffTime = now - date;
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return diffDays <= 3;
+    }
+
     // get all notifications e,g. (products, orders)
     app.get("/get-merged-notifications", async (req, res) => {
       const { email } = req.query;
@@ -2128,10 +2151,13 @@ async function run() {
         }).toArray();
 
         const notificationEntries = notifications.flatMap(doc =>
-          doc.emails.map(email => ({
+          doc.emails.filter(email =>
+            !doc.updatedDateTime || isWithinLast3Days(doc.updatedDateTime)
+          ).map(email => ({
             type: "Notified",
             email: email?.email,
-            dateTime: new Date(email.dateTime).toISOString(),
+            dateTime: isValidDate(email.dateTime) ? new Date(email.dateTime).toISOString() : null,
+            updatedDateTime: isValidDate(doc?.updatedDateTime) ? new Date(doc.updatedDateTime).toISOString() : null,
             productId: doc.productId,
             size: doc.size,
             colorCode: doc.colorCode,
@@ -2147,6 +2173,7 @@ async function run() {
           type: "Ordered",
           email: order?.customerInfo?.email,
           dateTime: order.orderStatus === "Return Requested" ? convertToDateTime(order.returnInfo.dateTime) : convertToDateTime(order.dateTime),
+          updatedDateTime: null,
           productId: "",
           size: null,
           colorCode: null,
