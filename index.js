@@ -191,7 +191,7 @@ async function run() {
     }
 
     // Route to upload single file
-    app.post('/uploadFile', upload.single('attachment'), async (req, res) => {
+    app.post('/upload-single-file', upload.single('attachment'), async (req, res) => {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
@@ -231,7 +231,7 @@ async function run() {
     });
 
     // Route to upload multiple PDFs
-    app.post('/upload-pdfs', upload.any(), async (req, res) => {
+    app.post('/upload-multiple-files', upload.any(), async (req, res) => {
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'No files uploaded' });
       }
