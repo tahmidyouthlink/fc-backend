@@ -36,10 +36,7 @@ const storage = new Storage({
 
 const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket exists
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
-});
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Create a limiter
 // const limiter = rateLimit({
@@ -70,8 +67,7 @@ const client = new MongoClient(uri, {
 //   credentials: true, // if using cookies or auth
 // }));
 app.use(cors());
-app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ limit: "100mb", extended: true }));
+app.use(express.json());
 app.use(compression());
 app.use(helmet());
 // app.use(limiter);
@@ -162,7 +158,35 @@ async function run() {
         console.error("Error sending OTP email:", emailError);
         throw new Error("Error sending OTP email");
       }
-    }
+    };
+
+    // Route to generate signed URL for uploading a single file
+    app.post('/generate-upload-url', async (req, res) => {
+      try {
+        const { fileName, contentType } = req.body;
+
+        if (!fileName || !contentType) {
+          return res.status(400).json({ error: 'Missing fileName or contentType' });
+        }
+
+        const file = bucket.file(`${Date.now()}_${fileName}`);
+
+        const options = {
+          version: 'v4',
+          action: 'write', // For upload
+          expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+          contentType: contentType,
+        };
+
+        // Get a v4 signed URL for uploading file
+        const [url] = await file.getSignedUrl(options);
+
+        return res.status(200).json({ uploadUrl: url, publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}` });
+      } catch (error) {
+        console.error('Error generating signed URL:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
     // Route to upload single file
     app.post('/upload-single-file', upload.single('attachment'), async (req, res) => {
