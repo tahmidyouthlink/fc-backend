@@ -1,36 +1,3 @@
-const shutdown = async (server = null, exitCode = 0) => {
-  try {
-    console.log("Shutting down gracefully...");
-
-    // Close server if it exists (useful on VPS/GCP)
-    if (server && server.close) {
-      await new Promise((resolve) => server.close(resolve));
-    }
-
-    // Close DB connection
-    if (client && client.topology?.isConnected?.()) {
-      await client.close();
-    }
-
-    console.log("All resources closed. Exiting.");
-    process.exit(exitCode);
-  } catch (err) {
-    console.error("Error during shutdown:", err);
-    process.exit(1);
-  }
-};
-
-// Error Handling
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
-  shutdown(server, 1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  shutdown(server, 1);
-});
-
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -4612,6 +4579,39 @@ const server = app.listen(port, () => {
   console.log(`Fashion-Commerce server is running on port ${port}`);
 });
 
+const shutdown = async (server = null, exitCode = 0) => {
+  try {
+    console.log("Shutting down gracefully...");
+
+    // Close server if it exists (useful on VPS/GCP)
+    if (server && server.close) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+
+    // Close DB connection
+    if (client && client.topology?.isConnected?.()) {
+      await client.close();
+    }
+
+    console.log("All resources closed. Exiting.");
+    process.exit(exitCode);
+  } catch (err) {
+    console.error("Error during shutdown:", err);
+    process.exit(1);
+  }
+};
+
 //Pass the server instance
 process.once("SIGTERM", () => shutdown(server, 0));
 process.once("SIGINT", () => shutdown(server, 0));
+
+// Error Handling
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  shutdown(server, 1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  shutdown(server, 1);
+});
