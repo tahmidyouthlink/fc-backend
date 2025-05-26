@@ -91,14 +91,14 @@ const client = new MongoClient(uri, {
   }
 });
 
-app.use(cors({
-  origin: [
-    // "http://localhost:3000",
-    // "https://fashion-commerce-pi.vercel.app",
-    "https://fc-frontend-664306765395.asia-south1.run.app"
-  ],
-  credentials: true, // if using cookies or auth
-}));
+// app.use(cors({
+//   origin: [
+//     "http://localhost:3000",
+//     // "https://fashion-commerce-pi.vercel.app",
+//     // "https://fc-frontend-664306765395.asia-south1.run.app"
+//   ],
+//   credentials: true, // if using cookies or auth
+// }));
 app.use(cors());
 app.use(express.json());
 app.use(compression());
