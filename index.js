@@ -72,13 +72,13 @@ const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Create a limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true, // ✅ Adds `RateLimit-*` headers
-  legacyHeaders: false,  // ✅ Disables `X-RateLimit-*` headers (old standard)
-  message: 'Too many requests from this IP, please try again after 15 minutes',
-});
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100,
+//   standardHeaders: true, // ✅ Adds `RateLimit-*` headers
+//   legacyHeaders: false,  // ✅ Disables `X-RateLimit-*` headers (old standard)
+//   message: 'Too many requests from this IP, please try again after 15 minutes',
+// });
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
 
@@ -103,7 +103,7 @@ app.use(cors());
 app.use(express.json());
 app.use(compression());
 app.use(helmet());
-app.use(limiter);
+// app.use(limiter);
 
 async function run() {
   try {
