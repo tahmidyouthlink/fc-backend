@@ -36,7 +36,10 @@ const storage = new Storage({
 
 const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket exists
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
+});
 
 // Create a limiter
 // const limiter = rateLimit({
@@ -67,7 +70,8 @@ const client = new MongoClient(uri, {
 //   credentials: true, // if using cookies or auth
 // }));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ limit: "100mb", extended: true }));
 app.use(compression());
 app.use(helmet());
 // app.use(limiter);
