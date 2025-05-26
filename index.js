@@ -95,7 +95,7 @@ app.use(cors({
   origin: [
     // "http://localhost:3000",
     // "https://fashion-commerce-pi.vercel.app",
-    "https://fc-frontend-664306765395.us-central1.run.app"
+    "https://fc-frontend-664306765395.asia-south1.run.app"
   ],
   credentials: true, // if using cookies or auth
 }));
