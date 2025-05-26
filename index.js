@@ -61,8 +61,8 @@ const client = new MongoClient(uri, {
 // app.use(cors({
 //   origin: [
 //     "http://localhost:3000",
-//     // "https://fashion-commerce-pi.vercel.app",
-//     // "https://fc-frontend-664306765395.asia-south1.run.app"
+//     "https://fashion-commerce-pi.vercel.app",
+//     "https://fc-frontend-664306765395.asia-south1.run.app"
 //   ],
 //   credentials: true, // if using cookies or auth
 // }));
@@ -228,7 +228,7 @@ async function run() {
       }
     });
 
-    // Route to upload multiple PDFs
+    // Route to upload multiple files
     app.post('/upload-multiple-files', upload.any(), async (req, res) => {
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'No files uploaded' });
