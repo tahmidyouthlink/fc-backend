@@ -93,15 +93,17 @@ const client = new MongoClient(uri, {
 
 app.use(cors({
   origin: [
-    "http://localhost:3000",
-    // "https://fashion-commerce-pi.vercel.app"
+    // "http://localhost:3000",
+    // "https://fashion-commerce-pi.vercel.app",
+    "https://fc-frontend-664306765395.us-central1.run.app"
   ],
   credentials: true, // if using cookies or auth
 }));
+app.use(cors());
 app.use(express.json());
 app.use(compression());
 app.use(helmet());
-// app.use(limiter);
+app.use(limiter);
 
 async function run() {
   try {
