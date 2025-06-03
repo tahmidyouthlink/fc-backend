@@ -1091,6 +1091,151 @@ async function run() {
           wishlistItems,
         });
 
+        const name = userInfo.personalInfo.customerName;
+        const promoCode = "POSHAX10";
+        const promoAmount = "10%";
+
+        const mailResult = await transport.sendMail({
+          from: `"PoshaX" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "Welcome to PoshaX! Let's Get Posh!",
+          text: `
+            Hi ${name},
+
+            We are thrilled to have you join our fashion-forward platform, POSHAX!
+
+            Expect exclusive drops, early access to new collections, and more!
+
+            Use the code ${promoCode} at checkout to get ${promoAmount} off your first order.
+          
+            Start shopping now!
+
+            Shop Now: ${process.env.FRONTEND_URL}/shop
+          
+            Stay Posh
+            PoshaX Team
+          `,
+          html: `
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <link
+                  href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap"
+                  rel="stylesheet"
+                />
+              </head>
+              <body style="font-family: 'Oxygen', sans-serif; margin: 0; padding: 0">
+                <div
+                  style="
+                    width: 100%;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 14px;
+                    border: 1px solid #dfdfdf;
+                    padding: 32px;
+                  "
+                >
+                  <div
+                    style="
+                      text-align: center;
+                      border-bottom: 1px solid #dfdfdf;
+                      height: fit-content;
+                    "
+                  >
+                    <h2
+                      style="
+                        color: #404040;
+                        font-size: 1.5rem;
+                        margin: 0;
+                        padding-bottom: 10px;
+                      "
+                    >
+                      Welcome to PoshaX! Let's Get Posh!
+                    </h2>
+                  </div>
+                  <div>
+                    <p
+                      style="
+                        color: #525252;
+                        font-size: 1rem;
+                        line-height: 1.6;
+                        padding-top: 10px;
+                      "
+                    >
+                      Hi ${name},
+                    </p>
+                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                      We are thrilled to have you join our fashion-forward platform,
+                      <strong>POSHAX</strong>!
+                    </p>
+                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                      Expect exclusive drops, early access to new collections, and more!
+                    </p>
+                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                      Use the code <strong>${promoCode}</strong> at checkout to get ${promoAmount} off your first order.
+                    </p>
+                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                      Start shopping now!
+                    </p>
+                    <table
+                      role="presentation"
+                      width="100%"
+                      cellspacing="0"
+                      cellpadding="0"
+                      border="0"
+                    >
+                      <tr>
+                        <td align="center">
+                          <a
+                            href="${process.env.FRONTEND_URL}/shop"
+                            style="
+                              display: inline-block;
+                              font-size: 0.825rem;
+                              font-weight: 700;
+                              color: #404040;
+                              background-color: #d4ffce;
+                              padding: 12px 30px;
+                              text-decoration: none;
+                              border-radius: 8px;
+                              margin-top: 12px;
+                              margin-bottom: 24px;
+                            "
+                            >Shop Now</a
+                          >
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
+                  <div
+                    style="
+                      text-align: center;
+                      padding-top: 10px;
+                      font-size: 0.825rem;
+                      color: #737373;
+                    "
+                  >
+                    <p>
+                      Stay Posh
+                      <span style="display: block; margin-top: 2px">PoshaX Team</span>
+                    </p>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `,
+        });
+
+        // Check if email was sent successfully
+        if (!mailResult?.accepted?.length) {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to send the welcome email.",
+          });
+        }
+
         // Send response after the user information is updated
         res.status(200).send(result);
       } catch (error) {
