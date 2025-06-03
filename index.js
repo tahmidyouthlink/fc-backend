@@ -4,29 +4,32 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const multer = require("multer");
-const rateLimit = require('express-rate-limit');
-const { Storage } = require('@google-cloud/storage');
+const rateLimit = require("express-rate-limit");
+const { Storage } = require("@google-cloud/storage");
 const app = express();
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
 const cors = require("cors");
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const moment = require('moment-timezone');
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const moment = require("moment-timezone");
 const compression = require("compression");
 const helmet = require("helmet");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
 if (!base64Key) {
-  throw new Error('Missing GCP_SERVICE_ACCOUNT_BASE64 env variable');
+  throw new Error("Missing GCP_SERVICE_ACCOUNT_BASE64 env variable");
 }
 
 // Convert the base64 string to JSON and store it in a temporary file
-const keyFilePath = path.join(os.tmpdir(), 'gcs-key.json');
-fs.writeFileSync(keyFilePath, Buffer.from(base64Key, 'base64').toString('utf-8'));
+const keyFilePath = path.join(os.tmpdir(), "gcs-key.json");
+fs.writeFileSync(
+  keyFilePath,
+  Buffer.from(base64Key, "base64").toString("utf-8")
+);
 
 // You can also load from a JSON key file if you're not using env vars
 const storage = new Storage({
@@ -55,7 +58,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 // app.use(cors({
@@ -75,32 +78,76 @@ app.use(helmet());
 async function run() {
   try {
     // await client.connect();
-    const productInformationCollection = client.db("fashion-commerce").collection("all-product-information");
-    const orderListCollection = client.db("fashion-commerce").collection("orderList");
-    const customerListCollection = client.db("fashion-commerce").collection("customerList");
-    const seasonCollection = client.db("fashion-commerce").collection("seasons");
-    const categoryCollection = client.db("fashion-commerce").collection("category");
+    const productInformationCollection = client
+      .db("fashion-commerce")
+      .collection("all-product-information");
+    const orderListCollection = client
+      .db("fashion-commerce")
+      .collection("orderList");
+    const customerListCollection = client
+      .db("fashion-commerce")
+      .collection("customerList");
+    const seasonCollection = client
+      .db("fashion-commerce")
+      .collection("seasons");
+    const categoryCollection = client
+      .db("fashion-commerce")
+      .collection("category");
     const colorCollection = client.db("fashion-commerce").collection("colors");
-    const vendorCollection = client.db("fashion-commerce").collection("vendors");
+    const vendorCollection = client
+      .db("fashion-commerce")
+      .collection("vendors");
     const tagCollection = client.db("fashion-commerce").collection("tags");
-    const promoCollection = client.db("fashion-commerce").collection("promo-code");
+    const promoCollection = client
+      .db("fashion-commerce")
+      .collection("promo-code");
     const offerCollection = client.db("fashion-commerce").collection("offers");
-    const shippingZoneCollection = client.db("fashion-commerce").collection("shipping-zone");
-    const shipmentHandlerCollection = client.db("fashion-commerce").collection("shipment-handler");
-    const paymentMethodCollection = client.db("fashion-commerce").collection("payment-methods");
-    const locationCollection = client.db("fashion-commerce").collection("locations");
-    const purchaseOrderCollection = client.db("fashion-commerce").collection("purchase-order");
-    const transferOrderCollection = client.db("fashion-commerce").collection("transfer-order");
-    const marketingBannerCollection = client.db("fashion-commerce").collection("marketing-banner");
-    const loginRegisterSlideCollection = client.db("fashion-commerce").collection("login-register-slide");
-    const heroBannerCollection = client.db("fashion-commerce").collection("hero-banner");
-    const newsletterCollection = client.db("fashion-commerce").collection("news-letter");
-    const enrollmentCollection = client.db("fashion-commerce").collection("enrollment-admin-staff");
-    const policyPagesCollection = client.db("fashion-commerce").collection("policy-pages");
+    const shippingZoneCollection = client
+      .db("fashion-commerce")
+      .collection("shipping-zone");
+    const shipmentHandlerCollection = client
+      .db("fashion-commerce")
+      .collection("shipment-handler");
+    const paymentMethodCollection = client
+      .db("fashion-commerce")
+      .collection("payment-methods");
+    const locationCollection = client
+      .db("fashion-commerce")
+      .collection("locations");
+    const purchaseOrderCollection = client
+      .db("fashion-commerce")
+      .collection("purchase-order");
+    const transferOrderCollection = client
+      .db("fashion-commerce")
+      .collection("transfer-order");
+    const marketingBannerCollection = client
+      .db("fashion-commerce")
+      .collection("marketing-banner");
+    const loginRegisterSlideCollection = client
+      .db("fashion-commerce")
+      .collection("login-register-slide");
+    const heroBannerCollection = client
+      .db("fashion-commerce")
+      .collection("hero-banner");
+    const newsletterCollection = client
+      .db("fashion-commerce")
+      .collection("news-letter");
+    const enrollmentCollection = client
+      .db("fashion-commerce")
+      .collection("enrollment-admin-staff");
+    const policyPagesCollection = client
+      .db("fashion-commerce")
+      .collection("policy-pages");
     const faqCollection = client.db("fashion-commerce").collection("faqs");
-    const ourStoryCollection = client.db("fashion-commerce").collection("our-story");
-    const topHeaderCollection = client.db("fashion-commerce").collection("top-header");
-    const availabilityNotifications = client.db("fashion-commerce").collection("availability-notifications");
+    const ourStoryCollection = client
+      .db("fashion-commerce")
+      .collection("our-story");
+    const topHeaderCollection = client
+      .db("fashion-commerce")
+      .collection("top-header");
+    const availabilityNotifications = client
+      .db("fashion-commerce")
+      .collection("availability-notifications");
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -152,28 +199,30 @@ async function run() {
           <p style="text-align: center; color: #555;">Thank you for choosing <b>Fashion Commerce</b>! 🛍️</p>
           <p style="text-align: center; font-size: 14px; color: #888;">Best regards,<br>Team Fashion Commerce</p>
         </div>
-      `
+      `,
         });
       } catch (emailError) {
         console.error("Error sending OTP email:", emailError);
         throw new Error("Error sending OTP email");
       }
-    };
+    }
 
     // Route to generate signed URL for uploading a single file
-    app.post('/generate-upload-url', async (req, res) => {
+    app.post("/generate-upload-url", async (req, res) => {
       try {
         const { fileName, contentType } = req.body;
 
         if (!fileName || !contentType) {
-          return res.status(400).json({ error: 'Missing fileName or contentType' });
+          return res
+            .status(400)
+            .json({ error: "Missing fileName or contentType" });
         }
 
         const file = bucket.file(`${Date.now()}_${fileName}`);
 
         const options = {
-          version: 'v4',
-          action: 'write', // For upload
+          version: "v4",
+          action: "write", // For upload
           expires: Date.now() + 15 * 60 * 1000, // 15 minutes
           contentType: contentType,
         };
@@ -181,57 +230,64 @@ async function run() {
         // Get a v4 signed URL for uploading file
         const [url] = await file.getSignedUrl(options);
 
-        return res.status(200).json({ uploadUrl: url, publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}` });
+        return res.status(200).json({
+          uploadUrl: url,
+          publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}`,
+        });
       } catch (error) {
-        console.error('Error generating signed URL:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error("Error generating signed URL:", error);
+        return res.status(500).json({ error: "Internal server error" });
       }
     });
 
     // Route to upload single file
-    app.post('/upload-single-file', upload.single('attachment'), async (req, res) => {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
+    app.post(
+      "/upload-single-file",
+      upload.single("attachment"),
+      async (req, res) => {
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
 
-      try {
-        const file = req.file;
-        const blob = bucket.file(`${Date.now()}_${file.originalname}`);
-        const blobStream = blob.createWriteStream({
-          resumable: false,
-          contentType: file.mimetype,
-          metadata: {
-            contentType: file.mimetype
-          }
-        });
-
-        blobStream.on('error', (err) => {
-          console.error('Upload error:', err);
-          res.status(500).json({ error: 'Failed to upload file' });
-        });
-
-        blobStream.on('finish', async () => {
-          // Make file public
-          await blob.acl.add({
-            entity: 'allUsers',
-            role: 'READER',
+        try {
+          const file = req.file;
+          const blob = bucket.file(`${Date.now()}_${file.originalname}`);
+          const blobStream = blob.createWriteStream({
+            resumable: false,
+            contentType: file.mimetype,
+            metadata: {
+              contentType: file.mimetype,
+            },
           });
 
-          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-          res.status(200).json({ fileUrl: publicUrl });
-        });
+          blobStream.on("error", (err) => {
+            console.error("Upload error:", err);
+            res.status(500).json({ error: "Failed to upload file" });
+          });
 
-        blobStream.end(file.buffer);
-      } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Failed to upload file' });
+          blobStream.on("finish", async () => {
+            // Make file public
+            await blob.acl.add({
+              entity: "allUsers",
+              role: "READER",
+            });
+
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+            res.status(200).json({ fileUrl: publicUrl });
+          });
+
+          blobStream.end(file.buffer);
+        } catch (error) {
+          console.error("Upload error:", error);
+          res.status(500).json({ error: "Failed to upload file" });
+        }
       }
-    });
+    );
 
     // Route to upload multiple files
-    app.post('/upload-multiple-files', upload.any(), async (req, res) => {
+    app.post("/upload-multiple-files", upload.any(), async (req, res) => {
       if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'No files uploaded' });
+        return res.status(400).json({ error: "No files uploaded" });
       }
 
       try {
@@ -242,17 +298,17 @@ async function run() {
               resumable: false,
               contentType: file.mimetype,
               metadata: {
-                contentType: file.mimetype
-              }
+                contentType: file.mimetype,
+              },
             });
 
-            blobStream.on('error', reject);
+            blobStream.on("error", reject);
 
-            blobStream.on('finish', async () => {
+            blobStream.on("finish", async () => {
               // Set the file to be publicly accessible by default
               await blob.acl.add({
-                entity: 'allUsers',
-                role: 'READER',
+                entity: "allUsers",
+                role: "READER",
               });
 
               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
@@ -266,36 +322,42 @@ async function run() {
         const urls = await Promise.all(uploadPromises);
         res.status(200).json({ urls });
       } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Failed to upload files' });
+        console.error("Upload error:", error);
+        res.status(500).json({ error: "Failed to upload files" });
       }
     });
 
     // Invite API (Super Admin creates an account)
     app.post("/invite", async (req, res) => {
-
       try {
         const { email, permissions } = req.body;
 
         if (!email) {
-          return res.status(400).json({ success: false, message: "Email is required!" });
-        }
-        else if (!permissions) {
-          return res.status(400).json({ success: false, message: "Permissions are required!" });
+          return res
+            .status(400)
+            .json({ success: false, message: "Email is required!" });
+        } else if (!permissions) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Permissions are required!" });
         }
 
         // Check if the email already exists
         const existingEntry = await enrollmentCollection.findOne({ email });
 
         if (existingEntry) {
-
-          const isExpired = (!existingEntry.hashedToken && !existingEntry.expiresAt) || new Date(existingEntry.expiresAt) < new Date();
+          const isExpired =
+            (!existingEntry.hashedToken && !existingEntry.expiresAt) ||
+            new Date(existingEntry.expiresAt) < new Date();
 
           // Check if the existing invitation is expired
           if (isExpired) {
             // If expired, allow re-invitation by generating a new token
             const token = crypto.randomBytes(32).toString("hex");
-            const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+            const hashedToken = crypto
+              .createHash("sha256")
+              .update(token)
+              .digest("hex");
             const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // New expiry
 
             const magicLink = `${process.env.FRONTEND_URL}/auth/setup?token=${token}`;
@@ -315,16 +377,18 @@ async function run() {
     
     
     
-                This link is valid for **72 hours** and will expire on **${new Date(Date.now() + 72 * 60 * 60 * 1000).toLocaleString('en-GB', {
-                  timeZone: 'Asia/Dhaka',
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: 'numeric',
-                  minute: 'numeric',
-                  second: 'numeric',
-                  hour12: true
+                This link is valid for **72 hours** and will expire on **${new Date(
+                  Date.now() + 72 * 60 * 60 * 1000
+                ).toLocaleString("en-GB", {
+                  timeZone: "Asia/Dhaka",
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "numeric",
+                  second: "numeric",
+                  hour12: true,
                 })}**.
     
                 If you did not expect this invitation, you can safely ignore this email.
@@ -420,10 +484,14 @@ async function run() {
               </div>
             </div>
             </body>
-            </html>`
+            </html>`,
               });
 
-              if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
+              if (
+                mailResult &&
+                mailResult.accepted &&
+                mailResult.accepted.length > 0
+              ) {
                 // Update the existing document with new token and expiry
                 await enrollmentCollection.updateOne(
                   { email },
@@ -436,7 +504,10 @@ async function run() {
                   emailStatus: mailResult,
                 });
               } else {
-                return res.status(500).json({ success: false, message: "Failed to resend invitation email." });
+                return res.status(500).json({
+                  success: false,
+                  message: "Failed to resend invitation email.",
+                });
               }
             } catch (emailError) {
               return res.status(500).json({
@@ -445,14 +516,18 @@ async function run() {
                 emailError: emailError.message,
               });
             }
-          }
-          else {
-            return res.status(400).json({ error: "Email already invited and still valid." });
+          } else {
+            return res
+              .status(400)
+              .json({ error: "Email already invited and still valid." });
           }
         }
 
         const token = crypto.randomBytes(32).toString("hex"); // Generate secure random token
-        const hashedToken = crypto.createHash("sha256").update(token).digest("hex"); // Hash token
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(token)
+          .digest("hex"); // Hash token
 
         // Set expiration time (72 hours)
         const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
@@ -475,16 +550,18 @@ async function run() {
 
 
 
-            This link is valid for **72 hours** and will expire on **${new Date(Date.now() + 72 * 60 * 60 * 1000).toLocaleString('en-GB', {
-              timeZone: 'Asia/Dhaka',
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: 'numeric',
-              second: 'numeric',
-              hour12: true
+            This link is valid for **72 hours** and will expire on **${new Date(
+              Date.now() + 72 * 60 * 60 * 1000
+            ).toLocaleString("en-GB", {
+              timeZone: "Asia/Dhaka",
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              hour: "numeric",
+              minute: "numeric",
+              second: "numeric",
+              hour12: true,
             })}**.
 
             If you did not expect this invitation, you can safely ignore this email.
@@ -579,11 +656,15 @@ async function run() {
                 </div>
               </div>
               </body>
-              </html>`
+              </html>`,
           });
 
           // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
-          if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
+          if (
+            mailResult &&
+            mailResult.accepted &&
+            mailResult.accepted.length > 0
+          ) {
             // If email was sent successfully, insert data into MongoDB
             const result = await enrollmentCollection.insertOne({
               email,
@@ -605,7 +686,6 @@ async function run() {
               message: "Failed to send invitation email.",
             });
           }
-
         } catch (emailError) {
           return res.status(500).json({
             success: false,
@@ -613,9 +693,7 @@ async function run() {
             emailError: emailError.message,
           });
         }
-
-      }
-      catch (error) {
+      } catch (error) {
         res.status(500).json({
           success: false,
           message: "Something went wrong!",
@@ -626,17 +704,20 @@ async function run() {
 
     // checking token is valid or not
     app.post("/validate-token", async (req, res) => {
-
       const { token } = req.body; // Assuming the token comes in the body of the request.
 
       if (!token) {
-        return res.status(400).json({ message: "Token is required. Please provide a valid token." });
+        return res.status(400).json({
+          message: "Token is required. Please provide a valid token.",
+        });
       }
 
       try {
-
         // Hash the received raw token
-        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+        const hashedToken = crypto
+          .createHash("sha256")
+          .update(token)
+          .digest("hex");
 
         // Check if the email exists in the database (optional, if you want extra verification)
         const enrollment = await enrollmentCollection.findOne({
@@ -644,12 +725,16 @@ async function run() {
         });
 
         if (!enrollment) {
-          return res.status(400).json({ message: "We could not find your request. Please try again." });
-        };
+          return res.status(400).json({
+            message: "We could not find your request. Please try again.",
+          });
+        }
 
         // ✅ Check if the user has already set up their account
         if (enrollment.isSetupComplete) {
-          return res.status(403).json({ message: "You have already set up your account." });
+          return res
+            .status(403)
+            .json({ message: "You have already set up your account." });
         }
 
         // Check if the token has expired
@@ -668,26 +753,45 @@ async function run() {
         const { email } = enrollment;
 
         // Token is valid and not expired
-        res.status(200).json({ message: "Access verified successfully.", email });
-
+        res
+          .status(200)
+          .json({ message: "Access verified successfully.", email });
       } catch (error) {
-
         // Generic error message
-        return res.status(500).json({ message: "Something went wrong. Please try again later.", error: error.message });
-
+        return res.status(500).json({
+          message: "Something went wrong. Please try again later.",
+          error: error.message,
+        });
       }
     });
 
     app.get("/all-existing-users", async (req, res) => {
       try {
         // Retrieve only specific fields from the collection
-        const users = await enrollmentCollection.find({}, { projection: { email: 1, fullName: 1, hashedToken: 1, expiresAt: 1, isSetupComplete: 1, role: 1, permissions: 1 } }).toArray();
+        const users = await enrollmentCollection
+          .find(
+            {},
+            {
+              projection: {
+                email: 1,
+                fullName: 1,
+                hashedToken: 1,
+                expiresAt: 1,
+                isSetupComplete: 1,
+                role: 1,
+                permissions: 1,
+              },
+            }
+          )
+          .toArray();
 
         // Return the list of specific fields (email, fullName, hashedToken, expiresAt)
         res.status(200).json(users);
       } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Something went wrong. Please try again later." });
+        res
+          .status(500)
+          .json({ message: "Something went wrong. Please try again later." });
       }
     });
 
@@ -717,7 +821,10 @@ async function run() {
 
         res.send(result);
       } catch (error) {
-        console.error("Error fetching Single Existing User Information:", error);
+        console.error(
+          "Error fetching Single Existing User Information:",
+          error
+        );
         res.status(500).send({
           message: "Failed to fetch Single Existing User Information",
           error: error.message,
@@ -734,14 +841,11 @@ async function run() {
         // Validate if all required fields are provided
         if (!username) {
           return res.status(400).json({ error: "Username is required." });
-        }
-        else if (!dob) {
+        } else if (!dob) {
           return res.status(400).json({ error: "Date of Birth is required." });
-        }
-        else if (!password) {
+        } else if (!password) {
           return res.status(400).json({ error: "Password is required." });
-        }
-        else if (!fullName) {
+        } else if (!fullName) {
           return res.status(400).json({ error: "Full Name is required." });
         }
 
@@ -771,13 +875,15 @@ async function run() {
               fullName,
               dob,
               password: hashedPassword,
-              isSetupComplete: true
+              isSetupComplete: true,
             },
           }
         );
 
         if (updatedUser.modifiedCount === 0) {
-          return res.status(500).json({ error: "Failed to update user information." });
+          return res
+            .status(500)
+            .json({ error: "Failed to update user information." });
         }
 
         // Send response after the user information is updated
@@ -785,7 +891,6 @@ async function run() {
           success: true,
           message: "Account setup completed successfully!",
         });
-
       } catch (error) {
         res.status(500).json({
           success: false,
@@ -803,23 +908,34 @@ async function run() {
 
         const updatedUserPermissions = {
           $set: {
-            permissions
-          }
+            permissions,
+          },
         };
 
-        const result = await enrollmentCollection.updateOne(query, updatedUserPermissions);
+        const result = await enrollmentCollection.updateOne(
+          query,
+          updatedUserPermissions
+        );
 
         if (result.modifiedCount > 0) {
-          res.send({ success: true, message: "User permissions updated successfully" });
+          res.send({
+            success: true,
+            message: "User permissions updated successfully",
+          });
         } else {
-          res.send({ success: false, message: "No changes were made to user permissions" });
+          res.send({
+            success: false,
+            message: "No changes were made to user permissions",
+          });
         }
-
       } catch (error) {
         console.error("Error updating user permission:", error);
-        res.status(500).send({ message: "Failed to update user permission", error: error.message });
+        res.status(500).send({
+          message: "Failed to update user permission",
+          error: error.message,
+        });
       }
-    })
+    });
 
     // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", async (req, res) => {
@@ -828,20 +944,27 @@ async function run() {
       try {
         // Find user by email OR username
         const user = await enrollmentCollection.findOne({
-          $or: [{ email: emailOrUsername }, { username: emailOrUsername }]
+          $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
         });
 
         if (!user) {
-          return res.status(401).json({ message: "No account found with this email or username." });
+          return res
+            .status(401)
+            .json({ message: "No account found with this email or username." });
         }
         if (!user.password) {
-          return res.status(403).json({ message: "Your account setup is incomplete. Please set up your password before logging in." });
+          return res.status(403).json({
+            message:
+              "Your account setup is incomplete. Please set up your password before logging in.",
+          });
         }
 
         // Verify the password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-          return res.status(401).json({ message: "Incorrect password. Please try again." });
+          return res
+            .status(401)
+            .json({ message: "Incorrect password. Please try again." });
         }
 
         // ✅ If OTP should not be sent (trusted device), log in directly
@@ -867,19 +990,26 @@ async function run() {
             // Send OTP email
             await sendOtpEmail(user.email, generatedOtp, user.fullName);
             return res.status(401).json({
-              message: "OTP has been sent to your email. Please enter the OTP to complete login."
+              message:
+                "OTP has been sent to your email. Please enter the OTP to complete login.",
             });
           } catch (emailError) {
             console.error("Error sending OTP email:", emailError);
-            return res.status(500).json({ message: "Error sending OTP email. Please try again later." });
+            return res.status(500).json({
+              message: "Error sending OTP email. Please try again later.",
+            });
           }
         } else {
           // OTP is provided; re-fetch the user document to ensure you have the latest OTP fields.
-          const updatedUser = await enrollmentCollection.findOne({ _id: user._id });
+          const updatedUser = await enrollmentCollection.findOne({
+            _id: user._id,
+          });
 
           // Verify OTP fields exist
           if (!updatedUser.otp || !updatedUser.otpExpiresAt) {
-            return res.status(400).json({ message: "OTP expired or not found. Please try logging in again." });
+            return res.status(400).json({
+              message: "OTP expired or not found. Please try logging in again.",
+            });
           }
 
           // Check if OTP is expired
@@ -889,12 +1019,16 @@ async function run() {
               { _id: user._id },
               { $unset: { otp: "", otpExpiresAt: "" } }
             );
-            return res.status(400).json({ message: "OTP has expired. Please try logging in again." });
+            return res.status(400).json({
+              message: "OTP has expired. Please try logging in again.",
+            });
           }
 
           // Check if the provided OTP matches
           if (otp !== updatedUser.otp) {
-            return res.status(400).json({ message: "Invalid OTP. Please try again." });
+            return res
+              .status(400)
+              .json({ message: "Invalid OTP. Please try again." });
           }
 
           // OTP is valid—remove the OTP fields and return user data
@@ -911,15 +1045,24 @@ async function run() {
         }
       } catch (error) {
         console.error("Login error:", error);
-        return res.status(500).json({ message: "Something went wrong. Please try again later." });
+        return res
+          .status(500)
+          .json({ message: "Something went wrong. Please try again later." });
       }
     });
 
     // after completed setup, put the information
     app.post("/customer-signup", async (req, res) => {
       try {
-        const { email, password, isLinkedWithCredentials, isLinkedWithGoogle, userInfo, cartItems, wishlistItems } =
-          req.body; // Get username, dob, and password from request body
+        const {
+          email,
+          password,
+          isLinkedWithCredentials,
+          isLinkedWithGoogle,
+          userInfo,
+          cartItems,
+          wishlistItems,
+        } = req.body; // Get username, dob, and password from request body
 
         // Validate if all required fields are provided
         if (!email || !password) {
@@ -963,7 +1106,6 @@ async function run() {
     app.post("/contact", async (req, res) => {
       const { name, email, phone, topic, message } = req.body;
 
-
       if (!name || !email || !phone || !topic || !message) {
         return res.status(400).json({
           success: false,
@@ -971,9 +1113,8 @@ async function run() {
         });
       }
 
-
       try {
-        const mailResult = await transport.sendMail({
+        const staffMailResult = await transport.sendMail({
           from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
           to: "rahilbinmushfiq@gmail.com", // Need to change it to admin email(s)
           subject: `Contact Request from ${name.split(" ")[0]} — "${topic}"`,
@@ -1073,13 +1214,115 @@ async function run() {
           `,
         });
 
+        const userMailResult = await transport.sendMail({
+          from: `"PoshaX" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "PoshaX Will Get Back to Your Soon",
+          text: `
+            Hello ${name},
+          
+            You have reached out to us with your ${email} account regarding "${topic}". Someone will get back to you within 24-48 hours.
+          
+            If you didn't contact us, you can safely ignore this email.
+          
+            Best Regards,
+            PoshaX
+          `,
+          html: `
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <link
+                  href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap"
+                  rel="stylesheet"
+                />
+              </head>
+              <body style="font-family: 'Oxygen', sans-serif; margin: 0; padding: 0">
+                <div
+                  style="
+                    width: 100%;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 14px;
+                    border: 1px solid #dfdfdf;
+                    padding: 32px;
+                  "
+                >
+                  <div
+                    style="
+                      text-align: center;
+                      border-bottom: 1px solid #dfdfdf;
+                      height: fit-content;
+                    "
+                  >
+                    <h2
+                      style="
+                        color: #404040;
+                        font-size: 1.5rem;
+                        margin: 0;
+                        padding-bottom: 10px;
+                      "
+                    >
+                      PoshaX Will Get Back to Your Soon
+                    </h2>
+                  </div>
+                  <div>
+                    <p
+                      style="
+                        color: #525252;
+                        font-size: 1rem;
+                        line-height: 1.6;
+                        padding-top: 10px;
+                      "
+                    >
+                      Hello ${name},
+                    </p>
+                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                      You have reached out to us with your
+                      <a href="mailto:${email}" style="color: #4d8944"
+                        >${email}</a
+                      >
+                      account regarding "${topic}". Someone will get back to you
+                      within 24-48 hours.
+                    </p>
+                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
+                      If you didn't contact us, you can safely ignore this email.
+                    </p>
+                  </div>
+                  <div
+                    style="
+                      text-align: center;
+                      padding-top: 10px;
+                      font-size: 0.825rem;
+                      color: #737373;
+                    "
+                  >
+                    <p>
+                      Best Regards,
+                      <span style="display: block; margin-top: 2px">PoshaX</span>
+                    </p>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `,
+        });
 
-        // Check if email was sent successfully
-        if (
-          mailResult &&
-          mailResult.accepted &&
-          mailResult.accepted.length > 0
-        ) {
+        const isStaffMailSent =
+          staffMailResult &&
+          staffMailResult.accepted &&
+          staffMailResult.accepted.length > 0;
+
+        const isUserMailSent =
+          userMailResult &&
+          userMailResult.accepted &&
+          userMailResult.accepted.length > 0;
+
+        // Check if both staff and user emails were sent successfully
+        if (isStaffMailSent && isUserMailSent) {
           return res.status(200).json({
             success: true,
             message: "Submitted successfully. We'll contact you soon.",
@@ -1102,7 +1345,6 @@ async function run() {
 
     // frontend log in via nextAuth
     app.post("/customer-login", async (req, res) => {
-
       const { email, password } = req.body;
 
       try {
@@ -1110,25 +1352,30 @@ async function run() {
         const user = await customerListCollection.findOne({ email });
 
         if (!user) {
-          return res.status(404).json({ message: "No account found with this email." });
-        };
+          return res
+            .status(404)
+            .json({ message: "No account found with this email." });
+        }
 
         // Verify the password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-          return res.status(401).json({ message: "Incorrect password. Please try again." });
+          return res
+            .status(401)
+            .json({ message: "Incorrect password. Please try again." });
         }
 
         return res.json({
           email: user.email,
           userInfo: user.userInfo,
           cartItems: user.cartItems,
-          wishlistItems: user.wishlistItems
+          wishlistItems: user.wishlistItems,
         });
-
       } catch (error) {
         console.error("Login error:", error);
-        return res.status(500).json({ message: "Something went wrong. Please try again later." });
+        return res
+          .status(500)
+          .json({ message: "Something went wrong. Please try again later." });
       }
     });
 
@@ -1566,18 +1813,29 @@ async function run() {
           return res.status(400).json({ message: "All fields are required" });
         }
 
-        if (currentPassword === newPassword) return res.status(401).json({ message: "New Password should not matched with current password" });
+        if (currentPassword === newPassword)
+          return res.status(401).json({
+            message: "New Password should not matched with current password",
+          });
 
         // Find user by email in the enrollmentCollection
         const user = await enrollmentCollection.findOne({ email });
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        if (!user.password) return res.status(403).json({ message: "Your account setup is incomplete. Please set up your password before logging in." });
+        if (!user.password)
+          return res.status(403).json({
+            message:
+              "Your account setup is incomplete. Please set up your password before logging in.",
+          });
 
         // Check if current password matches the stored hashed password
         const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) return res.status(400).json({ message: "Your current password is incorrect. Please double-check and try again." });
+        if (!isMatch)
+          return res.status(400).json({
+            message:
+              "Your current password is incorrect. Please double-check and try again.",
+          });
 
         // Hash the new password
         const salt = await bcrypt.genSalt(10);
@@ -1590,13 +1848,20 @@ async function run() {
         );
 
         if (result.modifiedCount > 0) {
-          return res.json({ success: true, message: "Password changed successfully." });
+          return res.json({
+            success: true,
+            message: "Password changed successfully.",
+          });
         } else {
-          return res.status(400).json({ message: "No changes detected. Your password remains the same." });
+          return res.status(400).json({
+            message: "No changes detected. Your password remains the same.",
+          });
         }
       } catch (error) {
         console.error("Error changing password:", error);
-        res.status(500).json({ message: "Something went wrong on our end. Please try again later." });
+        res.status(500).json({
+          message: "Something went wrong on our end. Please try again later.",
+        });
       }
     });
 
@@ -1614,7 +1879,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting user:", error);
-        res.status(500).send({ message: "Failed to delete user", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete user", error: error.message });
       }
     });
 
@@ -1622,11 +1889,15 @@ async function run() {
     app.post("/addProduct", async (req, res) => {
       try {
         const productData = req.body;
-        const result = await productInformationCollection.insertOne(productData);
+        const result = await productInformationCollection.insertOne(
+          productData
+        );
         res.send(result);
       } catch (error) {
         console.error("Error adding product:", error);
-        res.status(500).send({ message: "Failed to add product", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add product", error: error.message });
       }
     });
 
@@ -1637,7 +1908,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching products:", error);
-        res.status(500).send({ message: "Failed to fetch products", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch products", error: error.message });
       }
     });
 
@@ -1665,7 +1938,7 @@ async function run() {
           groupOfSizes: 1,
           allSizes: 1,
           discountType: 1,
-          publishDate: 1
+          publishDate: 1,
         };
 
         // Fetch all products with the specified fields
@@ -1676,7 +1949,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching product details:", error);
-        res.status(500).send({ message: "Failed to fetch product details", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch product details",
+          error: error.message,
+        });
       }
     });
 
@@ -1687,7 +1963,7 @@ async function run() {
         const products = await productInformationCollection.find().toArray();
 
         // Extract all sizes from the products
-        const allSizes = products.flatMap(product => product.allSizes || []);
+        const allSizes = products.flatMap((product) => product.allSizes || []);
 
         // Create a unique set of sizes
         const uniqueSizes = [...new Set(allSizes)];
@@ -1696,7 +1972,9 @@ async function run() {
         res.send(uniqueSizes);
       } catch (error) {
         console.error("Error fetching sizes:", error);
-        res.status(500).send({ message: "Failed to fetch sizes", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch sizes", error: error.message });
       }
     });
 
@@ -1707,8 +1985,9 @@ async function run() {
         const products = await productInformationCollection.find().toArray();
 
         // Extract all color names from the availableColors array
-        const allColors = products.flatMap(product =>
-          product.availableColors?.map(color => color.value) || []
+        const allColors = products.flatMap(
+          (product) =>
+            product.availableColors?.map((color) => color.value) || []
         );
 
         // Create a unique set of color names
@@ -1718,7 +1997,9 @@ async function run() {
         res.send(uniqueColors);
       } catch (error) {
         console.error("Error fetching colors:", error);
-        res.status(500).send({ message: "Failed to fetch colors", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch colors", error: error.message });
       }
     });
 
@@ -1736,7 +2017,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Product Details:", error);
-        res.status(500).send({ message: "Failed to fetch Product Details", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Product Details",
+          error: error.message,
+        });
       }
     });
 
@@ -1754,7 +2038,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Product Details:", error);
-        res.status(500).send({ message: "Failed to fetch Product Details", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Product Details",
+          error: error.message,
+        });
       }
     });
 
@@ -1771,7 +2058,9 @@ async function run() {
         const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
 
         // 1. Fetch the current product (before update)
-        const existingProduct = await productInformationCollection.findOne(filter);
+        const existingProduct = await productInformationCollection.findOne(
+          filter
+        );
 
         if (!existingProduct) {
           return res.status(404).send({ message: "Product not found" });
@@ -1789,10 +2078,11 @@ async function run() {
         const updatedVariants = [];
 
         oldVariants.forEach((oldVariant) => {
-          const matchingNewVariant = newVariants.find((newVariant) =>
-            oldVariant.color.color === newVariant.color.color &&
-            oldVariant.size === newVariant.size &&
-            oldVariant.location === newVariant.location
+          const matchingNewVariant = newVariants.find(
+            (newVariant) =>
+              oldVariant.color.color === newVariant.color.color &&
+              oldVariant.size === newVariant.size &&
+              oldVariant.location === newVariant.location
           );
 
           // console.log(matchingNewVariant, "matchingNewVariant");
@@ -1824,7 +2114,9 @@ async function run() {
             // console.log(notificationDoc, "notificationDoc");
 
             if (notificationDoc) {
-              const emailsToNotify = notificationDoc.emails.filter(emailObj => emailObj.notified === false);
+              const emailsToNotify = notificationDoc.emails.filter(
+                (emailObj) => emailObj.notified === false
+              );
 
               // console.log(emailsToNotify, "emailsToNotify");
 
@@ -1835,13 +2127,16 @@ async function run() {
                 if (notified) continue;
 
                 // Create a cart URL with the product info
-                const cartLink = `https://fashion-commerce-pi.vercel.app/shop?productId=${productId}&colorCode=${encodeURIComponent(colorCode)}&size=${encodeURIComponent(size)}`;
+                const cartLink = `https://fashion-commerce-pi.vercel.app/shop?productId=${productId}&colorCode=${encodeURIComponent(
+                  colorCode
+                )}&size=${encodeURIComponent(size)}`;
 
                 try {
                   const mailResult = await transport.sendMail({
                     from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
                     to: email,
-                    subject: "Good news! The product you wanted is back in stock!",
+                    subject:
+                      "Good news! The product you wanted is back in stock!",
                     text: `Hello ${email},
         
                     The product you requested is now available!
@@ -1939,20 +2234,26 @@ async function run() {
                         </div>
                       </div>
                       </body>
-                      </html>`
+                      </html>`,
                   });
 
                   // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
-                  if (mailResult && mailResult.accepted && mailResult.accepted.length > 0) {
-
+                  if (
+                    mailResult &&
+                    mailResult.accepted &&
+                    mailResult.accepted.length > 0
+                  ) {
                     // Update notified:true inside emails array
                     await availabilityNotifications.updateOne(
-                      { _id: new ObjectId(notificationDoc._id), "emails.email": email },
+                      {
+                        _id: new ObjectId(notificationDoc._id),
+                        "emails.email": email,
+                      },
                       {
                         $set: {
                           "emails.$.notified": true,
-                          updatedDateTime: dateTime
-                        }
+                          updatedDateTime: dateTime,
+                        },
                       }
                     );
 
@@ -1962,31 +2263,38 @@ async function run() {
                     //   userData: result,
                     //   emailStatus: mailResult,
                     // });
-
                   }
-
+                } catch (emailError) {
+                  console.error(
+                    `Failed to send email to ${email}:`,
+                    emailError.message
+                  );
                 }
-                catch (emailError) {
-                  console.error(`Failed to send email to ${email}:`, emailError.message);
-                }
-
               }
             }
-
           }
         }
 
         // After update
         if (result.modifiedCount > 0) {
-          res.send({ success: true, message: "Product updated successfully", modifiedCount: result.modifiedCount });
+          res.send({
+            success: true,
+            message: "Product updated successfully",
+            modifiedCount: result.modifiedCount,
+          });
         } else {
-          res.send({ success: false, message: "No changes made", modifiedCount: result.modifiedCount });
+          res.send({
+            success: false,
+            message: "No changes made",
+            modifiedCount: result.modifiedCount,
+          });
         }
-
-
       } catch (error) {
         console.error("Error updating product details:", error);
-        res.status(500).send({ message: "Failed to update product details", error: error.message });
+        res.status(500).send({
+          message: "Failed to update product details",
+          error: error.message,
+        });
       }
     });
 
@@ -1995,7 +2303,9 @@ async function run() {
       const { ids } = req.body; // array of productIds
 
       if (!Array.isArray(ids)) {
-        return res.status(400).send({ message: "Invalid request. 'ids' should be an array." });
+        return res
+          .status(400)
+          .send({ message: "Invalid request. 'ids' should be an array." });
       }
 
       try {
@@ -2008,7 +2318,10 @@ async function run() {
         res.send(products);
       } catch (error) {
         console.error("Error fetching product names:", error);
-        res.status(500).send({ message: "Failed to fetch product names", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch product names",
+          error: error.message,
+        });
       }
     });
 
@@ -2020,9 +2333,13 @@ async function run() {
 
     // Function to format and convert the date (24-hour system)
     const convertToDateTime = (dateTimeString) => {
-
       // Correct format: DD-MM-YY | HH:mm
-      const parsedDate = moment.tz(dateTimeString, "DD-MM-YY | HH:mm", true, "Asia/Dhaka");
+      const parsedDate = moment.tz(
+        dateTimeString,
+        "DD-MM-YY | HH:mm",
+        true,
+        "Asia/Dhaka"
+      );
 
       if (!parsedDate.isValid()) {
         console.error("Invalid date format:");
@@ -2031,7 +2348,7 @@ async function run() {
 
       const isoDate = parsedDate.toISOString();
       return isoDate;
-    }
+    };
 
     // POST: Add customer to product's notification list
     app.post("/add-availability-notifications", async (req, res) => {
@@ -2071,7 +2388,7 @@ async function run() {
                   notified: false,
                   isRead: false,
                   dateTime,
-                }
+                },
               },
             }
           );
@@ -2108,15 +2425,18 @@ async function run() {
         res.send(notifications);
       } catch (error) {
         console.error("Error fetching availability info:", error);
-        res.status(500).send({ message: "Failed to fetch availability info", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch availability info",
+          error: error.message,
+        });
       }
     });
 
     const hasModuleAccess = (permissionsArray, moduleName) => {
-      return permissionsArray.some(role =>
-        role.modules?.[moduleName]?.access === true
+      return permissionsArray.some(
+        (role) => role.modules?.[moduleName]?.access === true
       );
-    }
+    };
 
     function isValidDate(date) {
       return date && !isNaN(new Date(date).getTime());
@@ -2135,52 +2455,66 @@ async function run() {
     app.get("/get-merged-notifications", async (req, res) => {
       const { email } = req.query;
 
-      if (!email) return res.status(400).json({ error: 'Email is required' });
+      if (!email) return res.status(400).json({ error: "Email is required" });
 
       try {
-
         const user = await enrollmentCollection.findOne({ email });
 
-        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (!user) return res.status(404).json({ error: "User not found" });
 
-        const notifications = await availabilityNotifications.find({}).toArray();
-        const orders = await orderListCollection.find({
-          orderStatus: { $in: ["Pending", "Return Requested"] }
-        }).toArray();
+        const notifications = await availabilityNotifications
+          .find({})
+          .toArray();
+        const orders = await orderListCollection
+          .find({
+            orderStatus: { $in: ["Pending", "Return Requested"] },
+          })
+          .toArray();
 
-        const notificationEntries = notifications.flatMap(doc =>
-          doc.emails.filter(email =>
-            !doc.updatedDateTime || isWithinLast3Days(doc.updatedDateTime)
-          ).map(email => ({
-            type: "Notified",
-            email: email?.email,
-            dateTime: isValidDate(email.dateTime) ? new Date(email.dateTime).toISOString() : null,
-            updatedDateTime: isValidDate(doc?.updatedDateTime) ? new Date(doc.updatedDateTime).toISOString() : null,
-            productId: doc.productId,
-            size: doc.size,
-            colorCode: doc.colorCode,
-            notified: email.notified,
-            isRead: email.isRead,
-            orderNumber: null,
-            orderStatus: null,
-          }))
+        const notificationEntries = notifications.flatMap((doc) =>
+          doc.emails
+            .filter(
+              (email) =>
+                !doc.updatedDateTime || isWithinLast3Days(doc.updatedDateTime)
+            )
+            .map((email) => ({
+              type: "Notified",
+              email: email?.email,
+              dateTime: isValidDate(email.dateTime)
+                ? new Date(email.dateTime).toISOString()
+                : null,
+              updatedDateTime: isValidDate(doc?.updatedDateTime)
+                ? new Date(doc.updatedDateTime).toISOString()
+                : null,
+              productId: doc.productId,
+              size: doc.size,
+              colorCode: doc.colorCode,
+              notified: email.notified,
+              isRead: email.isRead,
+              orderNumber: null,
+              orderStatus: null,
+            }))
         );
 
-        const orderEntries = orders.map(order =>
-        ({
+        const orderEntries = orders.map((order) => ({
           type: "Ordered",
           email: order?.customerInfo?.email,
-          dateTime: order.orderStatus === "Return Requested" ? convertToDateTime(order.returnInfo.dateTime) : convertToDateTime(order.dateTime),
+          dateTime:
+            order.orderStatus === "Return Requested"
+              ? convertToDateTime(order.returnInfo.dateTime)
+              : convertToDateTime(order.dateTime),
           updatedDateTime: null,
           productId: "",
           size: null,
           colorCode: null,
           notified: null,
-          isRead: order.orderStatus === "Return Requested" ? order.returnInfo.isRead || null : order.isRead || null,
+          isRead:
+            order.orderStatus === "Return Requested"
+              ? order.returnInfo.isRead || null
+              : order.isRead || null,
           orderNumber: order.orderNumber,
-          orderStatus: order.orderStatus
-        })
-        );
+          orderStatus: order.orderStatus,
+        }));
 
         const mergedNotifications = [...notificationEntries, ...orderEntries];
 
@@ -2192,26 +2526,31 @@ async function run() {
         });
 
         // Filter based on permissions
-        const filteredNotifications = mergedNotifications.filter(notification => {
-          if (notification.type === "Notified") {
-            // Requires access to "Product Hub"
-            return hasModuleAccess(user.permissions, "Product Hub");
-          } else if (notification.type === "Ordered") {
-            // Requires access to "Orders"
-            return hasModuleAccess(user.permissions, "Orders");
+        const filteredNotifications = mergedNotifications.filter(
+          (notification) => {
+            if (notification.type === "Notified") {
+              // Requires access to "Product Hub"
+              return hasModuleAccess(user.permissions, "Product Hub");
+            } else if (notification.type === "Ordered") {
+              // Requires access to "Orders"
+              return hasModuleAccess(user.permissions, "Orders");
+            }
+            return false; // Block unknown types
           }
-          return false; // Block unknown types
-        });
+        );
 
         res.json(filteredNotifications);
       } catch (error) {
         console.error("Error merging notifications:", error);
-        res.status(500).json({ message: "Server error merging notifications." });
+        res
+          .status(500)
+          .json({ message: "Server error merging notifications." });
       }
     });
 
     app.post("/mark-notification-read", async (req, res) => {
-      const { type, orderNumber, productId, dateTime, email, orderStatus } = req.body;
+      const { type, orderNumber, productId, dateTime, email, orderStatus } =
+        req.body;
 
       try {
         if (type === "Ordered" && orderStatus === "Pending") {
@@ -2219,8 +2558,7 @@ async function run() {
             { orderNumber },
             { $set: { isRead: true } }
           );
-        }
-        else if (type === "Ordered" && orderStatus === "Return Requested") {
+        } else if (type === "Ordered" && orderStatus === "Return Requested") {
           await orderListCollection.updateOne(
             { orderNumber },
             { $set: { "returnInfo.isRead": true } }
@@ -2229,10 +2567,10 @@ async function run() {
           await availabilityNotifications.updateOne(
             {
               productId,
-              "emails.email": email
+              "emails.email": email,
             },
             {
-              $set: { "emails.$.isRead": true }
+              $set: { "emails.$.isRead": true },
             }
           );
         }
@@ -2251,8 +2589,8 @@ async function run() {
         const result = await vendorCollection.insertOne(vendors);
         res.send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding vendors:', error);
-        res.status(500).send({ error: 'Failed to add vendors' }); // Send 500 status on error
+        console.error("Error adding vendors:", error);
+        res.status(500).send({ error: "Failed to add vendors" }); // Send 500 status on error
       }
     });
 
@@ -2263,8 +2601,8 @@ async function run() {
         const result = await policyPagesCollection.insertOne(pdfs);
         res.send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding pdfs:', error);
-        res.status(500).send({ error: 'Failed to add pdfs' }); // Send 500 status on error
+        console.error("Error adding pdfs:", error);
+        res.status(500).send({ error: "Failed to add pdfs" }); // Send 500 status on error
       }
     });
 
@@ -2282,7 +2620,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Policy pdfs:", error);
-        res.status(500).send({ message: "Failed to fetch Policy pdfs", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Policy pdfs",
+          error: error.message,
+        });
       }
     });
 
@@ -2293,7 +2634,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Policy pdfs:", error);
-        res.status(500).send({ message: "Failed to fetch Policy pdfs", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Policy pdfs",
+          error: error.message,
+        });
       }
     });
 
@@ -2304,15 +2648,21 @@ async function run() {
         const policiesData = req.body;
         const filter = { _id: new ObjectId(id) };
         const updatedPoliciesPdfs = {
-          $set: { ...policiesData }
+          $set: { ...policiesData },
         };
 
-        const result = await policyPagesCollection.updateOne(filter, updatedPoliciesPdfs);
+        const result = await policyPagesCollection.updateOne(
+          filter,
+          updatedPoliciesPdfs
+        );
 
         res.send(result);
       } catch (error) {
         console.error("Error updating policy pages pdfs:", error);
-        res.status(500).send({ message: "Failed to update policy pages pdfs", error: error.message });
+        res.status(500).send({
+          message: "Failed to update policy pages pdfs",
+          error: error.message,
+        });
       }
     });
 
@@ -2330,7 +2680,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting vendor:", error);
-        res.status(500).send({ message: "Failed to delete vendor", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete vendor", error: error.message });
       }
     });
 
@@ -2341,7 +2693,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching vendors:", error);
-        res.status(500).send({ message: "Failed to fetch vendors", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch vendors", error: error.message });
       }
     });
 
@@ -2359,7 +2713,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Vendor:", error);
-        res.status(500).send({ message: "Failed to fetch Vendor", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch Vendor", error: error.message });
       }
     });
 
@@ -2370,15 +2726,21 @@ async function run() {
         const vendorData = req.body;
         const filter = { _id: new ObjectId(id) };
         const updatedVendorDetails = {
-          $set: { ...vendorData }
+          $set: { ...vendorData },
         };
 
-        const result = await vendorCollection.updateOne(filter, updatedVendorDetails);
+        const result = await vendorCollection.updateOne(
+          filter,
+          updatedVendorDetails
+        );
 
         res.send(result);
       } catch (error) {
         console.error("Error updating this vendor:", error);
-        res.status(500).send({ message: "Failed to update this vendor", error: error.message });
+        res.status(500).send({
+          message: "Failed to update this vendor",
+          error: error.message,
+        });
       }
     });
 
@@ -2387,13 +2749,13 @@ async function run() {
       try {
         const tags = req.body; // Should be an array
         if (!Array.isArray(tags)) {
-          return res.status(400).send({ error: 'Expected an array of tags' });
+          return res.status(400).send({ error: "Expected an array of tags" });
         }
         const result = await tagCollection.insertMany(tags);
         res.status(201).send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding tags:', error);
-        res.status(500).send({ error: 'Failed to add tags' }); // Send 500 status on error
+        console.error("Error adding tags:", error);
+        res.status(500).send({ error: "Failed to add tags" }); // Send 500 status on error
       }
     });
 
@@ -2411,7 +2773,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting tag:", error);
-        res.status(500).send({ message: "Failed to delete tag", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete tag", error: error.message });
       }
     });
 
@@ -2422,7 +2786,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching tags:", error);
-        res.status(500).send({ message: "Failed to fetch tags", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch tags", error: error.message });
       }
     });
 
@@ -2431,13 +2797,13 @@ async function run() {
       try {
         const colors = req.body; // Should be an array
         if (!Array.isArray(colors)) {
-          return res.status(400).send({ error: 'Expected an array of colors' });
+          return res.status(400).send({ error: "Expected an array of colors" });
         }
         const result = await colorCollection.insertMany(colors);
         res.status(201).send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding colors:', error);
-        res.status(500).send({ error: 'Failed to add colors' }); // Send 500 status on error
+        console.error("Error adding colors:", error);
+        res.status(500).send({ error: "Failed to add colors" }); // Send 500 status on error
       }
     });
 
@@ -2455,7 +2821,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting color:", error);
-        res.status(500).send({ message: "Failed to delete color", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete color", error: error.message });
       }
     });
 
@@ -2466,24 +2834,28 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching colors:", error);
-        res.status(500).send({ message: "Failed to fetch colors", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch colors", error: error.message });
       }
     });
 
     // Add a season
-    app.post('/addSeason', async (req, res) => {
+    app.post("/addSeason", async (req, res) => {
       const seasonData = req.body;
       try {
         const result = await seasonCollection.insertOne(seasonData);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding season:", error);
-        res.status(500).send({ message: "Failed to add season", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add season", error: error.message });
       }
     });
 
     // Get All Seasons
-    app.get('/allSeasons', async (req, res) => {
+    app.get("/allSeasons", async (req, res) => {
       try {
         const seasons = await seasonCollection.find().toArray();
         res.status(200).send(seasons);
@@ -2506,7 +2878,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching season:", error);
-        res.status(500).send({ message: "Failed to fetch season", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch season", error: error.message });
       }
     });
 
@@ -2524,7 +2898,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting season:", error);
-        res.status(500).send({ message: "Failed to delete season", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete season", error: error.message });
       }
     });
 
@@ -2535,7 +2911,7 @@ async function run() {
         const season = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateSeason = {
-          $set: { ...season }
+          $set: { ...season },
         };
 
         const result = await seasonCollection.updateOne(filter, updateSeason);
@@ -2543,7 +2919,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating season:", error);
-        res.status(500).send({ message: "Failed to update season", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update season", error: error.message });
       }
     });
 
@@ -2561,24 +2939,29 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Product Details:", error);
-        res.status(500).send({ message: "Failed to fetch Product Details", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Product Details",
+          error: error.message,
+        });
       }
     });
 
     // Add a Category
-    app.post('/addCategory', async (req, res) => {
+    app.post("/addCategory", async (req, res) => {
       const categoryData = req.body;
       try {
         const result = await categoryCollection.insertOne(categoryData);
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding category:", error);
-        res.status(500).send({ message: "Failed to add category", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add category", error: error.message });
       }
     });
 
     // Get All Categories
-    app.get('/allCategories', async (req, res) => {
+    app.get("/allCategories", async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         res.status(200).send(categories);
@@ -2601,7 +2984,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching category:", error);
-        res.status(500).send({ message: "Failed to fetch category", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch category", error: error.message });
       }
     });
 
@@ -2619,7 +3004,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting category:", error);
-        res.status(500).send({ message: "Failed to delete category", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete category", error: error.message });
       }
     });
 
@@ -2630,15 +3017,20 @@ async function run() {
         const category = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateCategory = {
-          $set: { ...category }
+          $set: { ...category },
         };
 
-        const result = await categoryCollection.updateOne(filter, updateCategory);
+        const result = await categoryCollection.updateOne(
+          filter,
+          updateCategory
+        );
 
         res.send(result);
       } catch (error) {
         console.error("Error updating category:", error);
-        res.status(500).send({ message: "Failed to update category", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update category", error: error.message });
       }
     });
 
@@ -2664,12 +3056,15 @@ async function run() {
         res.status(200).send({ modifiedCount });
       } catch (error) {
         console.error("Error updating featured category:", error);
-        res.status(500).send({ message: "Failed to update featured categories", error: error.message });
+        res.status(500).send({
+          message: "Failed to update featured categories",
+          error: error.message,
+        });
       }
     });
 
     // Get All Sizes
-    app.get('/allSizeRanges', async (req, res) => {
+    app.get("/allSizeRanges", async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         const sizeOptions = categories.reduce((acc, category) => {
@@ -2683,11 +3078,11 @@ async function run() {
     });
 
     // Get All Sub-Categories
-    app.get('/allSubCategories', async (req, res) => {
+    app.get("/allSubCategories", async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         const subCategoryOptions = categories.reduce((acc, category) => {
-          acc[category.key] = category.subCategories || [];  // Ensure subCategories exist
+          acc[category.key] = category.subCategories || []; // Ensure subCategories exist
           return acc;
         }, {});
         res.status(200).send(subCategoryOptions);
@@ -2704,15 +3099,20 @@ async function run() {
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding order:", error);
-        res.status(500).send({ message: "Failed to add order", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add order", error: error.message });
       }
     });
 
     // Get All Orders
-    app.get('/allOrders', async (req, res) => {
+    app.get("/allOrders", async (req, res) => {
       try {
         // Sort by a field in descending order (e.g., by '_id' or 'dateTime' if you have a date field)
-        const orders = await orderListCollection.find().sort({ _id: -1 }).toArray();
+        const orders = await orderListCollection
+          .find()
+          .sort({ _id: -1 })
+          .toArray();
         res.status(200).send(orders);
       } catch (error) {
         res.status(500).send(error.message);
@@ -2721,29 +3121,37 @@ async function run() {
 
     app.get("/get-todays-orders", async (req, res) => {
       try {
-
         const today = new Date();
-        const dd = String(today.getDate()).padStart(2, '0');
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, "0");
+        const mm = String(today.getMonth() + 1).padStart(2, "0");
         const yy = String(today.getFullYear()).slice(2); // '25'
 
         const todayStr = `${dd}-${mm}-${yy}`; // '03-05-25'
 
         const allOrders = await orderListCollection.find().toArray();
 
-        const todayOrders = allOrders.filter(order => {
+        const todayOrders = allOrders.filter((order) => {
           if (!order.dateTime) return false;
           return order.dateTime.startsWith(todayStr);
         });
 
-        const pendingOrders = todayOrders.filter(order => order.orderStatus === 'Pending');
-        const processingOrders = todayOrders.filter(order => order.orderStatus === 'Processing');
-        const completedOrders = todayOrders.filter(order => order.orderStatus === 'Delivered');
+        const pendingOrders = todayOrders.filter(
+          (order) => order.orderStatus === "Pending"
+        );
+        const processingOrders = todayOrders.filter(
+          (order) => order.orderStatus === "Processing"
+        );
+        const completedOrders = todayOrders.filter(
+          (order) => order.orderStatus === "Delivered"
+        );
 
         const calculateSummary = (orders) => {
           return {
             totalOrders: orders.length,
-            totalAmount: orders.reduce((sum, order) => sum + (order.total || 0), 0),
+            totalAmount: orders.reduce(
+              (sum, order) => sum + (order.total || 0),
+              0
+            ),
           };
         };
 
@@ -2756,12 +3164,12 @@ async function run() {
           all: allSummary,
           pending: pendingSummary,
           processing: processingSummary,
-          delivered: completedSummary
+          delivered: completedSummary,
         });
       } catch (error) {
         res.status(500).send(error.message);
       }
-    })
+    });
 
     // applying pagination in orderList
     app.get("/orderList", async (req, res) => {
@@ -2773,10 +3181,12 @@ async function run() {
         const skip = pageNumber * itemsPerPage;
 
         // Fetching the total number of orders
-        const totalOrderList = await orderListCollection.estimatedDocumentCount();
+        const totalOrderList =
+          await orderListCollection.estimatedDocumentCount();
 
         // Fetching the reversed data for the specific page
-        const result = await orderListCollection.find()
+        const result = await orderListCollection
+          .find()
           .sort({ _id: -1 })
           .skip(skip)
           .limit(itemsPerPage)
@@ -2786,7 +3196,9 @@ async function run() {
         res.send({ result, totalOrderList });
       } catch (error) {
         console.error("Error fetching orders:", error);
-        res.status(500).send({ message: "Failed to fetch orders", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch orders", error: error.message });
       }
     });
 
@@ -2800,7 +3212,9 @@ async function run() {
 
       try {
         // Fetch the primary location
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
+        });
         if (!primaryLocation) {
           return res.status(400).json({ error: "Primary location not found" });
         }
@@ -2812,12 +3226,17 @@ async function run() {
           const { productId, sku, size, color } = productDetails;
 
           if (!productId || !sku || !size || !color) {
-            updateResults.push({ productId, error: "Missing details in return data" });
+            updateResults.push({
+              productId,
+              error: "Missing details in return data",
+            });
             continue;
           }
 
           // Find the product in the database
-          const product = await productInformationCollection.findOne({ productId });
+          const product = await productInformationCollection.findOne({
+            productId,
+          });
           if (!product) {
             updateResults.push({ productId, error: "Product not found" });
             continue;
@@ -2832,7 +3251,10 @@ async function run() {
           );
 
           if (!matchingVariant) {
-            updateResults.push({ productId, error: "Matching product variant not found" });
+            updateResults.push({
+              productId,
+              error: "Matching product variant not found",
+            });
             continue;
           }
 
@@ -2845,16 +3267,19 @@ async function run() {
                   size: size,
                   color: color,
                   location: locationName, // Ensure this matches exactly
-                }
-              }
+                },
+              },
             },
             {
-              $inc: { "productVariants.$.returnSku": sku }  // This will now correctly increment `returnSku`
+              $inc: { "productVariants.$.returnSku": sku }, // This will now correctly increment `returnSku`
             }
           );
 
           if (updateResult.modifiedCount === 0) {
-            updateResults.push({ productId, error: "Failed to update returnSku" });
+            updateResults.push({
+              productId,
+              error: "Failed to update returnSku",
+            });
           } else {
             updateResults.push({
               productId,
@@ -2868,8 +3293,10 @@ async function run() {
           }
         }
 
-        return res.status(200).json({ message: "Return SKU update completed", results: updateResults });
-
+        return res.status(200).json({
+          message: "Return SKU update completed",
+          results: updateResults,
+        });
       } catch (error) {
         console.error("Error updating return SKU:", error.message);
         return res.status(500).json({ error: "Internal server error" });
@@ -2877,17 +3304,22 @@ async function run() {
     });
 
     app.put("/decreaseSkuFromProduct", async (req, res) => {
-
       const productDetailsArray = req.body;
 
       // Validate the input array
-      if (!Array.isArray(productDetailsArray) || productDetailsArray.length === 0) {
-        return res.status(400).json({ error: "No product details provided or invalid format" });
+      if (
+        !Array.isArray(productDetailsArray) ||
+        productDetailsArray.length === 0
+      ) {
+        return res
+          .status(400)
+          .json({ error: "No product details provided or invalid format" });
       }
 
       try {
-
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
+        });
         if (!primaryLocation) {
           return res.status(400).json({ error: "Primary location not found" });
         }
@@ -2896,15 +3328,18 @@ async function run() {
 
         const updateResults = [];
         for (const productDetails of productDetailsArray) {
-
           const { productId, sku, size, color } = productDetails;
 
           if (!productId || !sku || !size || !color) {
-            return res.status(400).json({ error: "Missing details in request body" });
-          };
+            return res
+              .status(400)
+              .json({ error: "Missing details in request body" });
+          }
 
           // Step 3: Find the product and match variants
-          const product = await productInformationCollection.findOne({ productId });
+          const product = await productInformationCollection.findOne({
+            productId,
+          });
           if (!product) {
             updateResults.push({ productId, error: "Product not found" });
             continue;
@@ -2919,13 +3354,19 @@ async function run() {
           });
 
           if (!matchingVariant) {
-            updateResults.push({ productId, error: "Matching product variant not found" });
+            updateResults.push({
+              productId,
+              error: "Matching product variant not found",
+            });
             continue;
           }
 
           // Step 4: Check if SKU can be subtracted
           if (matchingVariant.sku < sku) {
-            updateResults.push({ productId, error: "SKU to subtract exceeds current SKU" });
+            updateResults.push({
+              productId,
+              error: "SKU to subtract exceeds current SKU",
+            });
             continue;
           }
 
@@ -2949,40 +3390,49 @@ async function run() {
             }
           );
 
-
           if (updateResult.modifiedCount === 0) {
             updateResults.push({ productId, error: "Failed to update SKU" });
           } else {
             updateResults.push({
               productId,
-              updatedVariant: { size, color, location: locationName, sku: matchingVariant.sku },
+              updatedVariant: {
+                size,
+                color,
+                location: locationName,
+                sku: matchingVariant.sku,
+              },
             });
           }
         }
 
         // Return response with results of all products
-        return res.status(200).json({ message: "SKU update process completed", results: updateResults });
-
+        return res.status(200).json({
+          message: "SKU update process completed",
+          results: updateResults,
+        });
       } catch (error) {
         console.error("Error updating SKU:", error.message);
         return res.status(500).json({ error: "Internal server error" });
       }
-
-
-    })
+    });
 
     app.put("/decreaseOnHandSkuFromProduct", async (req, res) => {
-
       const productDetailsArray = req.body;
 
       // Validate the input array
-      if (!Array.isArray(productDetailsArray) || productDetailsArray.length === 0) {
-        return res.status(400).json({ error: "No product details provided or invalid format" });
+      if (
+        !Array.isArray(productDetailsArray) ||
+        productDetailsArray.length === 0
+      ) {
+        return res
+          .status(400)
+          .json({ error: "No product details provided or invalid format" });
       }
 
       try {
-
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
+        });
         if (!primaryLocation) {
           return res.status(400).json({ error: "Primary location not found" });
         }
@@ -2991,15 +3441,18 @@ async function run() {
 
         const updateResults = [];
         for (const productDetails of productDetailsArray) {
-
           const { productId, sku, size, color, onHandSku } = productDetails;
 
           if (!productId || !sku || !size || !color || !onHandSku) {
-            return res.status(400).json({ error: "Missing details in request body" });
-          };
+            return res
+              .status(400)
+              .json({ error: "Missing details in request body" });
+          }
 
           // Step 3: Find the product and match variants
-          const product = await productInformationCollection.findOne({ productId });
+          const product = await productInformationCollection.findOne({
+            productId,
+          });
           if (!product) {
             updateResults.push({ productId, error: "Product not found" });
             continue;
@@ -3013,13 +3466,19 @@ async function run() {
           );
 
           if (!matchingVariant) {
-            updateResults.push({ productId, error: "Matching product variant not found" });
+            updateResults.push({
+              productId,
+              error: "Matching product variant not found",
+            });
             continue;
           }
 
           // Step 4: Check if SKU can be subtracted
           if (matchingVariant.onHandSku < onHandSku) {
-            updateResults.push({ productId, error: "SKU to subtract exceeds current SKU" });
+            updateResults.push({
+              productId,
+              error: "SKU to subtract exceeds current SKU",
+            });
             continue;
           }
 
@@ -3043,25 +3502,30 @@ async function run() {
             }
           );
 
-
           if (updateResult.modifiedCount === 0) {
             updateResults.push({ productId, error: "Failed to update SKU" });
           } else {
             updateResults.push({
               productId,
-              updatedVariant: { size, color, location: locationName, onHandSku: matchingVariant.onHandSku },
+              updatedVariant: {
+                size,
+                color,
+                location: locationName,
+                onHandSku: matchingVariant.onHandSku,
+              },
             });
           }
         }
 
         // Return response with results of all products
-        return res.status(200).json({ message: "SKU update process completed", results: updateResults });
-
+        return res.status(200).json({
+          message: "SKU update process completed",
+          results: updateResults,
+        });
       } catch (error) {
         console.error("Error updating SKU:", error.message);
         return res.status(500).json({ error: "Internal server error" });
       }
-
     });
 
     const decrementReturnSkuInProduct = async (returnDataToSend) => {
@@ -3071,11 +3535,16 @@ async function run() {
         const { productId, sku, size, color } = productDetails;
 
         if (!productId || !sku || !size || !color) {
-          updateResults.push({ productId, error: "Missing details in returnDataToSend" });
+          updateResults.push({
+            productId,
+            error: "Missing details in returnDataToSend",
+          });
           continue;
         }
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
+        });
         if (!primaryLocation) {
           return { error: "Primary location not found" };
         }
@@ -3100,11 +3569,20 @@ async function run() {
         );
 
         if (updateResult.modifiedCount === 0) {
-          updateResults.push({ productId, error: "Failed to decrement SKU. Either no match found or not enough returnSku." });
+          updateResults.push({
+            productId,
+            error:
+              "Failed to decrement SKU. Either no match found or not enough returnSku.",
+          });
         } else {
           updateResults.push({
             productId,
-            updatedVariant: { size, color, location: locationName, returnSku: `-${sku}` },
+            updatedVariant: {
+              size,
+              color,
+              location: locationName,
+              returnSku: `-${sku}`,
+            },
           });
         }
       }
@@ -3119,11 +3597,16 @@ async function run() {
         const { productId, sku, size, color } = productDetails;
 
         if (!productId || !sku || !size || !color) {
-          updateResults.push({ productId, error: "Missing details in dataToSend" });
+          updateResults.push({
+            productId,
+            error: "Missing details in dataToSend",
+          });
           continue;
         }
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
+        });
         if (!primaryLocation) {
           return { error: "Primary location not found" };
         }
@@ -3151,7 +3634,12 @@ async function run() {
         } else {
           updateResults.push({
             productId,
-            updatedVariant: { size, color, location: locationName, sku: `+${sku}` },
+            updatedVariant: {
+              size,
+              color,
+              location: locationName,
+              sku: `+${sku}`,
+            },
           });
         }
       }
@@ -3166,11 +3654,16 @@ async function run() {
         const { productId, onHandSku, size, color } = productDetails;
 
         if (!productId || !onHandSku || !size || !color) {
-          updateResults.push({ productId, error: "Missing details in dataToSend" });
+          updateResults.push({
+            productId,
+            error: "Missing details in dataToSend",
+          });
           continue;
         }
 
-        const primaryLocation = await locationCollection.findOne({ isPrimaryLocation: true });
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
+        });
         if (!primaryLocation) {
           return { error: "Primary location not found" };
         }
@@ -3194,11 +3687,19 @@ async function run() {
         );
 
         if (updateResult.modifiedCount === 0) {
-          updateResults.push({ productId, error: "Failed to increment onHandSku" });
+          updateResults.push({
+            productId,
+            error: "Failed to increment onHandSku",
+          });
         } else {
           updateResults.push({
             productId,
-            updatedVariant: { size, color, location: locationName, onHandSku: `+${onHandSku}` },
+            updatedVariant: {
+              size,
+              color,
+              location: locationName,
+              onHandSku: `+${onHandSku}`,
+            },
           });
         }
       }
@@ -3209,7 +3710,21 @@ async function run() {
     // Update order status
     app.patch("/changeOrderStatus/:id", async (req, res) => {
       const id = req.params.id;
-      const { orderStatus, trackingNumber, selectedShipmentHandlerName, shippedAt, deliveredAt, trackingUrl, imageUrl, isUndo, onHoldReason, declinedReason, returnInfo, dataToSend, returnDataToSend } = req.body; // Extract status from request body
+      const {
+        orderStatus,
+        trackingNumber,
+        selectedShipmentHandlerName,
+        shippedAt,
+        deliveredAt,
+        trackingUrl,
+        imageUrl,
+        isUndo,
+        onHoldReason,
+        declinedReason,
+        returnInfo,
+        dataToSend,
+        returnDataToSend,
+      } = req.body; // Extract status from request body
 
       // Define valid statuses
       const validStatuses = [
@@ -3222,7 +3737,7 @@ async function run() {
         "Request Accepted",
         "Request Declined",
         "Return Initiated",
-        "Refunded"
+        "Refunded",
       ];
 
       // Validate the provided status
@@ -3238,11 +3753,13 @@ async function run() {
 
         if (!order) {
           return res.status(404).send({ error: "Order not found" });
-        };
+        }
 
         const updateDoc = {};
         const currentTime = new Date();
-        const undoAvailableUntil = new Date(currentTime.getTime() + 6 * 60 * 60 * 1000); // 6 hours later
+        const undoAvailableUntil = new Date(
+          currentTime.getTime() + 6 * 60 * 60 * 1000
+        ); // 6 hours later
 
         if (isUndo) {
           if (order.orderStatus === "Processing" && orderStatus === "Pending") {
@@ -3251,47 +3768,65 @@ async function run() {
               // Increment the SKU
               await incrementSkuInProduct(dataToSend);
             } else {
-              console.error("Invalid dataToSend: must be a non-empty array for SKU increment.");
-              throw new Error("Invalid dataToSend: must be a non-empty array for SKU increment.");
+              console.error(
+                "Invalid dataToSend: must be a non-empty array for SKU increment."
+              );
+              throw new Error(
+                "Invalid dataToSend: must be a non-empty array for SKU increment."
+              );
             }
-          }
-
-          else if (order.orderStatus === "Shipped" && orderStatus === "Processing") {
-
+          } else if (
+            order.orderStatus === "Shipped" &&
+            orderStatus === "Processing"
+          ) {
             // Validate dataToSend before calling the function
             if (Array.isArray(dataToSend) && dataToSend.length > 0) {
               updateDoc.$unset = { shipmentInfo: null }; // Remove shipmentInfo
               // Increment the onHandSku
               await incrementOnHandSkuInProduct(dataToSend);
             } else {
-              console.error("Invalid dataToSend: must be a non-empty array for onHandSku increment.");
-              throw new Error("Invalid dataToSend: must be a non-empty array for onHandSku increment.");
+              console.error(
+                "Invalid dataToSend: must be a non-empty array for onHandSku increment."
+              );
+              throw new Error(
+                "Invalid dataToSend: must be a non-empty array for onHandSku increment."
+              );
             }
-
-          }
-
-          else if (order.orderStatus === "On Hold" && orderStatus === "Shipped") {
+          } else if (
+            order.orderStatus === "On Hold" &&
+            orderStatus === "Shipped"
+          ) {
             updateDoc.$unset = { onHoldReason: "" }; // Remove onHoldReason
-          }
-
-          else if (order.orderStatus === "Delivered" && (orderStatus === "On Hold" || orderStatus === "Shipped")) {
+          } else if (
+            order.orderStatus === "Delivered" &&
+            (orderStatus === "On Hold" || orderStatus === "Shipped")
+          ) {
             updateDoc.$set = {
               "deliveryInfo.deliveredAt": null, // Set deliveredAt to null
             };
-          }
-
-          else if (order.orderStatus === "Request Declined" && orderStatus === "Return Requested") {
+          } else if (
+            order.orderStatus === "Request Declined" &&
+            orderStatus === "Return Requested"
+          ) {
             updateDoc.$unset = { declinedReason: "" }; // Remove declinedReason
-          }
-
-          else if (order.orderStatus === "Refunded" && orderStatus === "Return Initiated") {
+          } else if (
+            order.orderStatus === "Refunded" &&
+            orderStatus === "Return Initiated"
+          ) {
             // Validate returnDataToSend before calling the function
-            if (Array.isArray(returnDataToSend) && returnDataToSend.length > 0) {
+            if (
+              Array.isArray(returnDataToSend) &&
+              returnDataToSend.length > 0
+            ) {
               // Decrease the returnSku
               await decrementReturnSkuInProduct(returnDataToSend);
             } else {
-              console.error("Invalid returnDataToSend: must be a non-empty array for SKU decrement.");
-              throw new Error("Invalid returnDataToSend: must be a non-empty array for SKU decrement.");
+              console.error(
+                "Invalid returnDataToSend: must be a non-empty array for SKU decrement."
+              );
+              throw new Error(
+                "Invalid returnDataToSend: must be a non-empty array for SKU decrement."
+              );
             }
           }
 
@@ -3303,19 +3838,20 @@ async function run() {
             lastStatusChange: currentTime, // Update the timestamp for undo
             undoAvailableUntil: null, // Set undo availability for 6 hours
           };
-        }
-        else {
+        } else {
           updateDoc.$set = {
             orderStatus: orderStatus,
             previousStatus: order.orderStatus, // Save the current status as the previous status
-            lastStatusChange: currentTime,      // Record the timestamp of the status change
+            lastStatusChange: currentTime, // Record the timestamp of the status change
             undoAvailableUntil: undoAvailableUntil, // Set undo availability for 6 hours
           };
 
           // Add shipping-related fields if `orderStatus` is `Shipped`
           if (orderStatus === "Shipped") {
             if (!trackingNumber || !selectedShipmentHandlerName) {
-              return res.status(400).json({ error: "Tracking data is required for 'Shipped' status" });
+              return res.status(400).json({
+                error: "Tracking data is required for 'Shipped' status",
+              });
             }
 
             // Store all shipping-related fields inside `shipmentInfo` object
@@ -3338,41 +3874,42 @@ async function run() {
 
           // Add delivery-related fields if `orderStatus` is `On Hold`
           if (orderStatus === "On Hold") {
-
             if (!onHoldReason) {
-              return res.status(400).json({ error: "On hold reason is required for 'On Hold' status" });
+              return res.status(400).json({
+                error: "On hold reason is required for 'On Hold' status",
+              });
             }
 
             // Store all shipping-related fields inside `shipmentInfo` object
             updateDoc.$set.onHoldReason = onHoldReason;
-
           }
 
           // Add delivery-related fields if `orderStatus` is `On Hold`
           if (orderStatus === "Return Requested") {
-
             if (!returnInfo) {
-              return res.status(400).json({ error: "Return Requested is required for 'Return Requested' status" });
+              return res.status(400).json({
+                error:
+                  "Return Requested is required for 'Return Requested' status",
+              });
             }
 
             // Store all shipping-related fields inside `shipmentInfo` object
             updateDoc.$set.returnInfo = returnInfo;
             updateDoc.$set.returnInfo.isRead = false;
-
           }
 
           // Add delivery-related fields if `orderStatus` is `On Hold`
           if (orderStatus === "Request Declined") {
-
             if (!declinedReason) {
-              return res.status(400).json({ error: "Declined reason is required for 'Request Declined' status" });
+              return res.status(400).json({
+                error:
+                  "Declined reason is required for 'Request Declined' status",
+              });
             }
 
             // Store all shipping-related fields inside `shipmentInfo` object
             updateDoc.$set.declinedReason = declinedReason;
-
           }
-
         }
 
         const result = await orderListCollection.updateOne(filter, updateDoc);
@@ -3416,12 +3953,15 @@ async function run() {
         res.status(201).send(result);
       } catch (error) {
         console.error("Error adding customer details:", error);
-        res.status(500).send({ message: "Failed to add customer details", error: error.message });
+        res.status(500).send({
+          message: "Failed to add customer details",
+          error: error.message,
+        });
       }
     });
 
     // Get All Customer Information
-    app.get('/allCustomerDetails', async (req, res) => {
+    app.get("/allCustomerDetails", async (req, res) => {
       try {
         const customers = await customerListCollection.find().toArray();
         res.status(200).send(customers);
@@ -3431,17 +3971,17 @@ async function run() {
     });
 
     // Get Customer Details by Email
-    app.get('/customerDetailsViaEmail/:email', async (req, res) => {
+    app.get("/customerDetailsViaEmail/:email", async (req, res) => {
       const email = req.params.email; // Retrieve email from query parameters
 
       if (!email) {
-        return res.status(400).send('Email is required'); // Validate input
-      };
+        return res.status(400).send("Email is required"); // Validate input
+      }
 
       try {
         const customer = await customerListCollection.findOne({ email }); // Query the database
         if (!customer) {
-          return res.status(404).send('Customer not found'); // Handle case where no customer is found
+          return res.status(404).send("Customer not found"); // Handle case where no customer is found
         }
         res.status(200).send(customer); // Send customer details
       } catch (error) {
@@ -3466,13 +4006,17 @@ async function run() {
         );
 
         if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "No data found with this ID" });
+          return res
+            .status(404)
+            .send({ message: "No data found with this ID" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error updating data:", error);
-        res.status(500).send({ message: "Failed to update data", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update data", error: error.message });
       }
     });
 
@@ -3486,10 +4030,12 @@ async function run() {
         const skip = pageNumber * itemsPerPage;
 
         // Fetching the total number of orders
-        const totalCustomerList = await customerListCollection.estimatedDocumentCount();
+        const totalCustomerList =
+          await customerListCollection.estimatedDocumentCount();
 
         // Fetching the reversed data for the specific page
-        const result = await customerListCollection.find()
+        const result = await customerListCollection
+          .find()
           .skip(skip)
           .limit(itemsPerPage)
           .toArray();
@@ -3498,7 +4044,10 @@ async function run() {
         res.send({ result, totalCustomerList });
       } catch (error) {
         console.error("Error fetching customer list:", error);
-        res.status(500).send({ message: "Failed to fetch customer list", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch customer list",
+          error: error.message,
+        });
       }
     });
 
@@ -3510,12 +4059,14 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding promo code:", error);
-        res.status(500).send({ message: "Failed to add promo code", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add promo code", error: error.message });
       }
     });
 
     // Get All Promo Codes
-    app.get('/allPromoCodes', async (req, res) => {
+    app.get("/allPromoCodes", async (req, res) => {
       try {
         const promos = await promoCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(promos);
@@ -3538,7 +4089,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching promo:", error);
-        res.status(500).send({ message: "Failed to fetch promo", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch promo", error: error.message });
       }
     });
 
@@ -3556,7 +4109,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting promo:", error);
-        res.status(500).send({ message: "Failed to delete promo", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete promo", error: error.message });
       }
     });
 
@@ -3567,7 +4122,7 @@ async function run() {
         const promo = req.body;
         const filter = { _id: new ObjectId(id) };
         const updatePromo = {
-          $set: { ...promo }
+          $set: { ...promo },
         };
 
         const result = await promoCollection.updateOne(filter, updatePromo);
@@ -3579,7 +4134,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating promo:", error);
-        res.status(500).send({ message: "Failed to update promo", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update promo", error: error.message });
       }
     });
 
@@ -3591,12 +4148,14 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding offer:", error);
-        res.status(500).send({ message: "Failed to add offer", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add offer", error: error.message });
       }
     });
 
     // Get All Offer
-    app.get('/allOffers', async (req, res) => {
+    app.get("/allOffers", async (req, res) => {
       try {
         const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
@@ -3619,7 +4178,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching promo:", error);
-        res.status(500).send({ message: "Failed to fetch promo", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch promo", error: error.message });
       }
     });
 
@@ -3630,7 +4191,7 @@ async function run() {
         const promo = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateOffer = {
-          $set: { ...promo }
+          $set: { ...promo },
         };
 
         const result = await offerCollection.updateOne(filter, updateOffer);
@@ -3642,7 +4203,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating offer:", error);
-        res.status(500).send({ message: "Failed to update offer", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update offer", error: error.message });
       }
     });
 
@@ -3660,7 +4223,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting offer:", error);
-        res.status(500).send({ message: "Failed to delete offer", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete offer", error: error.message });
       }
     });
 
@@ -3672,7 +4237,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding shipping details:", error);
-        res.status(500).send({ message: "Failed to add shipping details", error: error.message });
+        res.status(500).send({
+          message: "Failed to add shipping details",
+          error: error.message,
+        });
       }
     });
 
@@ -3683,7 +4251,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipping zones:", error);
-        res.status(500).send({ message: "Failed to fetch shipping zones", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch shipping zones",
+          error: error.message,
+        });
       }
     });
 
@@ -3701,7 +4272,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting shipping:", error);
-        res.status(500).send({ message: "Failed to delete shipping", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete shipping", error: error.message });
       }
     });
 
@@ -3719,7 +4292,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipping zone:", error);
-        res.status(500).send({ message: "Failed to fetch shipping zone", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch shipping zone",
+          error: error.message,
+        });
       }
     });
 
@@ -3730,10 +4306,13 @@ async function run() {
         const zone = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateShippingZone = {
-          $set: { ...zone }
+          $set: { ...zone },
         };
 
-        const result = await shippingZoneCollection.updateOne(filter, updateShippingZone);
+        const result = await shippingZoneCollection.updateOne(
+          filter,
+          updateShippingZone
+        );
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Shipping Zone not found" });
@@ -3742,7 +4321,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating shipping zone:", error);
-        res.status(500).send({ message: "Failed to update shipping zone", error: error.message });
+        res.status(500).send({
+          message: "Failed to update shipping zone",
+          error: error.message,
+        });
       }
     });
 
@@ -3754,7 +4336,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding shipment details:", error);
-        res.status(500).send({ message: "Failed to add shipment details", error: error.message });
+        res.status(500).send({
+          message: "Failed to add shipment details",
+          error: error.message,
+        });
       }
     });
 
@@ -3765,7 +4350,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipment handlers:", error);
-        res.status(500).send({ message: "Failed to fetch shipment handlers", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch shipment handlers",
+          error: error.message,
+        });
       }
     });
 
@@ -3777,13 +4365,18 @@ async function run() {
         const result = await shipmentHandlerCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
-          return res.status(404).send({ message: "Shipment Handler not found" });
+          return res
+            .status(404)
+            .send({ message: "Shipment Handler not found" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error deleting Shipment Handler:", error);
-        res.status(500).send({ message: "Failed to delete Shipment Handler", error: error.message });
+        res.status(500).send({
+          message: "Failed to delete Shipment Handler",
+          error: error.message,
+        });
       }
     });
 
@@ -3795,13 +4388,18 @@ async function run() {
         const result = await shipmentHandlerCollection.findOne(query);
 
         if (!result) {
-          return res.status(404).send({ message: "shipment handler not found" });
+          return res
+            .status(404)
+            .send({ message: "shipment handler not found" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error fetching shipment handler:", error);
-        res.status(500).send({ message: "Failed to fetch shipment handler", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch shipment handler",
+          error: error.message,
+        });
       }
     });
 
@@ -3812,19 +4410,27 @@ async function run() {
         const shipmentDetails = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateShipmentHandler = {
-          $set: { ...shipmentDetails }
+          $set: { ...shipmentDetails },
         };
 
-        const result = await shipmentHandlerCollection.updateOne(filter, updateShipmentHandler);
+        const result = await shipmentHandlerCollection.updateOne(
+          filter,
+          updateShipmentHandler
+        );
 
         if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "Shipment handler not found" });
+          return res
+            .status(404)
+            .send({ message: "Shipment handler not found" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error updating shipment handler:", error);
-        res.status(500).send({ message: "Failed to update shipment handler", error: error.message });
+        res.status(500).send({
+          message: "Failed to update shipment handler",
+          error: error.message,
+        });
       }
     });
 
@@ -3836,7 +4442,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding payment method:", error);
-        res.status(500).send({ message: "Failed to add payment method", error: error.message });
+        res.status(500).send({
+          message: "Failed to add payment method",
+          error: error.message,
+        });
       }
     });
 
@@ -3847,7 +4456,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching payment method:", error);
-        res.status(500).send({ message: "Failed to fetch payment method", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch payment method",
+          error: error.message,
+        });
       }
     });
 
@@ -3865,7 +4477,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting Payment Method:", error);
-        res.status(500).send({ message: "Failed to delete Payment Method", error: error.message });
+        res.status(500).send({
+          message: "Failed to delete Payment Method",
+          error: error.message,
+        });
       }
     });
 
@@ -3883,7 +4498,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Payment Method:", error);
-        res.status(500).send({ message: "Failed to fetch Payment Method", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Payment Method",
+          error: error.message,
+        });
       }
     });
 
@@ -3894,10 +4512,13 @@ async function run() {
         const method = req.body;
         const filter = { _id: new ObjectId(id) };
         const updatePaymentMethod = {
-          $set: { ...method }
+          $set: { ...method },
         };
 
-        const result = await paymentMethodCollection.updateOne(filter, updatePaymentMethod);
+        const result = await paymentMethodCollection.updateOne(
+          filter,
+          updatePaymentMethod
+        );
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Payment method not found" });
@@ -3906,7 +4527,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating Payment method:", error);
-        res.status(500).send({ message: "Failed to update Payment method", error: error.message });
+        res.status(500).send({
+          message: "Failed to update Payment method",
+          error: error.message,
+        });
       }
     });
 
@@ -3917,7 +4541,10 @@ async function run() {
 
         // If the location is set as primary, update all other locations to set `isPrimaryLocation` to false
         if (locationData.isPrimaryLocation) {
-          await locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
+          await locationCollection.updateMany(
+            { isPrimaryLocation: true },
+            { $set: { isPrimaryLocation: false } }
+          );
         }
 
         // Insert the new location
@@ -3926,7 +4553,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding location:", error);
-        res.status(500).send({ message: "Failed to add location", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add location", error: error.message });
       }
     });
 
@@ -3937,7 +4566,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching locations:", error);
-        res.status(500).send({ message: "Failed to fetch locations", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch locations", error: error.message });
       }
     });
 
@@ -3955,7 +4586,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting Location:", error);
-        res.status(500).send({ message: "Failed to delete Location", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete Location", error: error.message });
       }
     });
 
@@ -3967,16 +4600,22 @@ async function run() {
 
         // If the updated location is set as primary, update all other locations to set `isPrimaryLocation` to false
         if (locationData.isPrimaryLocation) {
-          await locationCollection.updateMany({ isPrimaryLocation: true }, { $set: { isPrimaryLocation: false } });
+          await locationCollection.updateMany(
+            { isPrimaryLocation: true },
+            { $set: { isPrimaryLocation: false } }
+          );
         }
 
         // Update the specific location
         const filter = { _id: new ObjectId(id) };
         const updateLocation = {
-          $set: { ...locationData }
+          $set: { ...locationData },
         };
 
-        const result = await locationCollection.updateOne(filter, updateLocation);
+        const result = await locationCollection.updateOne(
+          filter,
+          updateLocation
+        );
 
         // Handle case where no location was found
         if (result.matchedCount === 0) {
@@ -3986,7 +4625,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating location:", error);
-        res.status(500).send({ message: "Failed to update location", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update location", error: error.message });
       }
     });
 
@@ -4004,7 +4645,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Location:", error);
-        res.status(500).send({ message: "Failed to fetch Location", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch Location", error: error.message });
       }
     });
 
@@ -4012,11 +4655,16 @@ async function run() {
     app.post("/addPurchaseOrder", async (req, res) => {
       try {
         const purchaseOrderData = req.body;
-        const result = await purchaseOrderCollection.insertOne(purchaseOrderData);
+        const result = await purchaseOrderCollection.insertOne(
+          purchaseOrderData
+        );
         res.send(result);
       } catch (error) {
         console.error("Error adding purchase order:", error);
-        res.status(500).send({ message: "Failed to add purchase order", error: error.message });
+        res.status(500).send({
+          message: "Failed to add purchase order",
+          error: error.message,
+        });
       }
     });
 
@@ -4027,7 +4675,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching purchase order:", error);
-        res.status(500).send({ message: "Failed to fetch purchase order", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch purchase order",
+          error: error.message,
+        });
       }
     });
 
@@ -4045,7 +4696,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting purchase order:", error);
-        res.status(500).send({ message: "Failed to delete purchase order", error: error.message });
+        res.status(500).send({
+          message: "Failed to delete purchase order",
+          error: error.message,
+        });
       }
     });
 
@@ -4063,7 +4717,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Purchase order:", error);
-        res.status(500).send({ message: "Failed to fetch Purchase order", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Purchase order",
+          error: error.message,
+        });
       }
     });
 
@@ -4074,10 +4731,13 @@ async function run() {
         const order = req.body;
         const filter = { _id: new ObjectId(id) };
         const updatePurchaseOrder = {
-          $set: { ...order }
+          $set: { ...order },
         };
 
-        const result = await purchaseOrderCollection.updateOne(filter, updatePurchaseOrder);
+        const result = await purchaseOrderCollection.updateOne(
+          filter,
+          updatePurchaseOrder
+        );
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Purchase order not found" });
@@ -4086,7 +4746,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating purchase order:", error);
-        res.status(500).send({ message: "Failed to update purchase order", error: error.message });
+        res.status(500).send({
+          message: "Failed to update purchase order",
+          error: error.message,
+        });
       }
     });
 
@@ -4094,11 +4757,16 @@ async function run() {
     app.post("/addTransferOrder", async (req, res) => {
       try {
         const transferOrderData = req.body;
-        const result = await transferOrderCollection.insertOne(transferOrderData);
+        const result = await transferOrderCollection.insertOne(
+          transferOrderData
+        );
         res.send(result);
       } catch (error) {
         console.error("Error adding transfer order:", error);
-        res.status(500).send({ message: "Failed to add transfer order", error: error.message });
+        res.status(500).send({
+          message: "Failed to add transfer order",
+          error: error.message,
+        });
       }
     });
 
@@ -4109,7 +4777,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching transfer orders:", error);
-        res.status(500).send({ message: "Failed to fetch transfer orders", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch transfer orders",
+          error: error.message,
+        });
       }
     });
 
@@ -4127,7 +4798,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching Transfer order:", error);
-        res.status(500).send({ message: "Failed to fetch Transfer order", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch Transfer order",
+          error: error.message,
+        });
       }
     });
 
@@ -4138,10 +4812,13 @@ async function run() {
         const order = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateTransferOrder = {
-          $set: { ...order }
+          $set: { ...order },
         };
 
-        const result = await transferOrderCollection.updateOne(filter, updateTransferOrder);
+        const result = await transferOrderCollection.updateOne(
+          filter,
+          updateTransferOrder
+        );
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "Transfer order not found" });
@@ -4150,7 +4827,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating transfer order:", error);
-        res.status(500).send({ message: "Failed to update transfer order", error: error.message });
+        res.status(500).send({
+          message: "Failed to update transfer order",
+          error: error.message,
+        });
       }
     });
 
@@ -4168,7 +4848,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting transfer order:", error);
-        res.status(500).send({ message: "Failed to delete transfer order", error: error.message });
+        res.status(500).send({
+          message: "Failed to delete transfer order",
+          error: error.message,
+        });
       }
     });
 
@@ -4176,11 +4859,16 @@ async function run() {
     app.post("/addMarketingBanner", async (req, res) => {
       try {
         const marketingBannerData = req.body;
-        const result = await marketingBannerCollection.insertOne(marketingBannerData);
+        const result = await marketingBannerCollection.insertOne(
+          marketingBannerData
+        );
         res.send(result);
       } catch (error) {
         console.error("Error adding marketing banner:", error);
-        res.status(500).send({ message: "Failed to add marketing banner", error: error.message });
+        res.status(500).send({
+          message: "Failed to add marketing banner",
+          error: error.message,
+        });
       }
     });
 
@@ -4191,19 +4879,27 @@ async function run() {
         const urls = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateUrlOrder = {
-          $set: { ...urls }
+          $set: { ...urls },
         };
 
-        const result = await marketingBannerCollection.updateOne(filter, updateUrlOrder);
+        const result = await marketingBannerCollection.updateOne(
+          filter,
+          updateUrlOrder
+        );
 
         if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "Login register image urls not found" });
+          return res
+            .status(404)
+            .send({ message: "Login register image urls not found" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error updating login register image urls:", error);
-        res.status(500).send({ message: "Failed to update login register image urls", error: error.message });
+        res.status(500).send({
+          message: "Failed to update login register image urls",
+          error: error.message,
+        });
       }
     });
 
@@ -4214,7 +4910,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching marketing banner:", error);
-        res.status(500).send({ message: "Failed to fetch marketing banner", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch marketing banner",
+          error: error.message,
+        });
       }
     });
 
@@ -4222,11 +4921,16 @@ async function run() {
     app.post("/addLoginRegisterImageUrls", async (req, res) => {
       try {
         const loginRegisterImageUrlsData = req.body;
-        const result = await loginRegisterSlideCollection.insertOne(loginRegisterImageUrlsData);
+        const result = await loginRegisterSlideCollection.insertOne(
+          loginRegisterImageUrlsData
+        );
         res.send(result);
       } catch (error) {
         console.error("Error adding login register slides:", error);
-        res.status(500).send({ message: "Failed to add login register slides", error: error.message });
+        res.status(500).send({
+          message: "Failed to add login register slides",
+          error: error.message,
+        });
       }
     });
 
@@ -4237,7 +4941,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching login register slides:", error);
-        res.status(500).send({ message: "Failed to fetch login register slides", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch login register slides",
+          error: error.message,
+        });
       }
     });
 
@@ -4248,19 +4955,27 @@ async function run() {
         const urls = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateUrlOrder = {
-          $set: { ...urls }
+          $set: { ...urls },
         };
 
-        const result = await loginRegisterSlideCollection.updateOne(filter, updateUrlOrder);
+        const result = await loginRegisterSlideCollection.updateOne(
+          filter,
+          updateUrlOrder
+        );
 
         if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "Login register image urls not found" });
+          return res
+            .status(404)
+            .send({ message: "Login register image urls not found" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error updating login register image urls:", error);
-        res.status(500).send({ message: "Failed to update login register image urls", error: error.message });
+        res.status(500).send({
+          message: "Failed to update login register image urls",
+          error: error.message,
+        });
       }
     });
 
@@ -4268,11 +4983,16 @@ async function run() {
     app.post("/addHeroBannerImageUrls", async (req, res) => {
       try {
         const heroBannerImageUrlsData = req.body;
-        const result = await heroBannerCollection.insertOne(heroBannerImageUrlsData);
+        const result = await heroBannerCollection.insertOne(
+          heroBannerImageUrlsData
+        );
         res.send(result);
       } catch (error) {
         console.error("Error adding hero banner slides:", error);
-        res.status(500).send({ message: "Failed to add hero banner slides", error: error.message });
+        res.status(500).send({
+          message: "Failed to add hero banner slides",
+          error: error.message,
+        });
       }
     });
 
@@ -4283,7 +5003,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching hero banner slides:", error);
-        res.status(500).send({ message: "Failed to fetch hero banner slides", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch hero banner slides",
+          error: error.message,
+        });
       }
     });
 
@@ -4294,19 +5017,27 @@ async function run() {
         const urls = req.body;
         const filter = { _id: new ObjectId(id) };
         const updateUrlOrder = {
-          $set: { ...urls }
+          $set: { ...urls },
         };
 
-        const result = await heroBannerCollection.updateOne(filter, updateUrlOrder);
+        const result = await heroBannerCollection.updateOne(
+          filter,
+          updateUrlOrder
+        );
 
         if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "hero banner image urls not found" });
+          return res
+            .status(404)
+            .send({ message: "hero banner image urls not found" });
         }
 
         res.send(result);
       } catch (error) {
         console.error("Error updating hero banner image urls:", error);
-        res.status(500).send({ message: "Failed to update hero banner image urls", error: error.message });
+        res.status(500).send({
+          message: "Failed to update hero banner image urls",
+          error: error.message,
+        });
       }
     });
 
@@ -4318,7 +5049,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error adding newsletter:", error);
-        res.status(500).send({ message: "Failed to add newsletter", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to add newsletter", error: error.message });
       }
     });
 
@@ -4329,7 +5062,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching newsletters:", error);
-        res.status(500).send({ message: "Failed to fetch newsletters", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch newsletters",
+          error: error.message,
+        });
       }
     });
 
@@ -4347,7 +5083,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching newsletter:", error);
-        res.status(500).send({ message: "Failed to fetch newsletter", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch newsletter",
+          error: error.message,
+        });
       }
     });
 
@@ -4365,7 +5104,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting newsletter:", error);
-        res.status(500).send({ message: "Failed to delete newsletter", error: error.message });
+        res.status(500).send({
+          message: "Failed to delete newsletter",
+          error: error.message,
+        });
       }
     });
 
@@ -4376,8 +5118,8 @@ async function run() {
         const result = await faqCollection.insertOne(faqData);
         res.send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding faq:', error);
-        res.status(500).send({ error: 'Failed to add faq' }); // Send 500 status on error
+        console.error("Error adding faq:", error);
+        res.status(500).send({ error: "Failed to add faq" }); // Send 500 status on error
       }
     });
 
@@ -4388,7 +5130,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching faq:", error);
-        res.status(500).send({ message: "Failed to fetch faq", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch faq", error: error.message });
       }
     });
 
@@ -4400,8 +5144,8 @@ async function run() {
         const filter = { _id: new ObjectId(id) };
         const updatedFAQSData = {
           $set: {
-            ...faqData
-          }
+            ...faqData,
+          },
         };
 
         const result = await faqCollection.updateOne(filter, updatedFAQSData);
@@ -4413,7 +5157,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating faq:", error);
-        res.status(500).send({ message: "Failed to update faq", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update faq", error: error.message });
       }
     });
 
@@ -4431,7 +5177,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching faq:", error);
-        res.status(500).send({ message: "Failed to fetch faq", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch faq", error: error.message });
       }
     });
 
@@ -4442,8 +5190,8 @@ async function run() {
         const result = await topHeaderCollection.insertOne(headerData);
         res.send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding top header:', error);
-        res.status(500).send({ error: 'Failed to add top header' }); // Send 500 status on error
+        console.error("Error adding top header:", error);
+        res.status(500).send({ error: "Failed to add top header" }); // Send 500 status on error
       }
     });
 
@@ -4454,7 +5202,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching header collection:", error);
-        res.status(500).send({ message: "Failed to fetch header collection", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch header collection",
+          error: error.message,
+        });
       }
     });
 
@@ -4466,11 +5217,14 @@ async function run() {
         const filter = { _id: new ObjectId(id) };
         const updatedTopHeaderData = {
           $set: {
-            ...topHeaderData
-          }
+            ...topHeaderData,
+          },
         };
 
-        const result = await topHeaderCollection.updateOne(filter, updatedTopHeaderData);
+        const result = await topHeaderCollection.updateOne(
+          filter,
+          updatedTopHeaderData
+        );
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "top header not found" });
@@ -4479,7 +5233,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating top header:", error);
-        res.status(500).send({ message: "Failed to update top header", error: error.message });
+        res.status(500).send({
+          message: "Failed to update top header",
+          error: error.message,
+        });
       }
     });
 
@@ -4490,8 +5247,8 @@ async function run() {
         const result = await ourStoryCollection.insertOne(storyData);
         res.send(result); // Send 201 status on success
       } catch (error) {
-        console.error('Error adding our story information:', error);
-        res.status(500).send({ error: 'Failed to add our story information' }); // Send 500 status on error
+        console.error("Error adding our story information:", error);
+        res.status(500).send({ error: "Failed to add our story information" }); // Send 500 status on error
       }
     });
 
@@ -4501,14 +5258,19 @@ async function run() {
         const today = new Date();
         const todayStr = today.toISOString().split("T")[0];
 
-        const result = await ourStoryCollection.find({
-          status: true,
-          storyPublishDate: { $lte: todayStr } // Compare as YYYY-MM-DD
-        }).toArray();
+        const result = await ourStoryCollection
+          .find({
+            status: true,
+            storyPublishDate: { $lte: todayStr }, // Compare as YYYY-MM-DD
+          })
+          .toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching story collection:", error);
-        res.status(500).send({ message: "Failed to fetch story collection", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch story collection",
+          error: error.message,
+        });
       }
     });
 
@@ -4519,7 +5281,10 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching story collection:", error);
-        res.status(500).send({ message: "Failed to fetch story collection", error: error.message });
+        res.status(500).send({
+          message: "Failed to fetch story collection",
+          error: error.message,
+        });
       }
     });
 
@@ -4543,7 +5308,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error fetching story:", error);
-        res.status(500).send({ message: "Failed to fetch story", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to fetch story", error: error.message });
       }
     });
 
@@ -4555,11 +5322,14 @@ async function run() {
         const filter = { _id: new ObjectId(id) };
         const updatedStoryData = {
           $set: {
-            ...storyData
-          }
+            ...storyData,
+          },
         };
 
-        const result = await ourStoryCollection.updateOne(filter, updatedStoryData);
+        const result = await ourStoryCollection.updateOne(
+          filter,
+          updatedStoryData
+        );
 
         if (result.matchedCount === 0) {
           return res.status(404).send({ message: "story not found" });
@@ -4568,7 +5338,9 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating story:", error);
-        res.status(500).send({ message: "Failed to update story", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to update story", error: error.message });
       }
     });
 
@@ -4586,22 +5358,24 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error deleting story:", error);
-        res.status(500).send({ message: "Failed to delete story", error: error.message });
+        res
+          .status(500)
+          .send({ message: "Failed to delete story", error: error.message });
       }
     });
 
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
-
   }
 }
 run().catch(console.dir);
 
-
 app.get("/", (req, res) => {
   res.send("Fashion-Commerce server is running");
-})
+});
 
 const server = app.listen(port, () => {
   console.log(`Fashion-Commerce server is running on port ${port}`);
