@@ -148,6 +148,9 @@ async function run() {
     const availabilityNotifications = client
       .db("fashion-commerce")
       .collection("availability-notifications");
+    const logoCollection = client
+      .db("fashion-commerce")
+      .collection("logo");
 
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
@@ -5506,6 +5509,62 @@ async function run() {
         res
           .status(500)
           .send({ message: "Failed to delete story", error: error.message });
+      }
+    });
+
+    // add logo
+    app.post("/add-logo", async (req, res) => {
+      try {
+        const logoData = req.body; // Should be an array
+        const result = await logoCollection.insertOne(logoData);
+        res.send(result); // Send 201 status on success
+      } catch (error) {
+        console.error("Error adding logo:", error);
+        res.status(500).send({ error: "Failed to add logo" }); // Send 500 status on error
+      }
+    });
+
+    // all logo collection
+    app.get("/get-all-logo", async (req, res) => {
+      try {
+        const result = await logoCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching logo:", error);
+        res.status(500).send({
+          message: "Failed to fetch logo",
+          error: error.message,
+        });
+      }
+    });
+
+    //update a logo Collection
+    app.put("/update-logo/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const logoData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedLogoData = {
+          $set: {
+            ...logoData,
+          },
+        };
+
+        const result = await logoCollection.updateOne(
+          filter,
+          updatedLogoData
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "logo not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating logo:", error);
+        res
+          .status(500)
+          .send({ message: "Failed to update logo", error: error.message });
       }
     });
 
