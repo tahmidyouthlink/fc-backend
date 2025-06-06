@@ -171,14 +171,14 @@ async function run() {
     async function sendOtpEmail(email, otp, name) {
       try {
         await transport.sendMail({
-          from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
           to: email,
-          subject: "OTP for Fashion Commerce Login",
+          subject: "OTP for ${process.env.WEBSITE_NAME} Login",
           text: `Your One-Time Password  
   
           Dear ${name},  
   
-          Here is your One-Time Password (OTP) to securely log in to your Fashion Commerce account:  
+          Here is your One-Time Password (OTP) to securely log in to your ${process.env.WEBSITE_NAME} account:  
   
           ${otp}  
   
@@ -186,21 +186,21 @@ async function run() {
   
           If you did not request this OTP, please ignore this email or contact our support team.  
   
-          Thank you for choosing Fashion Commerce!  
+          Thank you for choosing ${process.env.WEBSITE_NAME}!  
   
           Best regards,  
-          Team Fashion Commerce`,
+          Team ${process.env.WEBSITE_NAME}`,
           html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
           <h2 style="text-align: center; color: #333;">🔑 <b>Your One-Time Password</b></h2>
           <p>Dear <b>${name}</b>,</p>
-          <p>Here is your One-Time Password (OTP) to securely log in to your <b>Fashion Commerce</b> account:</p>
+          <p>Here is your One-Time Password (OTP) to securely log in to your <b>${process.env.WEBSITE_NAME}</b> account:</p>
           <p style="text-align: center; font-size: 24px; font-weight: bold; color: #ff6600; margin: 20px 0;">${otp}</p>
           <p><b>Note:</b> This OTP is valid for <b>5 minutes</b>.</p>
           <p>If you did not request this OTP, please ignore this email or contact our support team.</p>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="text-align: center; color: #555;">Thank you for choosing <b>Fashion Commerce</b>! 🛍️</p>
-          <p style="text-align: center; font-size: 14px; color: #888;">Best regards,<br>Team Fashion Commerce</p>
+          <p style="text-align: center; color: #555;">Thank you for choosing <b>${process.env.WEBSITE_NAME}</b>! 🛍️</p>
+          <p style="text-align: center; font-size: 14px; color: #888;">Best regards,<br>Team ${process.env.WEBSITE_NAME}</p>
         </div>
       `,
         });
@@ -367,12 +367,12 @@ async function run() {
 
             try {
               const mailResult = await transport.sendMail({
-                from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+                from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
                 to: email,
-                subject: "You're Invited to Join Fashion Commerce",
+                subject: `You're Invited to Join ${process.env.WEBSITE_NAME}`,
                 text: `Hello ${email},
     
-                You have been invited to join Fashion Commerce. Please use the link below to complete your setup:
+                You have been invited to join ${process.env.WEBSITE_NAME}. Please use the link below to complete your setup:
     
     
     
@@ -397,14 +397,14 @@ async function run() {
                 If you did not expect this invitation, you can safely ignore this email.
     
                 Best Regards,  
-                Fashion Commerce Team`,
+                ${process.env.WEBSITE_NAME} Team`,
                 html: `
         <!DOCTYPE html>
         <html lang="en">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Invitation - Fashion Commerce</title>
+            <title>Invitation - ${process.env.WEBSITE_NAME}</title>
             <style>
               body {
                 font-family: Arial, sans-serif;
@@ -465,11 +465,11 @@ async function run() {
           <body>
             <div class="container">
               <div class="header">
-                <h1>Welcome to Fashion Commerce!</h1>
+                <h1>Welcome to ${process.env.WEBSITE_NAME}!</h1>
               </div>
               <div class="content">
                 <p>Hello <strong>${email}</strong>,</p>
-                <p>You are invited to join <strong>Fashion Commerce</strong>. To accept this invitation, create account:</p>
+                <p>You are invited to join <strong>${process.env.WEBSITE_NAME}</strong>. To accept this invitation, create account:</p>
                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                  <tr>
                   <td align="center">
@@ -483,7 +483,7 @@ async function run() {
                 
               </div>
               <div class="footer">
-                <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+                <p>Best Regards, <br><strong>${process.env.WEBSITE_NAME} Team</strong></p>
               </div>
             </div>
             </body>
@@ -540,12 +540,12 @@ async function run() {
 
         try {
           const mailResult = await transport.sendMail({
-            from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+            from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: "You're Invited to Join Fashion Commerce",
+            subject: `You're Invited to Join ${process.env.WEBSITE_NAME}`,
             text: `Hello ${email},
 
-            You have been invited to join Fashion Commerce. Please use the link below to complete your setup:
+            You have been invited to join ${process.env.WEBSITE_NAME}. Please use the link below to complete your setup:
 
 
 
@@ -570,13 +570,13 @@ async function run() {
             If you did not expect this invitation, you can safely ignore this email.
 
             Best Regards,  
-            Fashion Commerce Team`,
+            ${process.env.WEBSITE_NAME} Team`,
             html: `<!DOCTYPE html>
                   <html lang="en">
                   <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Invitation - Fashion Commerce</title>
+                  <title>Invitation - ${process.env.WEBSITE_NAME}</title>
                   <style>
                   body {
                   font-family: Arial, sans-serif;
@@ -637,11 +637,11 @@ async function run() {
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>Welcome to Fashion Commerce!</h1>
+                  <h1>Welcome to ${process.env.WEBSITE_NAME}!</h1>
               </div>
                 <div class="content">
                   <p>Hello <strong>${email}</strong>,</p>
-                  <p>You are invited to join <strong>Fashion Commerce</strong>. To accept this invitation, create account:</p>
+                  <p>You are invited to join <strong>${process.env.WEBSITE_NAME}</strong>. To accept this invitation, create account:</p>
                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                    <tr>
                     <td align="center">
@@ -655,7 +655,7 @@ async function run() {
             
                 </div>
                 <div class="footer">
-                  <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+                  <p>Best Regards, <br><strong>${process.env.WEBSITE_NAME} Team</strong></p>
                 </div>
               </div>
               </body>
@@ -1263,10 +1263,10 @@ async function run() {
 
       try {
         const staffMailResult = await transport.sendMail({
-          from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
           to: "rahilbinmushfiq@gmail.com", // Need to change it to admin email(s)
           subject: `Contact Request from ${name.split(" ")[0]} — "${topic}"`,
-          text: `Contact Request for Fashion Commerce
+          text: `Contact Request for ${process.env.WEBSITE_NAME}
 
 
           Name: ${name}
@@ -1277,10 +1277,10 @@ async function run() {
           ${message}
 
 
-          This message was sent via the Fashion Commerce contact form. Please respond to it at your earliest convenience.
+          This message was sent via the ${process.env.WEBSITE_NAME} contact form. Please respond to it at your earliest convenience.
 
 
-          — Fashion Commerce Contact System`,
+          — ${process.env.WEBSITE_NAME} Contact System`,
           html: `
           <!DOCTYPE html>
           <html lang="en">
@@ -1313,7 +1313,7 @@ async function run() {
                       padding-bottom: 10px;
                     "
                   >
-                    Contact Request for Fashion Commerce
+                    Contact Request for ${process.env.WEBSITE_NAME}
                   </h2>
                 </div>
                 <div style="padding-top: 20px">
@@ -1350,11 +1350,11 @@ async function run() {
                   </div>
                 </div>
                 <p style="margin-top: 36px; font-size: 0.825rem; color: #737373">
-                  This message was sent via the Fashion Commerce contact form. Please
+                  This message was sent via the ${process.env.WEBSITE_NAME} contact form. Please
                   respond to it at your earliest convenience.
                 </p>
                 <p style="font-size: 0.825rem; color: #737373">
-                  — Fashion Commerce Contact System
+                  — ${process.env.WEBSITE_NAME} Contact System
                 </p>
               </div>
             </body>
@@ -1687,19 +1687,19 @@ async function run() {
         const fullName = userData?.userInfo?.personalInfo?.customerName;
 
         const mailResult = await transport.sendMail({
-          from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
           to: email,
-          subject: "Reset Password for F-commerce",
+          subject: `Reset Password for ${process.env.WEBSITE_NAME}`,
           text: `Hello ${fullName},
             
-              You have requested to reset your F-commerce password for your ${email} account. Please use the button below to reset your password:
+              You have requested to reset your ${process.env.WEBSITE_NAME} password for your ${email} account. Please use the button below to reset your password:
             
               Reset Link: ${resetLink}
             
               Please note that this is valid for **30 minutes**. If you didn't ask to reset your password, you can safely ignore this email.
             
               Thanks,  
-              F-commerce Team`,
+              ${process.env.WEBSITE_NAME} Team`,
           html: `
               <!DOCTYPE html>
               <html lang="en">
@@ -1738,7 +1738,7 @@ async function run() {
                           padding-bottom: 10px;
                         "
                       >
-                        Reset Password for Fashion Commerce
+                        Reset Password for ${process.env.WEBSITE_NAME}
                       </h2>
                     </div>
                     <div>
@@ -1753,7 +1753,7 @@ async function run() {
                         Hello ${fullName},
                       </p>
                       <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                        You have requested to reset your F-commerce password for your
+                        You have requested to reset your ${process.env.WEBSITE_NAME} password for your
                         <a href="mailto:${email}" style="color: #4d8944"
                           >${email}</a
                         >
@@ -1802,7 +1802,7 @@ async function run() {
                     >
                       <p>
                         Best Regards,<span style="display: block; margin-top: 2px"
-                          >Fashion Commerce Team</span
+                          >${process.env.WEBSITE_NAME} Team</span
                         >
                       </p>
                     </div>
@@ -2281,7 +2281,7 @@ async function run() {
 
                 try {
                   const mailResult = await transport.sendMail({
-                    from: `"Fashion Commerce" <${process.env.EMAIL_USER}>`,
+                    from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
                     to: email,
                     subject:
                       "Good news! The product you wanted is back in stock!",
@@ -2294,13 +2294,13 @@ async function run() {
                     If you did not expect this email, you can safely ignore this email.
         
                     Best Regards,  
-                    Fashion Commerce Team`,
+                    ${process.env.WEBSITE_NAME} Team`,
                     html: `<!DOCTYPE html>
                           <html lang="en">
                           <head>
                           <meta charset="UTF-8">
                           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                          <title>Invitation - Fashion Commerce</title>
+                          <title>Invitation - ${process.env.WEBSITE_NAME}</title>
                           <style>
                           body {
                           font-family: Arial, sans-serif;
@@ -2361,7 +2361,7 @@ async function run() {
                     <body>
                       <div class="container">
                         <div class="header">
-                          <h1>Welcome to Fashion Commerce!</h1>
+                          <h1>Welcome to ${process.env.WEBSITE_NAME}!</h1>
                       </div>
                         <div class="content">
                           <p>Hello <strong>${email}</strong>,</p>
@@ -2378,7 +2378,7 @@ async function run() {
                     
                         </div>
                         <div class="footer">
-                          <p>Best Regards, <br><strong>Fashion Commerce Team</strong></p>
+                          <p>Best Regards, <br><strong>${process.env.WEBSITE_NAME} Team</strong></p>
                         </div>
                       </div>
                       </body>
