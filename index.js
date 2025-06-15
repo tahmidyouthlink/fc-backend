@@ -173,7 +173,7 @@ async function run() {
         await transport.sendMail({
           from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
           to: email,
-          subject: "OTP for ${process.env.WEBSITE_NAME} Login",
+          subject: `OTP for ${process.env.WEBSITE_NAME} Login`,
           text: `Your One-Time Password  
   
           Dear ${name},  
@@ -1099,13 +1099,13 @@ async function run() {
         const promoAmount = "10%";
 
         const mailResult = await transport.sendMail({
-          from: `"PoshaX" <${process.env.EMAIL_USER}>`,
+          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
           to: email,
-          subject: "Welcome to PoshaX! Let's Get Posh!",
+          subject: `Welcome to ${process.env.WEBSITE_NAME}! Let's Get Posh!`,
           text: `
             Hi ${name},
 
-            We are thrilled to have you join our fashion-forward platform, POSHAX!
+            We are thrilled to have you join our fashion-forward platform, ${process.env.WEBSITE_NAME}!
 
             Expect exclusive drops, early access to new collections, and more!
 
@@ -1116,7 +1116,7 @@ async function run() {
             Shop Now: ${process.env.FRONTEND_URL}/shop
           
             Stay Posh
-            PoshaX Team
+            ${process.env.WEBSITE_NAME} Team
           `,
           html: `
             <!DOCTYPE html>
@@ -1156,7 +1156,7 @@ async function run() {
                         padding-bottom: 10px;
                       "
                     >
-                      Welcome to PoshaX! Let's Get Posh!
+                      Welcome to ${process.env.WEBSITE_NAME}! Let's Get Posh!
                     </h2>
                   </div>
                   <div>
@@ -1172,7 +1172,7 @@ async function run() {
                     </p>
                     <p style="color: #525252; font-size: 1rem; line-height: 1.6">
                       We are thrilled to have you join our fashion-forward platform,
-                      <strong>POSHAX</strong>!
+                      <strong>${process.env.WEBSITE_NAME}</strong>!
                     </p>
                     <p style="color: #525252; font-size: 1rem; line-height: 1.6">
                       Expect exclusive drops, early access to new collections, and more!
@@ -1222,7 +1222,7 @@ async function run() {
                   >
                     <p>
                       Stay Posh
-                      <span style="display: block; margin-top: 2px">PoshaX Team</span>
+                      <span style="display: block; margin-top: 2px">${process.env.WEBSITE_NAME} Team</span>
                     </p>
                   </div>
                 </div>
@@ -1363,9 +1363,9 @@ async function run() {
         });
 
         const userMailResult = await transport.sendMail({
-          from: `"PoshaX" <${process.env.EMAIL_USER}>`,
+          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
           to: email,
-          subject: "PoshaX Will Get Back to Your Soon",
+          subject: `${process.env.WEBSITE_NAME} Will Get Back to Your Soon`,
           text: `
             Hello ${name},
           
@@ -1374,7 +1374,7 @@ async function run() {
             If you didn't contact us, you can safely ignore this email.
           
             Best Regards,
-            PoshaX
+            ${process.env.WEBSITE_NAME}
           `,
           html: `
             <!DOCTYPE html>
@@ -1414,7 +1414,7 @@ async function run() {
                         padding-bottom: 10px;
                       "
                     >
-                      PoshaX Will Get Back to Your Soon
+                      ${process.env.WEBSITE_NAME} Will Get Back to Your Soon
                     </h2>
                   </div>
                   <div>
@@ -1450,7 +1450,7 @@ async function run() {
                   >
                     <p>
                       Best Regards,
-                      <span style="display: block; margin-top: 2px">PoshaX</span>
+                      <span style="display: block; margin-top: 2px">${process.env.WEBSITE_NAME}</span>
                     </p>
                   </div>
                 </div>
@@ -3886,7 +3886,7 @@ async function run() {
         </table>
         <p>We will notify you as soon as your items are shipped! 🚚</p>
         <p>If you have any questions, reply to this email or reach us at <a href="mailto:support@poshax.com">support@poshax.com</a></p>
-        <p>Thanks again for choosing POSHAX!</p>
+        <p>Thanks again for choosing ${process.env.WEBSITE_NAME}!</p>
         <p>— ${process.env.WEBSITE_NAME} Team</p>
       </div>`;
       }
