@@ -152,6 +152,58 @@ async function run() {
       .db("fashion-commerce")
       .collection("logo");
 
+    const verifyJWT = (req, res, next) => {
+
+      if (!req?.headers?.authorization) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader?.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const token = authHeader.split(" ")[1];
+
+      jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(403).json({ message: "Forbidden: Invalid token" });
+        }
+
+        // Attach decoded user info to request
+        req.user = decoded;
+        next();
+      });
+    };
+
+    const authorizeAccess = (moduleName) => {
+      return async (req, res, next) => {
+        try {
+          const userId = req.user._id;
+          const user = await enrollmentCollection.findOne({ _id: new ObjectId(userId) });
+
+          if (!user || !user.permissions) {
+            return res.status(403).json({ message: "No permissions found for user" });
+          };
+
+          const hasAccess = user.permissions.some((roleEntry) => {
+            const moduleAccess = roleEntry.modules?.[moduleName];
+            return moduleAccess?.access === true;
+          });
+
+          if (!hasAccess) {
+            return res.status(403).json({ message: `Access to ${moduleName} denied` });
+          }
+
+          next();
+        } catch (err) {
+          console.error("Authorization error:", err);
+          return res.status(500).json({ message: "Internal server error" });
+        }
+      };
+    };
+
     // Send Email with the Magic Link
     const transport = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
@@ -3279,7 +3331,7 @@ async function run() {
       }
     });
 
-    app.get("/get-todays-orders", async (req, res) => {
+    app.get("/get-todays-orders", verifyJWT, authorizeAccess("Dashboard"), async (req, res) => {
       try {
         const today = new Date();
         const dd = String(today.getDate()).padStart(2, "0");
