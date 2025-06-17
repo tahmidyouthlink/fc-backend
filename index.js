@@ -1040,10 +1040,22 @@ async function run() {
             { $unset: { otp: "", otpExpiresAt: "" } }
           );
 
+          // This should be a long secret
+          const token = jwt.sign(
+            {
+              _id: user._id,
+              email: user.email,
+              username: user.username,
+            },
+            process.env.JWT_SECRET, // keep it secure
+            {
+              expiresIn: "30m", // match NextAuth session maxAge if possible
+            }
+          );
+
           return res.json({
             _id: user._id.toString(),
-            email: user.email.toString(),
-            name: user.fullName.toString(),
+            token
           });
         }
       } catch (error) {
