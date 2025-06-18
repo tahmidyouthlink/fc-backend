@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const multer = require("multer");
 const rateLimit = require("express-rate-limit");
 const { Storage } = require("@google-cloud/storage");
+const cookieParser = require("cookie-parser");
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
@@ -61,15 +62,15 @@ const client = new MongoClient(uri, {
   },
 });
 
-// app.use(cors({
-//   origin: [
-//     "http://localhost:3000",
-//     "https://fashion-commerce-pi.vercel.app",
-//     "https://fc-frontend-664306765395.asia-south1.run.app"
-//   ],
-//   credentials: true, // if using cookies or auth
-// }));
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://fashion-commerce-pi.vercel.app",
+    "https://fc-frontend-664306765395.asia-south1.run.app"
+  ],
+  credentials: true, // if using cookies or auth
+}));
+app.use(cookieParser());
 app.use(express.json());
 app.use(compression());
 app.use(helmet());
@@ -166,9 +167,9 @@ async function run() {
 
       const token = authHeader.split(" ")[1];
 
-      jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
         if (err) {
-          return res.status(403).json({ message: "Forbidden: Invalid token" });
+          return res.status(401).json({ message: "Forbidden: Invalid token" });
         }
 
         // Attach decoded user info to request
@@ -1092,22 +1093,34 @@ async function run() {
             { $unset: { otp: "", otpExpiresAt: "" } }
           );
 
-          // This should be a long secret
-          const token = jwt.sign(
+          const accessToken = jwt.sign(
             {
               _id: user._id,
               email: user.email,
               username: user.username,
             },
-            process.env.JWT_SECRET, // keep it secure
-            {
-              expiresIn: "30m", // match NextAuth session maxAge if possible
-            }
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: "10s" } // short-lived
           );
+
+          const refreshToken = jwt.sign(
+            { _id: user._id },
+            process.env.REFRESH_TOKEN_SECRET,
+            { expiresIn: "7d" } // long-lived
+          );
+
+          // Send accessToken in response
+          // Store refreshToken as HTTP-only cookie
+          res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: true, // ✅ only in prod
+            sameSite: "Strict", // ✅ Lax for dev
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
 
           return res.json({
             _id: user._id.toString(),
-            token
+            accessToken
           });
         }
       } catch (error) {
@@ -1117,6 +1130,50 @@ async function run() {
           .json({ message: "Something went wrong. Please try again later." });
       }
     });
+
+    app.post("/refresh-token", (req, res) => {
+
+      const refreshToken = req.cookies?.refreshToken;
+      if (!refreshToken) {
+        console.log("❌ No refresh token sent");
+        return res.status(401).json({ message: "No refresh token" });
+      }
+
+      jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          console.log("❌ Invalid refresh token", err);
+          return res.status(401).json({ message: "Invalid refresh token" });
+        }
+
+        const newAccessToken = jwt.sign(
+          { _id: decoded._id },
+          process.env.ACCESS_TOKEN_SECRET,
+          { expiresIn: "30m" }
+        );
+
+        console.log("✅ Issued new access token");
+        return res.json({ accessToken: newAccessToken });
+      });
+    });
+
+    // app.post("/refresh-token", (req, res) => {
+    //   const refreshToken = req.cookies.refreshToken;
+    //   if (!refreshToken) return res.status(401).json({ message: "No refresh token" });
+
+    //   jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+    //     if (err) return res.status(403).json({ message: "Invalid refresh token" });
+
+    //     const newAccessToken = jwt.sign(
+    //       {
+    //         _id: decoded._id
+    //       },
+    //       process.env.ACCESS_TOKEN_SECRET,
+    //       { expiresIn: "30m" }
+    //     );
+
+    //     return res.json({ accessToken: newAccessToken });
+    //   });
+    // });
 
     // after completed setup, put the information
     app.post("/customer-signup", async (req, res) => {
