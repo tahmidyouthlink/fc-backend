@@ -2054,22 +2054,29 @@ async function run() {
     });
 
     // Change Password Endpoint
-    app.put("/change-password", async (req, res) => {
+    app.put("/change-password", verifyJWT, async (req, res) => {
       try {
-        const { email, currentPassword, newPassword } = req.body;
+        const { userId, currentPassword, newPassword } = req.body;
 
         // Check if email is provided
-        if (!email || !currentPassword || !newPassword) {
-          return res.status(400).json({ message: "All fields are required" });
+        if (!userId) {
+          return res.status(400).json({ message: "Some fields are required" });
+        }
+        if (!currentPassword) {
+          return res.status(400).json({ message: "Current password is required" });
+        }
+        if (!newPassword) {
+          return res.status(400).json({ message: "New password is required" });
         }
 
         if (currentPassword === newPassword)
-          return res.status(401).json({
+          return res.status(400).json({
             message: "New Password should not matched with current password",
           });
 
         // Find user by email in the enrollmentCollection
-        const user = await enrollmentCollection.findOne({ email });
+        const objectId = new ObjectId(userId);
+        const user = await enrollmentCollection.findOne({ _id: objectId });
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -2093,7 +2100,7 @@ async function run() {
 
         // Update the password in MongoDB
         const result = await enrollmentCollection.updateOne(
-          { email },
+          { _id: new ObjectId(userId) },
           { $set: { password: hashedPassword } }
         );
 
@@ -3356,7 +3363,7 @@ async function run() {
     });
 
     // Get All Orders
-    app.get("/allOrders", async (req, res) => {
+    app.get("/allOrders", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
       try {
         // Sort by a field in descending order (e.g., by '_id' or 'dateTime' if you have a date field)
         const orders = await orderListCollection
@@ -3422,7 +3429,7 @@ async function run() {
     });
 
     // applying pagination in orderList
-    app.get("/orderList", async (req, res) => {
+    app.get("/orderList", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
       try {
         const pageStr = req.query?.page;
         const itemsPerPageStr = req.query?.itemsPerPage;
@@ -3452,7 +3459,7 @@ async function run() {
       }
     });
 
-    app.put("/addReturnSkuToProduct", async (req, res) => {
+    app.put("/addReturnSkuToProduct", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
       const returnDataToSend = req.body;
 
       // Validate input
@@ -3553,7 +3560,7 @@ async function run() {
       }
     });
 
-    app.put("/decreaseSkuFromProduct", async (req, res) => {
+    app.put("/decreaseSkuFromProduct", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
       const productDetailsArray = req.body;
 
       // Validate the input array
@@ -3666,7 +3673,7 @@ async function run() {
       }
     });
 
-    app.put("/decreaseOnHandSkuFromProduct", async (req, res) => {
+    app.put("/decreaseOnHandSkuFromProduct", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
       const productDetailsArray = req.body;
 
       // Validate the input array
@@ -3964,6 +3971,9 @@ async function run() {
 
       if (!customerEmail) return;
 
+      // ✅ Only proceed if status is one of the valid ones
+      if (!["Processing", "Shipped", "Delivered"].includes(status)) return;
+
       let subject = "";
       let html = "";
 
@@ -4035,7 +4045,7 @@ async function run() {
     };
 
     // Update order status
-    app.patch("/changeOrderStatus/:id", async (req, res) => {
+    app.patch("/changeOrderStatus/:id", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
       const id = req.params.id;
       const {
         orderStatus,
