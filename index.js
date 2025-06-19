@@ -1112,7 +1112,7 @@ async function run() {
           const options = {
             httpOnly: true,
             secure: true,             // ✅ MUST be false on localhost
-            sameSite: "lax",           // ✅ Lax is safe for localhost
+            sameSite: "None",           // ✅ Lax is safe for localhost
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
           }
 
