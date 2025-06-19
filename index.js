@@ -1100,7 +1100,7 @@ async function run() {
               _id: user._id,
             },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "10s" } // short-lived
+            { expiresIn: "30m" } // short-lived
           );
 
           const refreshToken = jwt.sign(
