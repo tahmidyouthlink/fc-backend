@@ -102,24 +102,41 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-const authorizeAccess = (moduleName) => {
+const authorizeAccess = (requiredRoles = [], ...moduleNames) => {
   return async (req, res, next) => {
     try {
       const userId = req.user._id;
-      const enrollmentCollection = client.db("fashion-commerce").collection("enrollment-admin-staff");
+      const enrollmentCollection = client
+        .db("fashion-commerce")
+        .collection("enrollment-admin-staff");
+
       const user = await enrollmentCollection.findOne({ _id: new ObjectId(userId) });
 
-      if (!user || !user.permissions) {
+      if (!user?.permissions?.length || !user || !user.permissions) {
         return res.status(403).json({ message: "No permissions found for user" });
       };
 
+      // Loop through all roles the user has
       const hasAccess = user.permissions.some((roleEntry) => {
-        const moduleAccess = roleEntry.modules?.[moduleName];
-        return moduleAccess?.access === true;
+        const roleName = roleEntry.role;
+        const modules = roleEntry.modules || {};
+
+        return moduleNames.some((moduleName) => {
+          const module = modules[moduleName];
+          if (!module?.access) return false;
+
+          // If no role filtering required, access granted
+          if (requiredRoles.length === 0) return true;
+
+          // Check if this role matches required ones
+          return requiredRoles.includes(roleName);
+        });
       });
 
       if (!hasAccess) {
-        return res.status(403).json({ message: `Access to ${moduleName} denied` });
+        return res.status(403).json({
+          message: `Access denied. You need roles: ${requiredRoles.join(" or ")} with access to ${moduleNames.join(", ")}`,
+        });
       }
 
       next();
@@ -3363,7 +3380,7 @@ async function run() {
     });
 
     // Get All Orders
-    app.get("/allOrders", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
+    app.get("/allOrders", verifyJWT, authorizeAccess([], "Orders", "Finances", "Product Hub", "Marketing", "Customers"), async (req, res) => {
       try {
         // Sort by a field in descending order (e.g., by '_id' or 'dateTime' if you have a date field)
         const orders = await orderListCollection
@@ -3376,7 +3393,7 @@ async function run() {
       }
     });
 
-    app.get("/get-todays-orders", verifyJWT, authorizeAccess("Dashboard"), async (req, res) => {
+    app.get("/get-todays-orders", verifyJWT, authorizeAccess([], "Dashboard"), async (req, res) => {
       try {
         const today = new Date();
         const dd = String(today.getDate()).padStart(2, "0");
@@ -3429,7 +3446,7 @@ async function run() {
     });
 
     // applying pagination in orderList
-    app.get("/orderList", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
+    app.get("/orderList", verifyJWT, authorizeAccess([], "Orders"), async (req, res) => {
       try {
         const pageStr = req.query?.page;
         const itemsPerPageStr = req.query?.itemsPerPage;
@@ -3459,7 +3476,7 @@ async function run() {
       }
     });
 
-    app.put("/addReturnSkuToProduct", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
+    app.put("/addReturnSkuToProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
       const returnDataToSend = req.body;
 
       // Validate input
@@ -3560,7 +3577,7 @@ async function run() {
       }
     });
 
-    app.put("/decreaseSkuFromProduct", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
+    app.put("/decreaseSkuFromProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
       const productDetailsArray = req.body;
 
       // Validate the input array
@@ -3673,7 +3690,7 @@ async function run() {
       }
     });
 
-    app.put("/decreaseOnHandSkuFromProduct", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
+    app.put("/decreaseOnHandSkuFromProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
       const productDetailsArray = req.body;
 
       // Validate the input array
@@ -4045,7 +4062,7 @@ async function run() {
     };
 
     // Update order status
-    app.patch("/changeOrderStatus/:id", verifyJWT, authorizeAccess("Orders"), async (req, res) => {
+    app.patch("/changeOrderStatus/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
       const id = req.params.id;
       const {
         orderStatus,
