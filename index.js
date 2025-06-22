@@ -42,13 +42,17 @@ const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true, // ✅ Adds `RateLimit-*` headers
-  legacyHeaders: false,  // ✅ Disables `X-RateLimit-*` headers (old standard)
-  message: 'Too many requests from this IP, please try again after 15 minutes',
-});
+let limiter = (req, res, next) => next(); // No-op middleware by default
+
+if (process.env.NODE_ENV === 'production') {
+  limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
 
@@ -4331,7 +4335,7 @@ async function run() {
     });
 
     // Get All Customer Information
-    app.get("/allCustomerDetails", async (req, res) => {
+    app.get("/allCustomerDetails", verifyJWT, authorizeAccess([], "Customers"), limiter, originChecker, async (req, res) => {
       try {
         const customers = await customerListCollection.find().toArray();
         res.status(200).send(customers);
@@ -4391,7 +4395,7 @@ async function run() {
     });
 
     // applying pagination in customer list
-    app.get("/customerList", async (req, res) => {
+    app.get("/customerList", verifyJWT, authorizeAccess([], "Customers"), limiter, originChecker, async (req, res) => {
       try {
         const pageStr = req.query?.page;
         const itemsPerPageStr = req.query?.itemsPerPage;
@@ -4422,7 +4426,7 @@ async function run() {
     });
 
     // post a promo code
-    app.post("/addPromoCode", async (req, res) => {
+    app.post("/addPromoCode", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const discountData = req.body;
         const result = await promoCollection.insertOne(discountData);
@@ -4436,7 +4440,7 @@ async function run() {
     });
 
     // Get All Promo Codes
-    app.get("/allPromoCodes", async (req, res) => {
+    app.get("/allPromoCodes", verifyJWT, authorizeAccess([], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const promos = await promoCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(promos);
@@ -4446,7 +4450,7 @@ async function run() {
     });
 
     // get single promo info
-    app.get("/getSinglePromo/:id", async (req, res) => {
+    app.get("/getSinglePromo/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4466,7 +4470,7 @@ async function run() {
     });
 
     // delete single promo
-    app.delete("/deletePromo/:id", async (req, res) => {
+    app.delete("/deletePromo/:id", verifyJWT, authorizeAccess(["Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4486,7 +4490,7 @@ async function run() {
     });
 
     //update a single promo
-    app.put("/updatePromo/:id", async (req, res) => {
+    app.put("/updatePromo/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const promo = req.body;
@@ -4511,7 +4515,7 @@ async function run() {
     });
 
     // post a offer
-    app.post("/addOffer", async (req, res) => {
+    app.post("/addOffer", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const offerData = req.body;
         const result = await offerCollection.insertOne(offerData);
@@ -4525,7 +4529,7 @@ async function run() {
     });
 
     // Get All Offer
-    app.get("/allOffers", async (req, res) => {
+    app.get("/allOffers", verifyJWT, authorizeAccess([], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
@@ -4535,7 +4539,7 @@ async function run() {
     });
 
     // get single offer
-    app.get("/getSingleOffer/:id", async (req, res) => {
+    app.get("/getSingleOffer/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4555,7 +4559,7 @@ async function run() {
     });
 
     //update a single offer
-    app.put("/updateOffer/:id", async (req, res) => {
+    app.put("/updateOffer/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const promo = req.body;
@@ -4580,7 +4584,7 @@ async function run() {
     });
 
     // delete single offer
-    app.delete("/deleteOffer/:id", async (req, res) => {
+    app.delete("/deleteOffer/:id", verifyJWT, authorizeAccess(["Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4805,7 +4809,7 @@ async function run() {
     });
 
     // post a payment method
-    app.post("/addPaymentMethod", async (req, res) => {
+    app.post("/addPaymentMethod", verifyJWT, authorizeAccess(["Editor", "Owner"], "Finances"), limiter, originChecker, async (req, res) => {
       try {
         const paymentData = req.body;
         const result = await paymentMethodCollection.insertOne(paymentData);
@@ -4820,7 +4824,7 @@ async function run() {
     });
 
     // get all payment methods
-    app.get("/allPaymentMethods", async (req, res) => {
+    app.get("/allPaymentMethods", verifyJWT, authorizeAccess([], "Finances"), limiter, originChecker, async (req, res) => {
       try {
         const result = await paymentMethodCollection.find().toArray();
         res.send(result);
@@ -4834,7 +4838,7 @@ async function run() {
     });
 
     // delete single Payment Method
-    app.delete("/deletePaymentMethod/:id", async (req, res) => {
+    app.delete("/deletePaymentMethod/:id", verifyJWT, authorizeAccess(["Owner"], "Finances"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4855,7 +4859,7 @@ async function run() {
     });
 
     // get single Payment Method
-    app.get("/getSinglePaymentMethod/:id", async (req, res) => {
+    app.get("/getSinglePaymentMethod/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Finances"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4876,7 +4880,7 @@ async function run() {
     });
 
     //update a single payment method
-    app.put("/editPaymentMethod/:id", async (req, res) => {
+    app.put("/editPaymentMethod/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Finances"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const method = req.body;
@@ -5226,7 +5230,7 @@ async function run() {
     });
 
     // post a marketing banner
-    app.post("/addMarketingBanner", async (req, res) => {
+    app.post("/addMarketingBanner", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const marketingBannerData = req.body;
         const result = await marketingBannerCollection.insertOne(
@@ -5243,7 +5247,7 @@ async function run() {
     });
 
     //update a single login register image urls
-    app.put("/editMarketingBanner/:id", async (req, res) => {
+    app.put("/editMarketingBanner/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const urls = req.body;
@@ -5288,7 +5292,7 @@ async function run() {
     });
 
     // post a login register slides
-    app.post("/addLoginRegisterImageUrls", async (req, res) => {
+    app.post("/addLoginRegisterImageUrls", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const loginRegisterImageUrlsData = req.body;
         const result = await loginRegisterSlideCollection.insertOne(
@@ -5319,7 +5323,7 @@ async function run() {
     });
 
     //update a single login register image urls
-    app.put("/editLoginRegisterImageUrls/:id", async (req, res) => {
+    app.put("/editLoginRegisterImageUrls/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const urls = req.body;
