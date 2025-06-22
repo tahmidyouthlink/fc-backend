@@ -42,14 +42,13 @@ const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Create a limiter
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100,
-//   standardHeaders: true, // ✅ Adds `RateLimit-*` headers
-//   legacyHeaders: false,  // ✅ Disables `X-RateLimit-*` headers (old standard)
-//   message: 'Too many requests from this IP, please try again after 15 minutes',
-// });
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true, // ✅ Adds `RateLimit-*` headers
+  legacyHeaders: false,  // ✅ Disables `X-RateLimit-*` headers (old standard)
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+});
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
 
@@ -75,7 +74,6 @@ app.use(cors({
 }));
 app.use(compression());
 app.use(helmet());
-// app.use(limiter);
 
 const verifyJWT = (req, res, next) => {
 
@@ -145,6 +143,22 @@ const authorizeAccess = (requiredRoles = [], ...moduleNames) => {
       return res.status(500).json({ message: "Internal server error" });
     }
   };
+};
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://fc-frontend-664306765395.asia-south1.run.app",
+  "https://poshax-backend-664306765395.asia-south1.run.app",
+];
+
+const originChecker = (req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (!origin || allowedOrigins.includes(origin)) {
+    return next();
+  }
+
+  res.status(403).json({ message: "Forbidden: Invalid origin" });
 };
 
 async function run() {
@@ -2071,7 +2085,7 @@ async function run() {
     });
 
     // Change Password Endpoint
-    app.put("/change-password", verifyJWT, async (req, res) => {
+    app.put("/change-password", verifyJWT, limiter, originChecker, async (req, res) => {
       try {
         const { userId, currentPassword, newPassword } = req.body;
 
@@ -3380,7 +3394,7 @@ async function run() {
     });
 
     // Get All Orders
-    app.get("/allOrders", verifyJWT, authorizeAccess([], "Orders", "Finances", "Product Hub", "Marketing", "Customers"), async (req, res) => {
+    app.get("/allOrders", verifyJWT, authorizeAccess([], "Orders", "Finances", "Product Hub", "Marketing", "Customers"), limiter, originChecker, async (req, res) => {
       try {
         // Sort by a field in descending order (e.g., by '_id' or 'dateTime' if you have a date field)
         const orders = await orderListCollection
@@ -3393,7 +3407,7 @@ async function run() {
       }
     });
 
-    app.get("/get-todays-orders", verifyJWT, authorizeAccess([], "Dashboard"), async (req, res) => {
+    app.get("/get-todays-orders", verifyJWT, authorizeAccess([], "Dashboard"), limiter, originChecker, async (req, res) => {
       try {
         const today = new Date();
         const dd = String(today.getDate()).padStart(2, "0");
@@ -3446,7 +3460,7 @@ async function run() {
     });
 
     // applying pagination in orderList
-    app.get("/orderList", verifyJWT, authorizeAccess([], "Orders"), async (req, res) => {
+    app.get("/orderList", verifyJWT, authorizeAccess([], "Orders"), limiter, originChecker, async (req, res) => {
       try {
         const pageStr = req.query?.page;
         const itemsPerPageStr = req.query?.itemsPerPage;
@@ -3476,7 +3490,7 @@ async function run() {
       }
     });
 
-    app.put("/addReturnSkuToProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
+    app.put("/addReturnSkuToProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), limiter, originChecker, async (req, res) => {
       const returnDataToSend = req.body;
 
       // Validate input
@@ -3577,7 +3591,7 @@ async function run() {
       }
     });
 
-    app.put("/decreaseSkuFromProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
+    app.put("/decreaseSkuFromProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), limiter, originChecker, async (req, res) => {
       const productDetailsArray = req.body;
 
       // Validate the input array
@@ -3690,7 +3704,7 @@ async function run() {
       }
     });
 
-    app.put("/decreaseOnHandSkuFromProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
+    app.put("/decreaseOnHandSkuFromProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), limiter, originChecker, async (req, res) => {
       const productDetailsArray = req.body;
 
       // Validate the input array
@@ -4062,7 +4076,7 @@ async function run() {
     };
 
     // Update order status
-    app.patch("/changeOrderStatus/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), async (req, res) => {
+    app.patch("/changeOrderStatus/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Orders"), limiter, originChecker, async (req, res) => {
       const id = req.params.id;
       const {
         orderStatus,
