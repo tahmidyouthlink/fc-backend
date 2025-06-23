@@ -4440,7 +4440,7 @@ async function run() {
     });
 
     // Get All Promo Codes
-    app.get("/allPromoCodes", verifyJWT, authorizeAccess([], "Marketing"), limiter, originChecker, async (req, res) => {
+    app.get("/allPromoCodes", async (req, res) => {
       try {
         const promos = await promoCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(promos);
@@ -4529,7 +4529,7 @@ async function run() {
     });
 
     // Get All Offer
-    app.get("/allOffers", verifyJWT, authorizeAccess([], "Marketing"), limiter, originChecker, async (req, res) => {
+    app.get("/allOffers", async (req, res) => {
       try {
         const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
