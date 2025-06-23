@@ -4604,7 +4604,7 @@ async function run() {
     });
 
     // post a shipping zone
-    app.post("/addShippingZone", async (req, res) => {
+    app.post("/addShippingZone", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const shippingData = req.body;
         const result = await shippingZoneCollection.insertOne(shippingData);
@@ -4619,7 +4619,7 @@ async function run() {
     });
 
     // get all shipping zones
-    app.get("/allShippingZones", async (req, res) => {
+    app.get("/allShippingZones", verifyJWT, authorizeAccess([], "Supply Chain", "Product Hub", "Orders"), limiter, originChecker, async (req, res) => {
       try {
         const result = await shippingZoneCollection.find().toArray();
         res.send(result);
@@ -4633,7 +4633,7 @@ async function run() {
     });
 
     // delete single shipping zone
-    app.delete("/deleteShippingZone/:id", async (req, res) => {
+    app.delete("/deleteShippingZone/:id", verifyJWT, authorizeAccess(["Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4653,7 +4653,7 @@ async function run() {
     });
 
     // get single shipping zone
-    app.get("/getSingleShippingZone/:id", async (req, res) => {
+    app.get("/getSingleShippingZone/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4674,7 +4674,7 @@ async function run() {
     });
 
     //update a single shipping zone
-    app.put("/editShippingZone/:id", async (req, res) => {
+    app.put("/editShippingZone/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const zone = req.body;
@@ -4703,7 +4703,7 @@ async function run() {
     });
 
     // post a shipment handler
-    app.post("/addShipmentHandler", async (req, res) => {
+    app.post("/addShipmentHandler", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const shipmentData = req.body;
         const result = await shipmentHandlerCollection.insertOne(shipmentData);
@@ -4718,7 +4718,7 @@ async function run() {
     });
 
     // get all shipment handler
-    app.get("/allShipmentHandlers", async (req, res) => {
+    app.get("/allShipmentHandlers", verifyJWT, authorizeAccess([], "Supply Chain", "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await shipmentHandlerCollection.find().toArray();
         res.send(result);
@@ -4732,7 +4732,7 @@ async function run() {
     });
 
     // delete single shipment handler
-    app.delete("/deleteShipmentHandler/:id", async (req, res) => {
+    app.delete("/deleteShipmentHandler/:id", verifyJWT, authorizeAccess(["Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4755,7 +4755,7 @@ async function run() {
     });
 
     // get single shipment handler
-    app.get("/getSingleShipmentHandler/:id", async (req, res) => {
+    app.get("/getSingleShipmentHandler/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4778,7 +4778,7 @@ async function run() {
     });
 
     //update a single shipment handler
-    app.put("/editShipmentHandler/:id", async (req, res) => {
+    app.put("/editShipmentHandler/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const shipmentDetails = req.body;
@@ -4909,7 +4909,7 @@ async function run() {
     });
 
     // post a location
-    app.post("/addLocation", async (req, res) => {
+    app.post("/addLocation", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const locationData = req.body;
 
@@ -4934,7 +4934,7 @@ async function run() {
     });
 
     // get all locations
-    app.get("/allLocations", async (req, res) => {
+    app.get("/allLocations", verifyJWT, authorizeAccess([], "Supply Chain", "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await locationCollection.find().toArray();
         res.send(result);
@@ -4947,7 +4947,7 @@ async function run() {
     });
 
     // delete single location
-    app.delete("/deleteLocation/:id", async (req, res) => {
+    app.delete("/deleteLocation/:id", verifyJWT, authorizeAccess(["Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -4967,7 +4967,7 @@ async function run() {
     });
 
     // Update a single location
-    app.put("/updateLocation/:id", async (req, res) => {
+    app.put("/updateLocation/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const locationData = req.body;
@@ -5006,7 +5006,7 @@ async function run() {
     });
 
     // get single location info
-    app.get("/getSingleLocationDetails/:id", async (req, res) => {
+    app.get("/getSingleLocationDetails/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Supply Chain"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
