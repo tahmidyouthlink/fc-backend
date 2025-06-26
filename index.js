@@ -1168,7 +1168,7 @@ async function run() {
     });
 
     app.post("/refresh-token", (req, res) => {
-      console.log("hit refresh");
+      // console.log("hit refresh");
 
       const refreshToken = req?.cookies?.refreshToken || req.header("Authorization")?.replace("Bearer ", "")
       if (!refreshToken) {
@@ -1188,7 +1188,7 @@ async function run() {
           { expiresIn: "10s" }
         );
 
-        console.log("refresh token generated");
+        // console.log("refresh token generated");
 
         return res.json({ accessToken: newAccessToken });
       });
