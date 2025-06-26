@@ -1030,6 +1030,31 @@ async function run() {
       }
     });
 
+    function getInitialPageFromPermissions(permissions) {
+      const moduleToPathMap = {
+        "Dashboard": "/",
+        "Orders": "/orders",
+        "Product Hub": "/product-hub/products/existing-products",
+        "Customers": "/customers",
+        "Finances": "/finances",
+        "Analytics": "/analytics",
+        "Marketing": "/marketing",
+        "Supply Chain": "/supply-chain/zone/existing-zones",
+        "Settings": "/settings/enrollment",
+      };
+
+      for (const roleObj of permissions) {
+        for (const [module, config] of Object.entries(roleObj.modules)) {
+          if (config.access && moduleToPathMap[module]) {
+            return moduleToPathMap[module];
+          }
+        }
+      }
+
+      // Fallback route
+      return "/auth/restricted-access";
+    };
+
     // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", async (req, res) => {
       const { emailOrUsername, password, otp } = req.body;
@@ -1155,7 +1180,9 @@ async function run() {
             secure: true,             // ✅ MUST be false on localhost
             sameSite: "None",           // ✅ Lax is safe for localhost
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-          }
+          };
+
+          const initialPage = getInitialPageFromPermissions(user.permissions);
 
           res
             .status(200)
@@ -1163,6 +1190,7 @@ async function run() {
             .json({
               _id: user._id.toString(),
               accessToken,
+              initialPage
             });
         }
       } catch (error) {
