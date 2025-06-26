@@ -1141,7 +1141,7 @@ async function run() {
               _id: user._id,
             },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "10s" } // short-lived
+            { expiresIn: "5m" } // short-lived
           );
 
           const refreshToken = jwt.sign(
@@ -1191,7 +1191,7 @@ async function run() {
         const newAccessToken = jwt.sign(
           { _id: decoded._id },
           process.env.ACCESS_TOKEN_SECRET,
-          { expiresIn: "10s" }
+          { expiresIn: "5m" }
         );
 
         // console.log("refresh token generated");
