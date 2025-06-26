@@ -421,7 +421,7 @@ async function run() {
     });
 
     // Invite API (Super Admin creates an account)
-    app.post("/invite", async (req, res) => {
+    app.post("/invite", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const { email, permissions } = req.body;
 
@@ -858,7 +858,7 @@ async function run() {
       }
     });
 
-    app.get("/all-existing-users", async (req, res) => {
+    app.get("/all-existing-users", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         // Retrieve only specific fields from the collection
         const users = await enrollmentCollection
@@ -889,7 +889,7 @@ async function run() {
     });
 
     // Get single existing user info
-    app.get("/single-existing-user/:id", async (req, res) => {
+    app.get("/single-existing-user/:id", verifyJWT, limiter, originChecker, async (req, res) => {
       try {
         const { id } = req.params;
 
@@ -993,7 +993,7 @@ async function run() {
       }
     });
 
-    app.put("/update-user-permissions/:id", async (req, res) => {
+    app.put("/update-user-permissions/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const { id } = req.params;
         const query = { _id: new ObjectId(id) };
@@ -1135,7 +1135,7 @@ async function run() {
               _id: user._id,
             },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "30m" } // short-lived
+            { expiresIn: "10s" } // short-lived
           );
 
           const refreshToken = jwt.sign(
@@ -1168,6 +1168,7 @@ async function run() {
     });
 
     app.post("/refresh-token", (req, res) => {
+      console.log("hit refresh");
 
       const refreshToken = req?.cookies?.refreshToken || req.header("Authorization")?.replace("Bearer ", "")
       if (!refreshToken) {
@@ -1184,8 +1185,10 @@ async function run() {
         const newAccessToken = jwt.sign(
           { _id: decoded._id },
           process.env.ACCESS_TOKEN_SECRET,
-          { expiresIn: "30m" }
+          { expiresIn: "10s" }
         );
+
+        console.log("refresh token generated");
 
         return res.json({ accessToken: newAccessToken });
       });
@@ -2158,7 +2161,7 @@ async function run() {
     });
 
     // delete single user
-    app.delete("/delete-existing-user/:id", async (req, res) => {
+    app.delete("/delete-existing-user/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -2178,7 +2181,7 @@ async function run() {
     });
 
     // post a product
-    app.post("/addProduct", async (req, res) => {
+    app.post("/addProduct", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const productData = req.body;
         const result = await productInformationCollection.insertOne(
@@ -2296,7 +2299,7 @@ async function run() {
     });
 
     // get single product info
-    app.get("/singleProduct/:id", async (req, res) => {
+    app.get("/singleProduct/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -2317,7 +2320,7 @@ async function run() {
     });
 
     // get single product info
-    app.get("/productFromCategory/:categoryName", async (req, res) => {
+    app.get("/productFromCategory/:categoryName", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const categoryName = req.params.categoryName;
         const query = { category: categoryName };
@@ -2338,7 +2341,7 @@ async function run() {
     });
 
     // update a single product details
-    app.put("/editProductDetails/:id", async (req, res) => {
+    app.put("/editProductDetails/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const { _id, ...productDetails } = req.body;
@@ -2591,7 +2594,7 @@ async function run() {
     });
 
     // POST /getProductNames
-    app.post("/getProductIds", async (req, res) => {
+    app.post("/getProductIds", verifyJWT, authorizeAccess([], "Orders", "Product Hub"), limiter, originChecker, async (req, res) => {
       const { ids } = req.body; // array of productIds
 
       if (!Array.isArray(ids)) {
@@ -2710,20 +2713,6 @@ async function run() {
       }
     });
 
-    // get all availability info
-    app.get("/get-all-availability-notifications", async (req, res) => {
-      try {
-        const notifications = await availabilityNotifications.find().toArray();
-        res.send(notifications);
-      } catch (error) {
-        console.error("Error fetching availability info:", error);
-        res.status(500).send({
-          message: "Failed to fetch availability info",
-          error: error.message,
-        });
-      }
-    });
-
     const hasModuleAccess = (permissionsArray, moduleName) => {
       return permissionsArray.some(
         (role) => role.modules?.[moduleName]?.access === true
@@ -2744,7 +2733,7 @@ async function run() {
     }
 
     // get all notifications e,g. (products, orders)
-    app.get("/get-merged-notifications", async (req, res) => {
+    app.get("/get-merged-notifications", verifyJWT, authorizeAccess([], "Orders", "Product Hub"), limiter, originChecker, async (req, res) => {
       const { email } = req.query;
 
       if (!email) return res.status(400).json({ error: "Email is required" });
@@ -2840,7 +2829,7 @@ async function run() {
       }
     });
 
-    app.post("/mark-notification-read", async (req, res) => {
+    app.post("/mark-notification-read", verifyJWT, authorizeAccess([], "Orders", "Product Hub"), limiter, originChecker, async (req, res) => {
       const { type, orderNumber, productId, dateTime, email, orderStatus } =
         req.body;
 
@@ -2875,7 +2864,7 @@ async function run() {
     });
 
     // post vendors
-    app.post("/addVendor", async (req, res) => {
+    app.post("/addVendor", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const vendors = req.body; // Should be an array
         const result = await vendorCollection.insertOne(vendors);
@@ -2887,7 +2876,7 @@ async function run() {
     });
 
     // post policy pages pdfs
-    app.post("/add-policy-pdfs", async (req, res) => {
+    app.post("/add-policy-pdfs", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const pdfs = req.body; // Should be an array
         const result = await policyPagesCollection.insertOne(pdfs);
@@ -2934,7 +2923,7 @@ async function run() {
     });
 
     // edit policy pages pdf
-    app.put("/edit-policy-pdfs/:id", async (req, res) => {
+    app.put("/edit-policy-pdfs/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const policiesData = req.body;
@@ -2959,7 +2948,7 @@ async function run() {
     });
 
     // delete single vendor
-    app.delete("/deleteVendor/:id", async (req, res) => {
+    app.delete("/deleteVendor/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -2979,7 +2968,7 @@ async function run() {
     });
 
     // get all vendors
-    app.get("/allVendors", async (req, res) => {
+    app.get("/allVendors", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await vendorCollection.find().toArray();
         res.send(result);
@@ -2992,7 +2981,7 @@ async function run() {
     });
 
     // get single vendor info
-    app.get("/getSingleVendorDetails/:id", async (req, res) => {
+    app.get("/getSingleVendorDetails/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3012,7 +3001,7 @@ async function run() {
     });
 
     //update a single vendor info
-    app.put("/editVendor/:id", async (req, res) => {
+    app.put("/editVendor/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const vendorData = req.body;
@@ -3037,7 +3026,7 @@ async function run() {
     });
 
     // post tags
-    app.post("/addTag", async (req, res) => {
+    app.post("/addTag", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const tags = req.body; // Should be an array
         if (!Array.isArray(tags)) {
@@ -3052,7 +3041,7 @@ async function run() {
     });
 
     // delete single tag
-    app.delete("/deleteTag/:id", async (req, res) => {
+    app.delete("/deleteTag/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3072,7 +3061,7 @@ async function run() {
     });
 
     // get all tags
-    app.get("/allTags", async (req, res) => {
+    app.get("/allTags", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await tagCollection.find().toArray();
         res.send(result);
@@ -3085,7 +3074,7 @@ async function run() {
     });
 
     // post colors
-    app.post("/addColor", async (req, res) => {
+    app.post("/addColor", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const colors = req.body; // Should be an array
         if (!Array.isArray(colors)) {
@@ -3100,7 +3089,7 @@ async function run() {
     });
 
     // delete single color
-    app.delete("/deleteColor/:id", async (req, res) => {
+    app.delete("/deleteColor/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3120,7 +3109,7 @@ async function run() {
     });
 
     // get all colors
-    app.get("/allColors", async (req, res) => {
+    app.get("/allColors", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await colorCollection.find().toArray();
         res.send(result);
@@ -3133,7 +3122,7 @@ async function run() {
     });
 
     // Add a season
-    app.post("/addSeason", async (req, res) => {
+    app.post("/addSeason", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       const seasonData = req.body;
       try {
         const result = await seasonCollection.insertOne(seasonData);
@@ -3147,7 +3136,7 @@ async function run() {
     });
 
     // Get All Seasons
-    app.get("/allSeasons", async (req, res) => {
+    app.get("/allSeasons", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const seasons = await seasonCollection.find().toArray();
         res.status(200).send(seasons);
@@ -3157,7 +3146,7 @@ async function run() {
     });
 
     // get single season info
-    app.get("/allSeasons/:id", async (req, res) => {
+    app.get("/allSeasons/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3177,7 +3166,7 @@ async function run() {
     });
 
     // delete single season
-    app.delete("/deleteSeason/:id", async (req, res) => {
+    app.delete("/deleteSeason/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3197,7 +3186,7 @@ async function run() {
     });
 
     //update a single season
-    app.put("/editSeason/:id", async (req, res) => {
+    app.put("/editSeason/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const season = req.body;
@@ -3218,7 +3207,7 @@ async function run() {
     });
 
     // get product info via season name
-    app.get("/productFromSeason/:seasonName", async (req, res) => {
+    app.get("/productFromSeason/:seasonName", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const seasonName = req.params.seasonName;
         const query = { season: seasonName };
@@ -3239,7 +3228,7 @@ async function run() {
     });
 
     // Add a Category
-    app.post("/addCategory", async (req, res) => {
+    app.post("/addCategory", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       const categoryData = req.body;
       try {
         const result = await categoryCollection.insertOne(categoryData);
@@ -3263,7 +3252,7 @@ async function run() {
     });
 
     // get single category info
-    app.get("/allCategories/:id", async (req, res) => {
+    app.get("/allCategories/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3283,7 +3272,7 @@ async function run() {
     });
 
     // delete single category
-    app.delete("/deleteCategory/:id", async (req, res) => {
+    app.delete("/deleteCategory/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -3303,7 +3292,7 @@ async function run() {
     });
 
     //update a single category
-    app.put("/editCategory/:id", async (req, res) => {
+    app.put("/editCategory/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const category = req.body;
@@ -3326,7 +3315,7 @@ async function run() {
       }
     });
 
-    app.patch("/updateFeaturedCategories", async (req, res) => {
+    app.patch("/updateFeaturedCategories", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       const categoriesToUpdate = req.body; // Array of category objects with label and isFeatured fields
       let modifiedCount = 0;
 
@@ -3356,7 +3345,7 @@ async function run() {
     });
 
     // Get All Sizes
-    app.get("/allSizeRanges", async (req, res) => {
+    app.get("/allSizeRanges", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         const sizeOptions = categories.reduce((acc, category) => {
@@ -3370,7 +3359,7 @@ async function run() {
     });
 
     // Get All Sub-Categories
-    app.get("/allSubCategories", async (req, res) => {
+    app.get("/allSubCategories", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         const subCategoryOptions = categories.reduce((acc, category) => {
@@ -5026,7 +5015,7 @@ async function run() {
     });
 
     // post a purchase order
-    app.post("/addPurchaseOrder", async (req, res) => {
+    app.post("/addPurchaseOrder", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const purchaseOrderData = req.body;
         const result = await purchaseOrderCollection.insertOne(
@@ -5043,7 +5032,7 @@ async function run() {
     });
 
     // get all purchase orders
-    app.get("/allPurchaseOrders", async (req, res) => {
+    app.get("/allPurchaseOrders", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await purchaseOrderCollection.find().toArray();
         res.send(result);
@@ -5057,7 +5046,7 @@ async function run() {
     });
 
     // delete single purchase order
-    app.delete("/deletePurchaseOrder/:id", async (req, res) => {
+    app.delete("/deletePurchaseOrder/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -5078,7 +5067,7 @@ async function run() {
     });
 
     // get single purchase order
-    app.get("/getSinglePurchaseOrder/:id", async (req, res) => {
+    app.get("/getSinglePurchaseOrder/:id", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -5099,7 +5088,7 @@ async function run() {
     });
 
     //update a single purchase order
-    app.put("/editPurchaseOrder/:id", async (req, res) => {
+    app.put("/editPurchaseOrder/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const order = req.body;
@@ -5128,7 +5117,7 @@ async function run() {
     });
 
     // post a transfer order
-    app.post("/addTransferOrder", async (req, res) => {
+    app.post("/addTransferOrder", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const transferOrderData = req.body;
         const result = await transferOrderCollection.insertOne(
@@ -5145,7 +5134,7 @@ async function run() {
     });
 
     // get all transfer orders
-    app.get("/allTransferOrders", async (req, res) => {
+    app.get("/allTransferOrders", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const result = await transferOrderCollection.find().toArray();
         res.send(result);
@@ -5159,7 +5148,7 @@ async function run() {
     });
 
     // get single transfer order
-    app.get("/getSingleTransferOrder/:id", async (req, res) => {
+    app.get("/getSingleTransferOrder/:id", verifyJWT, authorizeAccess([], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -5180,7 +5169,7 @@ async function run() {
     });
 
     //update a single transfer order
-    app.put("/editTransferOrder/:id", async (req, res) => {
+    app.put("/editTransferOrder/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const order = req.body;
@@ -5209,7 +5198,7 @@ async function run() {
     });
 
     // delete single transfer order
-    app.delete("/deleteTransferOrder/:id", async (req, res) => {
+    app.delete("/deleteTransferOrder/:id", verifyJWT, authorizeAccess(["Owner"], "Product Hub"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -5354,7 +5343,7 @@ async function run() {
     });
 
     // post a hero banner slides
-    app.post("/addHeroBannerImageUrls", async (req, res) => {
+    app.post("/addHeroBannerImageUrls", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const heroBannerImageUrlsData = req.body;
         const result = await heroBannerCollection.insertOne(
@@ -5385,7 +5374,7 @@ async function run() {
     });
 
     //update a single hero banner image urls
-    app.put("/editHeroBannerImageUrls/:id", async (req, res) => {
+    app.put("/editHeroBannerImageUrls/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const urls = req.body;
@@ -5486,7 +5475,7 @@ async function run() {
     });
 
     // add faq
-    app.post("/add-faq", async (req, res) => {
+    app.post("/add-faq", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const faqData = req.body; // Should be an array
         const result = await faqCollection.insertOne(faqData);
@@ -5511,7 +5500,7 @@ async function run() {
     });
 
     //update a single faq
-    app.put("/update-faqs/:id", async (req, res) => {
+    app.put("/update-faqs/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const faqData = req.body;
@@ -5538,7 +5527,7 @@ async function run() {
     });
 
     // get single faq
-    app.get("/get-single-faq/:id", async (req, res) => {
+    app.get("/get-single-faq/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -5558,7 +5547,7 @@ async function run() {
     });
 
     // add top header
-    app.post("/add-top-header", async (req, res) => {
+    app.post("/add-top-header", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const headerData = req.body; // Should be an array
         const result = await topHeaderCollection.insertOne(headerData);
@@ -5584,7 +5573,7 @@ async function run() {
     });
 
     //update a TOP HEADER Collection
-    app.put("/update-top-header/:id", async (req, res) => {
+    app.put("/update-top-header/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const topHeaderData = req.body;
@@ -5615,7 +5604,7 @@ async function run() {
     });
 
     // add our story information
-    app.post("/add-our-story-information", async (req, res) => {
+    app.post("/add-our-story-information", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const storyData = req.body; // Should be an array
         const result = await ourStoryCollection.insertOne(storyData);
@@ -5649,7 +5638,7 @@ async function run() {
     });
 
     // all story collection for backend
-    app.get("/get-all-story-collection-backend", async (req, res) => {
+    app.get("/get-all-story-collection-backend", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const result = await ourStoryCollection.find().toArray();
         res.send(result);
@@ -5663,7 +5652,7 @@ async function run() {
     });
 
     // get single story
-    app.get("/get-single-story/:id", async (req, res) => {
+    app.get("/get-single-story/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
 
@@ -5689,7 +5678,7 @@ async function run() {
     });
 
     //update a story Collection
-    app.put("/update-our-story/:id", async (req, res) => {
+    app.put("/update-our-story/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const storyData = req.body;
@@ -5719,7 +5708,7 @@ async function run() {
     });
 
     // delete single story
-    app.delete("/delete-story/:id", async (req, res) => {
+    app.delete("/delete-story/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -5739,7 +5728,7 @@ async function run() {
     });
 
     // add logo
-    app.post("/add-logo", async (req, res) => {
+    app.post("/add-logo", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const logoData = req.body; // Should be an array
         const result = await logoCollection.insertOne(logoData);
@@ -5765,7 +5754,7 @@ async function run() {
     });
 
     //update a logo Collection
-    app.put("/update-logo/:id", async (req, res) => {
+    app.put("/update-logo/:id", verifyJWT, authorizeAccess(["Owner"], "Settings"), limiter, originChecker, async (req, res) => {
       try {
         const id = req.params.id;
         const logoData = req.body;
