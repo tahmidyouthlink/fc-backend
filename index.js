@@ -1082,10 +1082,16 @@ async function run() {
           try {
             // Send OTP email
             await sendOtpEmail(user.email, generatedOtp, user.fullName);
-            return res.status(401).json({
-              message:
-                "OTP has been sent to your email. Please enter the OTP to complete login.",
-            });
+            return res
+              .clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: true, // false for localhost
+                sameSite: "None",
+              })
+              .status(401)
+              .json({
+                message: "OTP has been sent to your email. Please enter the OTP to complete login.",
+              });
           } catch (emailError) {
             console.error("Error sending OTP email:", emailError);
             return res.status(500).json({
@@ -1192,6 +1198,16 @@ async function run() {
 
         return res.json({ accessToken: newAccessToken });
       });
+    });
+
+    app.post("/logout", (req, res) => {
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: true, // false if on localhost
+        sameSite: "None", // or "Lax" on localhost
+      });
+
+      res.status(200).json({ message: "Logged out" });
     });
 
     // after completed setup, put the information
