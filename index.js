@@ -889,7 +889,7 @@ async function run() {
     });
 
     // Get single existing user info
-    app.get("/single-existing-user/:id", verifyJWT, limiter, originChecker, async (req, res) => {
+    app.get("/single-existing-user/:id", verifyJWT, originChecker, async (req, res) => {
       try {
         const { id } = req.params;
 
