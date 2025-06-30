@@ -1,4 +1,6 @@
 const express = require("express");
+const app = express();
+app.set('trust proxy', 1);
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -6,7 +8,6 @@ const crypto = require("crypto");
 const multer = require("multer");
 const rateLimit = require("express-rate-limit");
 const { Storage } = require("@google-cloud/storage");
-const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
@@ -43,6 +44,8 @@ const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket
 const upload = multer({ storage: multer.memoryStorage() });
 
 let limiter = (req, res, next) => next(); // No-op middleware by default
+// let loginLimiter = (req, res, next) => next(); // No-op middleware by default
+// let apiLimiter = (req, res, next) => next(); // No-op middleware by default
 
 if (process.env.NODE_ENV === 'production') {
   limiter = rateLimit({
@@ -53,6 +56,26 @@ if (process.env.NODE_ENV === 'production') {
     message: 'Too many requests from this IP, please try again after 15 minutes',
   });
 };
+
+// if (process.env.NODE_ENV === 'production') {
+//   loginLimiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 5,
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//     message: 'Too many requests from this IP, please try again after 15 minutes',
+//   });
+// };
+
+// if (process.env.NODE_ENV === 'production') {
+//   apiLimiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 100,
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//     message: 'Too many requests from this IP, please try again after 15 minutes',
+//   });
+// };
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
 
@@ -163,6 +186,36 @@ const originChecker = (req, res, next) => {
   }
 
   res.status(403).json({ message: "Forbidden: Invalid origin" });
+};
+
+const multiClientAccess = (backendAccessMiddleware, frontendAccessMiddleware) => {
+  return async (req, res, next) => {
+    const origin = req.headers.origin;
+
+    try {
+
+      if (origin === "https://poshax-backend-664306765395.asia-south1.run.app") {
+        return backendAccessMiddleware(req, res, next);
+      }
+
+      // if (origin === "http://localhost:3000") {
+      //   return backendAccessMiddleware(req, res, next);
+      // }
+
+      if (origin === "https://fc-frontend-664306765395.asia-south1.run.app") {
+        return frontendAccessMiddleware(req, res, next);
+      }
+
+      // if (origin === "http://localhost:3000") {
+      //   return frontendAccessMiddleware(req, res, next);
+      // }
+
+      return res.status(403).json({ message: "Forbidden: Unrecognized origin" });
+    } catch (error) {
+      console.error("MultiClientAccess error:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  };
 };
 
 async function run() {
@@ -4483,24 +4536,34 @@ async function run() {
     });
 
     // get single promo info
-    app.get("/getSinglePromo/:id", verifyJWT, authorizeAccess(["Editor", "Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
-      try {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const result = await promoCollection.findOne(query);
+    app.get("/getSinglePromo/:id", limiter, originChecker,
+      multiClientAccess(
+        // Backend middleware chain
+        (req, res, next) =>
+          verifyJWT(req, res, () =>
+            authorizeAccess(["Editor", "Owner"], "Marketing")(req, res, next)
+          ),
 
-        if (!result) {
-          return res.status(404).send({ message: "Promo not found" });
+        // Frontend middleware
+        verifyJWT
+      ), async (req, res) => {
+        try {
+          const id = req.params.id;
+          const query = { _id: new ObjectId(id) };
+          const result = await promoCollection.findOne(query);
+
+          if (!result) {
+            return res.status(404).send({ message: "Promo not found" });
+          }
+
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching promo:", error);
+          res
+            .status(500)
+            .send({ message: "Failed to fetch promo", error: error.message });
         }
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching promo:", error);
-        res
-          .status(500)
-          .send({ message: "Failed to fetch promo", error: error.message });
-      }
-    });
+      });
 
     // delete single promo
     app.delete("/deletePromo/:id", verifyJWT, authorizeAccess(["Owner"], "Marketing"), limiter, originChecker, async (req, res) => {
