@@ -1127,7 +1127,7 @@ async function run() {
 
     function getInitialPageFromPermissions(permissions) {
       const moduleToPathMap = {
-        Dashboard: "/",
+        Dashboard: "/dashboard",
         Orders: "/orders",
         "Product Hub": "/product-hub/products/existing-products",
         Customers: "/customers",
