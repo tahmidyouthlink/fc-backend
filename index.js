@@ -19,6 +19,22 @@ const os = require("os");
 const moment = require("moment-timezone");
 const compression = require("compression");
 const helmet = require("helmet");
+const generateCustomerId = require("./utils/generateCustomerId");
+const generateOrderId = require("./utils/generateOrderId");
+const customCurrentDateTimeFormat = require("./utils/customCurrentDateTimeFormat");
+const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
+const {
+  calculateFinalPrice,
+  calculateProductSpecialOfferDiscount,
+  calculatePromoDiscount,
+  calculateShippingCharge,
+  calculateSubtotal,
+  calculateTotalSpecialOfferDiscount,
+  checkIfOnlyRegularDiscountIsAvailable,
+  getEstimatedDeliveryTime,
+  getExpectedDeliveryDate,
+  getProductSpecialOffer,
+} = require("./utils/orderCalculations");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -443,47 +459,54 @@ async function run() {
     );
 
     // Route to upload multiple files
-    app.post("/upload-multiple-files", upload.any(), async (req, res) => {
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: "No files uploaded" });
-      }
+    app.post(
+      "/upload-multiple-files",
+      verifyJWT,
+      limiter,
+      originChecker,
+      upload.any(),
+      async (req, res) => {
+        if (!req.files || req.files.length === 0) {
+          return res.status(400).json({ error: "No files uploaded" });
+        }
 
-      try {
-        const uploadPromises = req.files.map((file) => {
-          return new Promise((resolve, reject) => {
-            const blob = bucket.file(`${Date.now()}_${file.originalname}`);
-            const blobStream = blob.createWriteStream({
-              resumable: false,
-              contentType: file.mimetype,
-              metadata: {
+        try {
+          const uploadPromises = req.files.map((file) => {
+            return new Promise((resolve, reject) => {
+              const blob = bucket.file(`${Date.now()}_${file.originalname}`);
+              const blobStream = blob.createWriteStream({
+                resumable: false,
                 contentType: file.mimetype,
-              },
-            });
-
-            blobStream.on("error", reject);
-
-            blobStream.on("finish", async () => {
-              // Set the file to be publicly accessible by default
-              await blob.acl.add({
-                entity: "allUsers",
-                role: "READER",
+                metadata: {
+                  contentType: file.mimetype,
+                },
               });
 
-              const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-              resolve(publicUrl);
+              blobStream.on("error", reject);
+
+              blobStream.on("finish", async () => {
+                // Set the file to be publicly accessible by default
+                await blob.acl.add({
+                  entity: "allUsers",
+                  role: "READER",
+                });
+
+                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                resolve(publicUrl);
+              });
+
+              blobStream.end(file.buffer);
             });
-
-            blobStream.end(file.buffer);
           });
-        });
 
-        const urls = await Promise.all(uploadPromises);
-        res.status(200).json({ urls });
-      } catch (error) {
-        console.error("Upload error:", error);
-        res.status(500).json({ error: "Failed to upload files" });
+          const urls = await Promise.all(uploadPromises);
+          res.status(200).json({ urls });
+        } catch (error) {
+          console.error("Upload error:", error);
+          res.status(500).json({ error: "Failed to upload files" });
+        }
       }
-    });
+    );
 
     // Invite API (Super Admin creates an account)
     app.post(
@@ -1294,7 +1317,7 @@ async function run() {
       }
     });
 
-    app.post("/refresh-token", (req, res) => {
+    app.post("/refresh-token", limiter, originChecker, (req, res) => {
       // console.log("hit refresh");
 
       const refreshToken =
@@ -1337,53 +1360,225 @@ async function run() {
       res.status(200).json({ message: "Logged out" });
     });
 
+    // Generate access token and refresh token for customer
+    app.post(
+      "/generate-customer-tokens",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const { email } = req.body;
+
+        try {
+          const user = await customerListCollection.findOne({ email });
+
+          if (!user) {
+            return res
+              .status(404)
+              .json({ message: "TokenError: No account found." });
+          }
+
+          const userPayload = { _id: user._id };
+
+          const accessToken = jwt.sign(
+            userPayload,
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: "5m" }
+          );
+
+          const refreshToken = jwt.sign(
+            userPayload,
+            process.env.REFRESH_TOKEN_SECRET,
+            { expiresIn: "7d" }
+          );
+
+          return res.status(200).json({
+            _id: user._id.toString(),
+            email: user.email,
+            name: user.userInfo?.personalInfo?.customerName,
+            isLinkedWithCredentials: user.isLinkedWithCredentials,
+            isLinkedWithGoogle: user.isLinkedWithGoogle,
+            score: user.userInfo?.score,
+            accessToken,
+            refreshToken,
+          });
+        } catch (error) {
+          console.error("Login error:", error);
+          return res
+            .status(500)
+            .json({ message: "Something went wrong. Please try again later." });
+        }
+      }
+    );
+
+    // Verify customer login credentials
+    app.post(
+      "/verify-credentials-login",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const { email, password } = req.body;
+
+        try {
+          const user = await customerListCollection.findOne({ email });
+
+          if (!user) {
+            return res
+              .status(404)
+              .json({ message: "No account found with this email." });
+          }
+
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (!isPasswordValid) {
+            return res
+              .status(401)
+              .json({ message: "Incorrect password. Please try again." });
+          }
+
+          return res.status(200).json({ message: "Signed in successfully." });
+        } catch (error) {
+          console.error("Credentials login error:", error.message);
+          return res
+            .status(500)
+            .json({ message: "Something went wrong. Please try again later." });
+        }
+      }
+    );
+
+    // Verify customer Google credentials
+    app.post(
+      "/verify-google-login",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const { email, name } = req.body;
+
+        try {
+          const user = await customerListCollection.findOne({ email });
+
+          if (user) {
+            return res.status(200).json({ message: "Signed in successfully." });
+          } else {
+            const customers = await customerListCollection
+              .find({}, { projection: { "userInfo.customerId": 1, _id: 0 } })
+              .toArray();
+
+            const allCustomerIds = customers.map(
+              (doc) => doc.userInfo?.customerId
+            );
+
+            const newUserData = {
+              email,
+              password: null,
+              isLinkedWithCredentials: false,
+              isLinkedWithGoogle: true,
+              userInfo: {
+                customerId: generateCustomerId(allCustomerIds),
+                personalInfo: {
+                  customerName: name,
+                  email,
+                  phoneNumber: "",
+                  phoneNumber2: "",
+                  hometown: "",
+                },
+                deliveryAddresses: [],
+                savedDeliveryAddress: null,
+                score: 0,
+              },
+              wishlistItems: [],
+              cartItems: [],
+            };
+
+            const result = await customerListCollection.insertOne(newUserData);
+
+            if (!result.acknowledged) {
+              return res
+                .status(500)
+                .json({ message: "Failed to create an account." });
+            }
+
+            return res
+              .status(201)
+              .json({ message: "Account created successfully." });
+          }
+        } catch (error) {
+          console.error("Google login error:", error.message);
+          return res.status(500).json({ message: "Internal Server Error" });
+        }
+      }
+    );
+
     // after completed setup, put the information
-    app.post("/customer-signup", async (req, res) => {
+    app.post("/customer-signup", limiter, originChecker, async (req, res) => {
       try {
-        const {
-          email,
-          password,
-          isLinkedWithCredentials,
-          isLinkedWithGoogle,
-          userInfo,
-          cartItems,
-          wishlistItems,
-        } = req.body; // Get username, dob, and password from request body
+        const data = req.body;
 
         // Validate if all required fields are provided
-        if (!email || !password) {
+        if (!data.email || !data.password) {
           return res
             .status(400)
-            .json({ error: "Email, and password are required." });
+            .json({ error: "Email and password are required." });
         }
 
         // Hash the password before storing it in the database
-        const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
+        const hashedPassword = await bcrypt.hash(data.password, 10); // 10 is the salt rounds
 
         // Check if the user with this email already exists
-        const existingUser = await customerListCollection.findOne({ email });
-
-        if (existingUser) {
-          return res.status(401).json({ error: "Account already exists!" });
-        }
-
-        const result = await customerListCollection.insertOne({
-          email,
-          password: hashedPassword,
-          isLinkedWithCredentials,
-          isLinkedWithGoogle,
-          userInfo,
-          cartItems,
-          wishlistItems,
+        const existingUser = await customerListCollection.findOne({
+          email: data.email,
         });
 
-        const name = userInfo.personalInfo.customerName;
+        if (existingUser) {
+          return res
+            .status(401)
+            .json({ error: "This account already exists." });
+        }
+
+        const customers = await customerListCollection
+          .find({}, { projection: { "userInfo.customerId": 1, _id: 0 } })
+          .toArray();
+
+        const allCustomerIds = customers.map((doc) => doc.userInfo?.customerId);
+
+        const newUserData = {
+          email: data.email,
+          password: hashedPassword,
+          isLinkedWithCredentials: true,
+          isLinkedWithGoogle: false,
+          userInfo: {
+            customerId: generateCustomerId(allCustomerIds),
+            personalInfo: {
+              customerName: data.name,
+              email: data.email,
+              phoneNumber: "",
+              phoneNumber2: "",
+              hometown: "",
+            },
+            deliveryAddresses: [],
+            savedDeliveryAddress: null,
+            score: 0,
+          },
+          wishlistItems: [],
+          cartItems: [],
+        };
+
+        await customerListCollection.insertOne(newUserData);
+
+        if (data.isNewsletterCheckboxSelected) {
+          const isAlreadySubscribed = await newsletterCollection.findOne({
+            email: data.email,
+          });
+
+          if (!isAlreadySubscribed)
+            await newsletterCollection.insertOne({ email: data.email });
+        }
+
+        const name = data.name;
         const promoCode = "POSHAX10";
         const promoAmount = "10%";
 
         const mailResult = await transport.sendMail({
           from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-          to: email,
+          to: data.email,
           subject: `Welcome to ${process.env.WEBSITE_NAME}! Let's Get Posh!`,
           text: `
             Hi ${name},
@@ -1523,18 +1718,17 @@ async function run() {
         }
 
         // Send response after the user information is updated
-        res.status(200).send(result);
+        res.status(200).json({ message: "Account created successfully." });
       } catch (error) {
+        console.error("Customer Sign-up error:", error.message);
         res.status(500).json({
-          success: false,
-          message: "Something went wrong!",
-          error: error.message,
+          message: error.message || "Something went wrong!",
         });
       }
     });
 
     // Send contact email
-    app.post("/contact", async (req, res) => {
+    app.post("/contact", limiter, originChecker, async (req, res) => {
       const { name, email, phone, topic, message } = req.body;
 
       if (!name || !email || !phone || !topic || !message) {
@@ -1774,206 +1968,189 @@ async function run() {
       }
     });
 
-    // frontend log in via nextAuth
-    app.post("/customer-login", async (req, res) => {
-      const { email, password } = req.body;
-
-      try {
-        // Find user by email OR username
-        const user = await customerListCollection.findOne({ email });
-
-        if (!user) {
-          return res
-            .status(404)
-            .json({ message: "No account found with this email." });
-        }
-
-        // Verify the password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-          return res
-            .status(401)
-            .json({ message: "Incorrect password. Please try again." });
-        }
-
-        return res.json({
-          email: user.email,
-          userInfo: user.userInfo,
-          cartItems: user.cartItems,
-          wishlistItems: user.wishlistItems,
-        });
-      } catch (error) {
-        console.error("Login error:", error);
-        return res
-          .status(500)
-          .json({ message: "Something went wrong. Please try again later." });
-      }
-    });
-
     // Set a user password in frontend
-    app.put("/user-set-password", async (req, res) => {
-      try {
-        const { email, newPassword } = req.body;
+    app.put(
+      "/user-set-password",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { email, newPassword } = req.body;
 
-        // Find user by email from customer collection
-        const user = await customerListCollection.findOne({ email });
+          // Find user by email from customer collection
+          const user = await customerListCollection.findOne({ email });
 
-        if (!user) return res.status(404).json({ message: "User not found." });
+          if (!user)
+            return res.status(404).json({ message: "User not found." });
 
-        // Check if the user already set a password
-        if (user.password) {
-          return res.status(400).json({
-            message: "You already have a password set.",
+          // Check if the user already set a password
+          if (user.password) {
+            return res.status(400).json({
+              message: "You already have a password set.",
+            });
+          }
+
+          // Hash the new password
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+          // Update the password in MongoDB
+          const result = await customerListCollection.updateOne(
+            { email },
+            { $set: { password: hashedPassword } }
+          );
+
+          if (result.modifiedCount > 0) {
+            return res.json({
+              success: true,
+              message: "Password set successfully.",
+            });
+          } else {
+            return res.status(400).json({
+              message: "Failed to set password. Please try again.",
+            });
+          }
+        } catch (error) {
+          console.error("Error changing password:", error);
+          res.status(500).json({
+            message: "Something went wrong. Please try again.",
           });
         }
-
-        // Hash the new password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-        // Update the password in MongoDB
-        const result = await customerListCollection.updateOne(
-          { email },
-          { $set: { password: hashedPassword } }
-        );
-
-        if (result.modifiedCount > 0) {
-          return res.json({
-            success: true,
-            message: "Password set successfully.",
-          });
-        } else {
-          return res.status(400).json({
-            message: "Failed to set password. Please try again.",
-          });
-        }
-      } catch (error) {
-        console.error("Error changing password:", error);
-        res.status(500).json({
-          message: "Something went wrong. Please try again.",
-        });
       }
-    });
+    );
 
     // Update user password in frontend
-    app.put("/user-update-password", async (req, res) => {
-      try {
-        const { email, oldPassword, newPassword } = req.body;
+    app.put(
+      "/user-update-password",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { email, oldPassword, newPassword } = req.body;
 
-        // Find user by email from customer collection
-        const user = await customerListCollection.findOne({ email });
+          // Find user by email from customer collection
+          const user = await customerListCollection.findOne({ email });
 
-        if (!user) return res.status(404).json({ message: "User not found." });
+          if (!user)
+            return res.status(404).json({ message: "User not found." });
 
-        // Check if the user is linked with Google only (no password set)
-        if (!user.password && user.isLinkedWithGoogle) {
-          return res.status(400).json({
-            message:
-              "Your account is linked with Google only. Please set a password first.",
+          // Check if the user is linked with Google only (no password set)
+          if (!user.password && user.isLinkedWithGoogle) {
+            return res.status(400).json({
+              message:
+                "Your account is linked with Google only. Please set a password first.",
+            });
+          }
+
+          // Check if old password matches the stored hashed password
+          const doesOldPasswordMatch = await bcrypt.compare(
+            oldPassword,
+            user.password
+          );
+          if (!doesOldPasswordMatch)
+            return res.status(400).json({
+              message: "Your current password is incorrect.",
+            });
+
+          // Check if new password matches the stored hashed password
+          const doesNewPasswordMatch = await bcrypt.compare(
+            newPassword,
+            user.password
+          );
+          if (doesNewPasswordMatch)
+            return res.status(401).json({
+              message: "Your current and new passwords cannot be same.",
+            });
+
+          // Hash the new password
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+          // Update the password in MongoDB
+          const result = await customerListCollection.updateOne(
+            { email },
+            { $set: { password: hashedPassword } }
+          );
+
+          if (result.modifiedCount > 0) {
+            return res.json({
+              success: true,
+              message: "Password updated successfully.",
+            });
+          } else {
+            return res.status(400).json({
+              message: "Failed to update password. Please try again.",
+            });
+          }
+        } catch (error) {
+          console.error("Error changing password:", error);
+          res.status(500).json({
+            message: "Something went wrong. Please try again.",
           });
         }
-
-        // Check if old password matches the stored hashed password
-        const doesOldPasswordMatch = await bcrypt.compare(
-          oldPassword,
-          user.password
-        );
-        if (!doesOldPasswordMatch)
-          return res.status(400).json({
-            message: "Your current password is incorrect.",
-          });
-
-        // Check if new password matches the stored hashed password
-        const doesNewPasswordMatch = await bcrypt.compare(
-          newPassword,
-          user.password
-        );
-        if (doesNewPasswordMatch)
-          return res.status(401).json({
-            message: "Your current and new passwords cannot be same.",
-          });
-
-        // Hash the new password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-        // Update the password in MongoDB
-        const result = await customerListCollection.updateOne(
-          { email },
-          { $set: { password: hashedPassword } }
-        );
-
-        if (result.modifiedCount > 0) {
-          return res.json({
-            success: true,
-            message: "Password updated successfully.",
-          });
-        } else {
-          return res.status(400).json({
-            message: "Failed to update password. Please try again.",
-          });
-        }
-      } catch (error) {
-        console.error("Error changing password:", error);
-        res.status(500).json({
-          message: "Something went wrong. Please try again.",
-        });
       }
-    });
+    );
 
     // Send password reset email
-    app.put("/request-password-reset", async (req, res) => {
-      const { email } = req.body;
+    app.put(
+      "/request-password-reset",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const { email } = req.body;
 
-      if (!email) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Email is required." });
-      }
-
-      try {
-        const userData = await customerListCollection.findOne({ email });
-
-        if (!userData) {
+        if (!email) {
           return res
-            .status(404)
-            .json({ success: false, message: "User not found." });
+            .status(400)
+            .json({ success: false, message: "Email is required." });
         }
 
-        // Generate token and expiry time
-        const token = crypto.randomBytes(32).toString("hex");
-        const hashedToken = crypto
-          .createHash("sha256")
-          .update(token)
-          .digest("hex");
-        const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // Expires in 30 mins
+        try {
+          const userData = await customerListCollection.findOne({ email });
 
-        const result = await customerListCollection.updateOne(
-          { email },
-          {
-            $set: {
-              passwordReset: {
-                token: hashedToken,
-                expiresAt: expiresAt,
-              },
-            },
+          if (!userData) {
+            return res
+              .status(404)
+              .json({ success: false, message: "User not found." });
           }
-        );
 
-        if (!result.modifiedCount)
-          return res.status(500).json({
-            success: false,
-            message: "Failed to create a token for password reset.",
-          });
+          // Generate token and expiry time
+          const token = crypto.randomBytes(32).toString("hex");
+          const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+          const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // Expires in 30 mins
 
-        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-        const fullName = userData?.userInfo?.personalInfo?.customerName;
+          const result = await customerListCollection.updateOne(
+            { email },
+            {
+              $set: {
+                passwordReset: {
+                  token: hashedToken,
+                  expiresAt: expiresAt,
+                },
+              },
+            }
+          );
 
-        const mailResult = await transport.sendMail({
-          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: `Reset Password for ${process.env.WEBSITE_NAME}`,
-          text: `Hello ${fullName},
+          if (!result.modifiedCount)
+            return res.status(500).json({
+              success: false,
+              message: "Failed to create a token for password reset.",
+            });
+
+          const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+          const fullName = userData?.userInfo?.personalInfo?.customerName;
+
+          const mailResult = await transport.sendMail({
+            from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: `Reset Password for ${process.env.WEBSITE_NAME}`,
+            text: `Hello ${fullName},
             
               You have requested to reset your ${process.env.WEBSITE_NAME} password for your ${email} account. Please use the button below to reset your password:
             
@@ -1983,7 +2160,7 @@ async function run() {
             
               Thanks,  
               ${process.env.WEBSITE_NAME} Team`,
-          html: `
+            html: `
               <!DOCTYPE html>
               <html lang="en">
                 <head>
@@ -2092,84 +2269,90 @@ async function run() {
                   </div>
                 </body>
               </html>`,
-        });
-
-        // Check if email was sent successfully
-        if (
-          mailResult &&
-          mailResult.accepted &&
-          mailResult.accepted.length > 0
-        ) {
-          return res.status(200).json({
-            success: true,
-            message: "Password reset email sent successfully.",
           });
-        } else {
-          return res.status(500).json({
+
+          // Check if email was sent successfully
+          if (
+            mailResult &&
+            mailResult.accepted &&
+            mailResult.accepted.length > 0
+          ) {
+            return res.status(200).json({
+              success: true,
+              message: "Password reset email sent successfully.",
+            });
+          } else {
+            return res.status(500).json({
+              success: false,
+              message: "Failed to send password reset email.",
+            });
+          }
+        } catch (error) {
+          console.error("Error while requesting for password reset:", error);
+          res.status(500).json({
             success: false,
-            message: "Failed to send password reset email.",
+            message: "Something went wrong. Please try again.",
+            error: error.message,
           });
         }
-      } catch (error) {
-        console.error("Error while requesting for password reset:", error);
-        res.status(500).json({
-          success: false,
-          message: "Something went wrong. Please try again.",
-          error: error.message,
-        });
       }
-    });
+    );
 
     // Validate token for password reset
-    app.put("/validate-reset-token", async (req, res) => {
-      const { token } = req.body;
+    app.put(
+      "/validate-reset-token",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const { token } = req.body;
 
-      if (!token) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Your token is invalid token." });
-      }
-
-      try {
-        const hashedToken = crypto
-          .createHash("sha256")
-          .update(token)
-          .digest("hex");
-
-        const user = await customerListCollection.findOne({
-          "passwordReset.token": hashedToken,
-          "passwordReset.expiresAt": { $gt: new Date() },
-        });
-
-        if (!user) {
-          await customerListCollection.updateOne(
-            { "passwordReset.token": hashedToken },
-            { $unset: { passwordReset: "" } }
-          );
-
-          return res.status(400).json({
-            success: false,
-            message: "Your token is either invalid or it has been expired.",
-          });
+        if (!token) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Your token is invalid token." });
         }
 
-        return res.status(200).json({
-          success: true,
-          message: "Token is valid.",
-          email: user.email,
-        });
-      } catch (error) {
-        console.error("Error validating reset token:", error);
-        res.status(500).json({
-          success: false,
-          message: "Something went wrong.",
-          error: error.message,
-        });
+        try {
+          const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+          const user = await customerListCollection.findOne({
+            "passwordReset.token": hashedToken,
+            "passwordReset.expiresAt": { $gt: new Date() },
+          });
+
+          if (!user) {
+            await customerListCollection.updateOne(
+              { "passwordReset.token": hashedToken },
+              { $unset: { passwordReset: "" } }
+            );
+
+            return res.status(400).json({
+              success: false,
+              message: "Your token is either invalid or it has been expired.",
+            });
+          }
+
+          return res.status(200).json({
+            success: true,
+            message: "Token is valid.",
+            email: user.email,
+          });
+        } catch (error) {
+          console.error("Error validating reset token:", error);
+          res.status(500).json({
+            success: false,
+            message: "Something went wrong.",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     // Reset user password
-    app.put("/reset-password", async (req, res) => {
+    app.put("/reset-password", limiter, originChecker, async (req, res) => {
       const { token, newPassword } = req.body;
 
       if (!token)
@@ -2366,7 +2549,7 @@ async function run() {
     );
 
     // get all products
-    app.get("/allProducts", async (req, res) => {
+    app.get("/allProducts", limiter, originChecker, async (req, res) => {
       try {
         const result = await productInformationCollection.find().toArray();
         res.send(result);
@@ -2844,73 +3027,99 @@ async function run() {
       return isoDate;
     };
 
-    // POST: Add customer to product's notification list
-    app.post("/add-availability-notifications", async (req, res) => {
-      try {
-        const { productId, size, colorCode, email } = req.body;
-
-        if (!productId || !size || !colorCode || !email) {
-          return res.status(400).send({ error: "Missing required fields" });
+    // get all availability info
+    app.get(
+      "/get-all-availability-notifications",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const notifications = await availabilityNotifications
+            .find()
+            .toArray();
+          res.send(notifications);
+        } catch (error) {
+          console.error("Error fetching availability info:", error);
+          res.status(500).send({
+            message: "Failed to fetch availability info",
+            error: error.message,
+          });
         }
+      }
+    );
 
-        // Use moment-timezone to format dateTime
-        const now = moment().tz("Asia/Dhaka");
-        const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
-        const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+    // POST: Add customer to product's notification list
+    app.post(
+      "/add-availability-notifications",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { productId, size, colorCode, email } = req.body;
 
-        const existingDoc = await availabilityNotifications.findOne({
-          productId,
-          size,
-          colorCode,
-        });
-
-        if (existingDoc) {
-          const alreadyExists = existingDoc.emails.some(
-            (entry) => entry.email === email
-          );
-
-          if (alreadyExists) {
-            return res.status(409).send({ message: "Already subscribed" });
+          if (!productId || !size || !colorCode || !email) {
+            return res.status(400).send({ error: "Missing required fields" });
           }
 
-          const result = await availabilityNotifications.updateOne(
-            { productId, size, colorCode },
-            {
-              $push: {
-                emails: {
+          // Use moment-timezone to format dateTime
+          const now = moment().tz("Asia/Dhaka");
+          const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
+          const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+
+          const existingDoc = await availabilityNotifications.findOne({
+            productId,
+            size,
+            colorCode,
+          });
+
+          if (existingDoc) {
+            const alreadyExists = existingDoc.emails.some(
+              (entry) => entry.email === email
+            );
+
+            if (alreadyExists) {
+              return res.status(409).send({ message: "Already subscribed" });
+            }
+
+            const result = await availabilityNotifications.updateOne(
+              { productId, size, colorCode },
+              {
+                $push: {
+                  emails: {
+                    email,
+                    notified: false,
+                    isRead: false,
+                    dateTime,
+                  },
+                },
+              }
+            );
+
+            return res.status(200).send(result);
+          } else {
+            const newEntry = {
+              productId,
+              size,
+              colorCode,
+              emails: [
+                {
                   email,
                   notified: false,
                   isRead: false,
                   dateTime,
                 },
-              },
-            }
-          );
+              ],
+            };
 
-          return res.status(200).send(result);
-        } else {
-          const newEntry = {
-            productId,
-            size,
-            colorCode,
-            emails: [
-              {
-                email,
-                notified: false,
-                isRead: false,
-                dateTime,
-              },
-            ],
-          };
-
-          const result = await availabilityNotifications.insertOne(newEntry);
-          return res.status(201).send(result);
+            const result = await availabilityNotifications.insertOne(newEntry);
+            return res.status(201).send(result);
+          }
+        } catch (error) {
+          console.error("Error adding availability notification:", error);
+          res.status(500).send({ error: "Failed to add notification request" });
         }
-      } catch (error) {
-        console.error("Error adding availability notification:", error);
-        res.status(500).send({ error: "Failed to add notification request" });
       }
-    });
+    );
 
     const hasModuleAccess = (permissionsArray, moduleName) => {
       return permissionsArray.some(
@@ -3136,18 +3345,23 @@ async function run() {
     });
 
     // Get All Policy Pages Pdfs
-    app.get("/get-all-policy-pdfs", async (req, res) => {
-      try {
-        const result = await policyPagesCollection.find().toArray();
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching Policy pdfs:", error);
-        res.status(500).send({
-          message: "Failed to fetch Policy pdfs",
-          error: error.message,
-        });
+    app.get(
+      "/get-all-policy-pdfs",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const result = await policyPagesCollection.find().toArray();
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching Policy pdfs:", error);
+          res.status(500).send({
+            message: "Failed to fetch Policy pdfs",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     // edit policy pages pdf
     app.put(
@@ -3599,7 +3813,7 @@ async function run() {
     );
 
     // Get All Categories
-    app.get("/allCategories", async (req, res) => {
+    app.get("/allCategories", limiter, originChecker, async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         res.status(200).send(categories);
@@ -3774,19 +3988,209 @@ async function run() {
       }
     );
 
-    // post a order
-    app.post("/addOrder", async (req, res) => {
-      try {
-        const orderData = req.body;
-        const result = await orderListCollection.insertOne(orderData);
-        res.status(201).send(result);
-      } catch (error) {
-        console.error("Error adding order:", error);
-        res
-          .status(500)
-          .send({ message: "Failed to add order", error: error.message });
+    // post an order
+    app.post(
+      "/addOrder",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const {
+            name,
+            email,
+            phoneNumber,
+            altPhoneNumber,
+            hometown,
+            addressLineOne,
+            addressLineTwo,
+            city,
+            postalCode,
+            note,
+            deliveryType,
+            paymentMethod,
+            promoCode,
+            cartItems,
+            userDevice,
+          } = req.body;
+
+          const [products, offers, shippingZones, orders, customer, promoInfo] =
+            await Promise.all([
+              productInformationCollection.find().toArray(),
+              offerCollection.find().toArray(),
+              shippingZoneCollection.find().toArray(),
+              orderListCollection
+                .find({}, { projection: { orderNumber: 1 } })
+                .toArray(),
+              customerListCollection.findOne(
+                { email },
+                { projection: { "userInfo.customerId": 1, _id: 0 } }
+              ),
+              promoCode
+                ? promoCollection.findOne({
+                    promoCode: { $regex: `^${promoCode}$`, $options: "i" },
+                  })
+                : Promise.resolve(null),
+            ]);
+
+          const subtotal = calculateSubtotal(products, cartItems, offers);
+          const totalSpecialOfferDiscount = calculateTotalSpecialOfferDiscount(
+            products,
+            cartItems,
+            offers
+          );
+          const promoDiscount = calculatePromoDiscount(
+            products,
+            cartItems,
+            promoInfo,
+            offers
+          );
+          const shippingCharge =
+            city === "Dhaka" && deliveryType === "STANDARD"
+              ? 0
+              : calculateShippingCharge(city, deliveryType, shippingZones);
+          const total =
+            subtotal -
+            totalSpecialOfferDiscount -
+            promoDiscount +
+            shippingCharge;
+
+          const selectedProducts = cartItems?.map((cartItem) => {
+            const correspondingProduct = products?.find(
+              (product) => product._id === cartItem._id
+            );
+            const specialOffer = getProductSpecialOffer(
+              correspondingProduct,
+              offers,
+              subtotal
+            );
+
+            return {
+              _id: cartItem._id,
+              productTitle: correspondingProduct?.productTitle,
+              productId: correspondingProduct?.productId,
+              batchCode: correspondingProduct?.batchCode,
+              size: /^\d+$/.test(cartItem.selectedSize)
+                ? Number(cartItem.selectedSize)
+                : cartItem.selectedSize,
+              color: cartItem.selectedColor,
+              sku: cartItem.selectedQuantity,
+              vendors: correspondingProduct?.vendors?.map(
+                (vendor) => vendor.label
+              ),
+              thumbnailImgUrl: getImageSetsBasedOnColors(
+                correspondingProduct?.productVariants
+              )?.find(
+                (imgSet) => imgSet.color._id === cartItem.selectedColor._id
+              )?.images[0],
+              regularPrice: Number(correspondingProduct?.regularPrice),
+              discountInfo: checkIfOnlyRegularDiscountIsAvailable(
+                correspondingProduct,
+                offers
+              )
+                ? {
+                    discountType: correspondingProduct?.discountType,
+                    discountValue: correspondingProduct?.discountValue,
+                    finalPriceAfterDiscount: calculateFinalPrice(
+                      correspondingProduct,
+                      offers
+                    ),
+                  }
+                : null,
+              offerInfo: !specialOffer
+                ? null
+                : {
+                    offerTitle: specialOffer?.offerTitle,
+                    offerDiscountType: specialOffer?.offerDiscountType,
+                    offerDiscountValue: specialOffer?.offerDiscountValue,
+                    appliedOfferDiscount: calculateProductSpecialOfferDiscount(
+                      correspondingProduct,
+                      cartItem,
+                      specialOffer
+                    ),
+                  },
+            };
+          });
+
+          const dateTime = customCurrentDateTimeFormat();
+          const estimatedTime = getEstimatedDeliveryTime(
+            city,
+            deliveryType,
+            shippingZones
+          );
+          const expectedDeliveryDate = getExpectedDeliveryDate(
+            dateTime,
+            deliveryType,
+            estimatedTime
+          );
+
+          const orderNumber = generateOrderId(
+            orders.map((order) => order.orderNumber),
+            name,
+            phoneNumber
+          );
+
+          const customerId = customer?.userInfo?.customerId;
+
+          const orderData = {
+            orderNumber,
+            dateTime,
+            customerInfo: {
+              customerName: name,
+              customerId,
+              email,
+              phoneNumber,
+              phoneNumber2: altPhoneNumber,
+              hometown,
+            },
+            deliveryInfo: {
+              address1: addressLineOne,
+              address2: addressLineTwo,
+              city,
+              postalCode,
+              noteToSeller: note,
+              deliveryMethod: deliveryType,
+              estimatedTime,
+              expectedDeliveryDate,
+            },
+            productInformation: selectedProducts,
+            subtotal,
+            promoInfo: !promoInfo
+              ? null
+              : {
+                  _id: promoInfo?._id,
+                  promoCode: promoInfo?.promoCode,
+                  promoDiscountType: promoInfo?.promoDiscountType,
+                  promoDiscountValue: promoInfo?.promoDiscountValue,
+                  appliedPromoDiscount: promoDiscount,
+                },
+            totalSpecialOfferDiscount,
+            shippingCharge,
+            total,
+            paymentInfo: {
+              paymentMethod: paymentMethod === "bkash" ? "bKash" : "SSL",
+              paymentStatus: "Paid",
+              transactionId: `TXN${Math.random().toString().slice(2, 12)}`,
+            },
+            orderStatus: "Pending",
+            userDevice,
+          };
+
+          const result = await orderListCollection.insertOne(orderData);
+
+          return res.status(201).send({
+            orderNumber,
+            totalAmount: total,
+          });
+        } catch (error) {
+          console.error("Error adding order:", error);
+          return res.status(500).send({
+            message: "Failed to add order.",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     // Get All Orders
     app.get(
@@ -3812,6 +4216,75 @@ async function run() {
           res.status(200).send(orders);
         } catch (error) {
           res.status(500).send(error.message);
+        }
+      }
+    );
+
+    // Get orders for a specific user by email
+    app.get(
+      "/customer-orders",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const customerEmail = req.query.email;
+
+        if (!customerEmail) {
+          return res
+            .status(400)
+            .send({ message: "Unauthorized: Please log in." });
+        }
+
+        try {
+          const userOrders = await orderListCollection
+            .find({ "customerInfo.email": customerEmail })
+            .sort({ _id: -1 })
+            .toArray();
+
+          res.status(200).send(userOrders);
+        } catch (error) {
+          console.error("Error fetching user orders:", error);
+          res.status(500).send({
+            message: "Failed to fetch user orders.",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    // Get a specific order by order number and customer email
+    app.get(
+      "/customer-orders/:orderNumber",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const { orderNumber } = req.params;
+        const customerEmail = req.query.email;
+
+        if (!customerEmail) {
+          return res
+            .status(400)
+            .send({ message: "Unauthorized: Please log in." });
+        }
+
+        try {
+          const order = await orderListCollection.findOne({
+            orderNumber: orderNumber.toUpperCase(),
+            "customerInfo.email": customerEmail,
+          });
+
+          if (!order) {
+            return res.status(404).send({ message: "Order not found." });
+          }
+
+          res.status(200).send(order);
+        } catch (error) {
+          console.error("Error fetching order:", error);
+          res.status(500).send({
+            message: "Failed to fetch order.",
+            error: error.message,
+          });
         }
       }
     );
@@ -4553,8 +5026,15 @@ async function run() {
     // Update order status
     app.patch(
       "/changeOrderStatus/:id",
-      verifyJWT,
-      authorizeAccess(["Editor", "Owner"], "Orders"),
+      multiClientAccess(
+        // Backend middleware chain
+        (req, res, next) =>
+          verifyJWT(req, res, () =>
+            authorizeAccess(["Editor", "Owner"], "Orders")(req, res, next)
+          ),
+        // Frontend middleware
+        verifyJWT
+      ),
       limiter,
       originChecker,
       async (req, res) => {
@@ -4800,21 +5280,6 @@ async function run() {
     //   }
     // });
 
-    // post a customer details while login
-    app.post("/addCustomerDetails", async (req, res) => {
-      try {
-        const customerData = req.body;
-        const result = await customerListCollection.insertOne(customerData);
-        res.status(201).send(result);
-      } catch (error) {
-        console.error("Error adding customer details:", error);
-        res.status(500).send({
-          message: "Failed to add customer details",
-          error: error.message,
-        });
-      }
-    });
-
     // Get All Customer Information
     app.get(
       "/allCustomerDetails",
@@ -4833,54 +5298,66 @@ async function run() {
     );
 
     // Get Customer Details by Email
-    app.get("/customerDetailsViaEmail/:email", async (req, res) => {
-      const email = req.params.email; // Retrieve email from query parameters
+    app.get(
+      "/customerDetailsViaEmail/:email",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const email = req.params.email; // Retrieve email from query parameters
 
-      if (!email) {
-        return res.status(400).send("Email is required"); // Validate input
-      }
-
-      try {
-        const customer = await customerListCollection.findOne({ email }); // Query the database
-        if (!customer) {
-          return res.status(404).send("Customer not found"); // Handle case where no customer is found
+        if (!email) {
+          return res.status(400).send("Email is required"); // Validate input
         }
-        res.status(200).send(customer); // Send customer details
-      } catch (error) {
-        res.status(500).send(error.message); // Handle server errors
+
+        try {
+          const customer = await customerListCollection.findOne({ email }); // Query the database
+          if (!customer) {
+            return res.status(404).send("Customer not found"); // Handle case where no customer is found
+          }
+          res.status(200).send(customer); // Send customer details
+        } catch (error) {
+          res.status(500).send(error.message); // Handle server errors
+        }
       }
-    });
+    );
 
     // Update user details by _id
-    app.put("/updateUserInformation/:id", async (req, res) => {
-      const id = req.params.id; // Retrieve _id from the request parameters
-      let updatedData = req.body; // New data from the request body
+    app.put(
+      "/updateUserInformation/:id",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        const id = req.params.id; // Retrieve _id from the request parameters
+        let updatedData = req.body; // New data from the request body
 
-      try {
-        // Remove the _id field if it exists in the updatedData
-        if (updatedData._id) {
-          delete updatedData._id;
+        try {
+          // Remove the _id field if it exists in the updatedData
+          if (updatedData._id) {
+            delete updatedData._id;
+          }
+
+          const result = await customerListCollection.updateOne(
+            { _id: new ObjectId(id) }, // Match the document by its _id
+            { $set: { ...updatedData } } // Set the new data for specific user information
+          );
+
+          if (result.matchedCount === 0) {
+            return res
+              .status(404)
+              .send({ message: "No data found with this ID" });
+          }
+
+          res.send(result);
+        } catch (error) {
+          console.error("Error updating data:", error);
+          res
+            .status(500)
+            .send({ message: "Failed to update data", error: error.message });
         }
-
-        const result = await customerListCollection.updateOne(
-          { _id: new ObjectId(id) }, // Match the document by its _id
-          { $set: { ...updatedData } } // Set the new data for specific user information
-        );
-
-        if (result.matchedCount === 0) {
-          return res
-            .status(404)
-            .send({ message: "No data found with this ID" });
-        }
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error updating data:", error);
-        res
-          .status(500)
-          .send({ message: "Failed to update data", error: error.message });
       }
-    });
+    );
 
     // applying pagination in customer list
     app.get(
@@ -4955,18 +5432,10 @@ async function run() {
     // get single promo info
     app.get(
       "/getSinglePromo/:id",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Marketing"),
       limiter,
       originChecker,
-      multiClientAccess(
-        // Backend middleware chain
-        (req, res, next) =>
-          verifyJWT(req, res, () =>
-            authorizeAccess(["Editor", "Owner"], "Marketing")(req, res, next)
-          ),
-
-        // Frontend middleware
-        verifyJWT
-      ),
       async (req, res) => {
         try {
           const id = req.params.id;
@@ -4983,6 +5452,40 @@ async function run() {
           res
             .status(500)
             .send({ message: "Failed to fetch promo", error: error.message });
+        }
+      }
+    );
+
+    // get a promo info by code
+    app.get(
+      "/promo-by-code/:code",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const codeParam = req.params.code;
+
+          if (!codeParam) {
+            return res.status(400).send({ message: "Promo code is required." });
+          }
+
+          const query = {
+            promoCode: { $regex: `^${codeParam}$`, $options: "i" },
+          };
+
+          const promo = await promoCollection.findOne(query);
+
+          if (!promo) {
+            return res.status(404).send({ message: "Promo code not found." });
+          }
+
+          res.send(promo);
+        } catch (error) {
+          console.error("Error fetching promo by code:", error);
+          res.status(500).send({
+            message: "Failed to fetch promo by code",
+            error: error.message,
+          });
         }
       }
     );
@@ -5068,7 +5571,7 @@ async function run() {
     );
 
     // Get All Offer
-    app.get("/allOffers", async (req, res) => {
+    app.get("/allOffers", limiter, originChecker, async (req, res) => {
       try {
         const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
@@ -5080,18 +5583,10 @@ async function run() {
     // get single offer
     app.get(
       "/getSingleOffer/:id",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Marketing"),
       limiter,
       originChecker,
-      multiClientAccess(
-        // Backend middleware chain
-        (req, res, next) =>
-          verifyJWT(req, res, () =>
-            authorizeAccess(["Editor", "Owner"], "Marketing")(req, res, next)
-          ),
-
-        // Frontend middleware
-        verifyJWT
-      ),
       async (req, res) => {
         try {
           const id = req.params.id;
@@ -5196,8 +5691,20 @@ async function run() {
     // get all shipping zones
     app.get(
       "/allShippingZones",
-      verifyJWT,
-      authorizeAccess([], "Supply Chain", "Product Hub", "Orders"),
+      multiClientAccess(
+        // Backend middleware chain
+        (req, res, next) =>
+          verifyJWT(req, res, () =>
+            authorizeAccess(
+              [],
+              "Supply Chain",
+              "Product Hub",
+              "Orders"
+            )(req, res, next)
+          ),
+        // Frontend middleware
+        (req, res, next) => next()
+      ),
       limiter,
       originChecker,
       async (req, res) => {
@@ -5642,6 +6149,30 @@ async function run() {
         }
       }
     );
+
+    // get the primary location's name
+    app.get("/primary-location", limiter, originChecker, async (req, res) => {
+      try {
+        const primaryLocation = await locationCollection.findOne(
+          { isPrimaryLocation: true },
+          { projection: { locationName: 1, _id: 0 } }
+        );
+
+        if (!primaryLocation) {
+          return res.status(404).send({
+            message: "Primary location not found.",
+          });
+        }
+
+        res.send({ primaryLocation: primaryLocation.locationName });
+      } catch (error) {
+        console.error("Error fetching primary location:", error);
+        res.status(500).send({
+          message: "Failed to fetch primary location.",
+          error: error.message,
+        });
+      }
+    });
 
     // delete single location
     app.delete(
@@ -6095,18 +6626,23 @@ async function run() {
     );
 
     // get all marketing banner
-    app.get("/allMarketingBanners", async (req, res) => {
-      try {
-        const result = await marketingBannerCollection.find().toArray();
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching marketing banner:", error);
-        res.status(500).send({
-          message: "Failed to fetch marketing banner",
-          error: error.message,
-        });
+    app.get(
+      "/allMarketingBanners",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const result = await marketingBannerCollection.find().toArray();
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching marketing banner:", error);
+          res.status(500).send({
+            message: "Failed to fetch marketing banner",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     // post a login register slides
     app.post(
@@ -6209,18 +6745,23 @@ async function run() {
     );
 
     // get all hero banner slides
-    app.get("/allHeroBannerImageUrls", async (req, res) => {
-      try {
-        const result = await heroBannerCollection.find().toArray();
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching hero banner slides:", error);
-        res.status(500).send({
-          message: "Failed to fetch hero banner slides",
-          error: error.message,
-        });
+    app.get(
+      "/allHeroBannerImageUrls",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const result = await heroBannerCollection.find().toArray();
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching hero banner slides:", error);
+          res.status(500).send({
+            message: "Failed to fetch hero banner slides",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     //update a single hero banner image urls
     app.put(
@@ -6261,7 +6802,7 @@ async function run() {
     );
 
     // post a newsletter
-    app.post("/addNewsletter", async (req, res) => {
+    app.post("/addNewsletter", limiter, originChecker, async (req, res) => {
       try {
         const newsletterData = req.body;
         const result = await newsletterCollection.insertOne(newsletterData);
@@ -6275,7 +6816,7 @@ async function run() {
     });
 
     // get all newsletters
-    app.get("/allNewsletters", async (req, res) => {
+    app.get("/allNewsletters", limiter, originChecker, async (req, res) => {
       try {
         const result = await newsletterCollection.find().toArray();
         res.send(result);
@@ -6289,25 +6830,31 @@ async function run() {
     });
 
     // get single newsletter via email
-    app.get("/getSingleNewsletter/:email", async (req, res) => {
-      try {
-        const email = req.params.email;
-        const query = { email: email };
-        const result = await newsletterCollection.findOne(query);
+    app.get(
+      "/getSingleNewsletter/:email",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const email = req.params.email;
+          const query = { email: email };
+          const result = await newsletterCollection.findOne(query);
 
-        if (!result) {
-          return res.status(404).send({ message: "newsletter not found" });
+          if (!result) {
+            return res.status(404).send({ message: "newsletter not found" });
+          }
+
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching newsletter:", error);
+          res.status(500).send({
+            message: "Failed to fetch newsletter",
+            error: error.message,
+          });
         }
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching newsletter:", error);
-        res.status(500).send({
-          message: "Failed to fetch newsletter",
-          error: error.message,
-        });
       }
-    });
+    );
 
     // delete single newsletter
     app.delete("/deleteNewsletter/:id", async (req, res) => {
@@ -6350,7 +6897,7 @@ async function run() {
     );
 
     // get all faq
-    app.get("/all-faqs", async (req, res) => {
+    app.get("/all-faqs", limiter, originChecker, async (req, res) => {
       try {
         const result = await faqCollection.find().toArray();
         res.send(result);
@@ -6443,18 +6990,23 @@ async function run() {
     );
 
     // all header collection
-    app.get("/get-all-header-collection", async (req, res) => {
-      try {
-        const result = await topHeaderCollection.find().toArray();
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching header collection:", error);
-        res.status(500).send({
-          message: "Failed to fetch header collection",
-          error: error.message,
-        });
+    app.get(
+      "/get-all-header-collection",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const result = await topHeaderCollection.find().toArray();
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching header collection:", error);
+          res.status(500).send({
+            message: "Failed to fetch header collection",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     //update a TOP HEADER Collection
     app.put(
@@ -6516,26 +7068,31 @@ async function run() {
     );
 
     // all story collection frontend
-    app.get("/get-all-story-collection-frontend", async (req, res) => {
-      try {
-        const today = new Date();
-        const todayStr = today.toISOString().split("T")[0];
+    app.get(
+      "/get-all-story-collection-frontend",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const today = new Date();
+          const todayStr = today.toISOString().split("T")[0];
 
-        const result = await ourStoryCollection
-          .find({
-            status: true,
-            storyPublishDate: { $lte: todayStr }, // Compare as YYYY-MM-DD
-          })
-          .toArray();
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching story collection:", error);
-        res.status(500).send({
-          message: "Failed to fetch story collection",
-          error: error.message,
-        });
+          const result = await ourStoryCollection
+            .find({
+              status: true,
+              storyPublishDate: { $lte: todayStr }, // Compare as YYYY-MM-DD
+            })
+            .toArray();
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching story collection:", error);
+          res.status(500).send({
+            message: "Failed to fetch story collection",
+            error: error.message,
+          });
+        }
       }
-    });
+    );
 
     // all story collection for backend
     app.get(
@@ -6675,7 +7232,7 @@ async function run() {
     );
 
     // all logo collection
-    app.get("/get-all-logo", async (req, res) => {
+    app.get("/get-all-logo", limiter, originChecker, async (req, res) => {
       try {
         const result = await logoCollection.find().toArray();
         res.send(result);
