@@ -5420,14 +5420,24 @@ async function run() {
     );
 
     // Get All Promo Codes
-    app.get("/allPromoCodes", async (req, res) => {
-      try {
-        const promos = await promoCollection.find().sort({ _id: -1 }).toArray();
-        res.status(200).send(promos);
-      } catch (error) {
-        res.status(500).send(error.message);
+    app.get(
+      "/allPromoCodes",
+      verifyJWT,
+      authorizeAccess([], "Marketing"),
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const promos = await promoCollection
+            .find()
+            .sort({ _id: -1 })
+            .toArray();
+          res.status(200).send(promos);
+        } catch (error) {
+          res.status(500).send(error.message);
+        }
       }
-    });
+    );
 
     // get single promo info
     app.get(
