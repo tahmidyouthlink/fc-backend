@@ -1727,9 +1727,14 @@ async function run() {
 
       const isRead = false;
       // Use moment-timezone to format dateTime
-      const now = moment().tz("Asia/Dhaka");
-      const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
-      const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+      const getBangladeshDateTime = () => {
+        const nowUTC = new Date();
+
+        // Bangladesh is UTC+6
+        const bdTime = new Date(nowUTC.getTime() + 6 * 60 * 60 * 1000);
+
+        return bdTime.toISOString(); // Still ISO format but with adjusted time
+      };
 
       const customerInput = {
         name,
@@ -1738,7 +1743,7 @@ async function run() {
         topic,
         message,
         isRead,
-        dateTime,
+        dateTime: getBangladeshDateTime(),
       };
 
       if (!name || !email || !phone || !topic || !message) {
