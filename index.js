@@ -1724,7 +1724,22 @@ async function run() {
     // Send contact email
     app.post("/contact", limiter, originChecker, async (req, res) => {
       const { name, email, phone, topic, message } = req.body;
-      const customerInput = req.body;
+
+      const isRead = false;
+      // Use moment-timezone to format dateTime
+      const now = moment().tz("Asia/Dhaka");
+      const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
+      const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+
+      const customerInput = {
+        name,
+        email,
+        phone,
+        topic,
+        message,
+        isRead,
+        dateTime,
+      };
 
       if (!name || !email || !phone || !topic || !message) {
         return res.status(400).json({
@@ -1965,6 +1980,29 @@ async function run() {
         });
       }
     });
+
+    // Get All Customer Support Information's
+    app.get(
+      "/all-customer-support-information",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const result = await customerSupportCollection.find().toArray();
+          res.send(result);
+        } catch (error) {
+          console.error(
+            "Error fetching Customer Support Information's:",
+            error
+          );
+          res.status(500).send({
+            message: "Failed to fetch Customer Support Information's",
+            error: error.message,
+          });
+        }
+      }
+    );
 
     // Set a user password in frontend
     app.put(
