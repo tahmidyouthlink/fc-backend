@@ -222,15 +222,15 @@ const multiClientAccess = (
     const origin = req.headers.origin;
 
     try {
-      // if (
-      //   origin === "https://poshax-backend-664306765395.asia-south1.run.app"
-      // ) {
-      //   return backendAccessMiddleware(req, res, next);
-      // }
-
-      if (origin === "http://localhost:3000") {
+      if (
+        origin === "https://poshax-backend-664306765395.asia-south1.run.app"
+      ) {
         return backendAccessMiddleware(req, res, next);
       }
+
+      // if (origin === "http://localhost:3000") {
+      //   return backendAccessMiddleware(req, res, next);
+      // }
 
       if (origin === "https://fc-frontend-664306765395.asia-south1.run.app") {
         return frontendAccessMiddleware(req, res, next);
