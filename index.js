@@ -222,15 +222,15 @@ const multiClientAccess = (
     const origin = req.headers.origin;
 
     try {
-      if (
-        origin === "https://poshax-backend-664306765395.asia-south1.run.app"
-      ) {
-        return backendAccessMiddleware(req, res, next);
-      }
-
-      // if (origin === "http://localhost:3000") {
+      // if (
+      //   origin === "https://poshax-backend-664306765395.asia-south1.run.app"
+      // ) {
       //   return backendAccessMiddleware(req, res, next);
       // }
+
+      if (origin === "http://localhost:3000") {
+        return backendAccessMiddleware(req, res, next);
+      }
 
       if (origin === "https://fc-frontend-664306765395.asia-south1.run.app") {
         return frontendAccessMiddleware(req, res, next);
@@ -1726,15 +1726,6 @@ async function run() {
       const { name, email, phone, topic, message } = req.body;
 
       const isRead = false;
-      // Use moment-timezone to format dateTime
-      const getBangladeshDateTime = () => {
-        const nowUTC = new Date();
-
-        // Bangladesh is UTC+6
-        const bdTime = new Date(nowUTC.getTime() + 6 * 60 * 60 * 1000);
-
-        return bdTime.toISOString(); // Still ISO format but with adjusted time
-      };
 
       const customerInput = {
         name,
@@ -1743,7 +1734,7 @@ async function run() {
         topic,
         message,
         isRead,
-        dateTime: getBangladeshDateTime(),
+        dateTime: new Date().toISOString(),
       };
 
       if (!name || !email || !phone || !topic || !message) {
@@ -1990,7 +1981,7 @@ async function run() {
     app.get(
       "/all-customer-support-information",
       limiter,
-      verifyJWT,
+      // verifyJWT,
       originChecker,
       async (req, res) => {
         try {
