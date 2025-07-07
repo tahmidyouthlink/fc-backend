@@ -4176,7 +4176,7 @@ async function run() {
 
           const selectedProducts = cartItems?.map((cartItem) => {
             const correspondingProduct = products?.find(
-              (product) => product._id === cartItem._id
+              (product) => product._id.toString() === cartItem._id
             );
             const specialOffer = getProductSpecialOffer(
               correspondingProduct,
@@ -4200,7 +4200,8 @@ async function run() {
               thumbnailImgUrl: getImageSetsBasedOnColors(
                 correspondingProduct?.productVariants
               )?.find(
-                (imgSet) => imgSet.color._id === cartItem.selectedColor._id
+                (imgSet) =>
+                  imgSet.color._id.toString() === cartItem.selectedColor._id
               )?.images[0],
               regularPrice: Number(correspondingProduct?.regularPrice),
               discountInfo: checkIfOnlyRegularDiscountIsAvailable(
@@ -4277,7 +4278,7 @@ async function run() {
             promoInfo: !promoInfo
               ? null
               : {
-                  _id: promoInfo?._id,
+                  _id: promoInfo?._id.toString(),
                   promoCode: promoInfo?.promoCode,
                   promoDiscountType: promoInfo?.promoDiscountType,
                   promoDiscountValue: promoInfo?.promoDiscountValue,

@@ -4,7 +4,7 @@ function getImageSetsBasedOnColors(productVariants) {
   const colorImageMap = {};
 
   productVariants.forEach(({ color, imageUrls }) => {
-    const colorId = color._id;
+    const colorId = color._id.toString();
 
     if (!colorImageMap[colorId]) {
       colorImageMap[colorId] = {
