@@ -67,7 +67,7 @@ const calculateSubtotal = (productList, cartItems, specialOffers) => {
 
   return cartItems.reduce((accumulator, cartItem) => {
     const product = productList?.find(
-      (product) => product._id === cartItem?._id
+      (product) => product._id.toString() === cartItem?._id
     );
 
     return (
@@ -149,7 +149,7 @@ const calculateTotalSpecialOfferDiscount = (
 
   return cartItems.reduce((accumulator, cartItem) => {
     const product = productList?.find(
-      (product) => product._id === cartItem?._id
+      (product) => product._id.toString() === cartItem?._id
     );
     const specialOffer = getProductSpecialOffer(
       product,
