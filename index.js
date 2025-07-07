@@ -3,7 +3,6 @@ const app = express();
 app.set("trust proxy", 1);
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const multer = require("multer");
 const rateLimit = require("express-rate-limit");
@@ -984,6 +983,261 @@ async function run() {
           res
             .status(500)
             .json({ message: "Something went wrong. Please try again later." });
+        }
+      }
+    );
+
+    app.get(
+      "/assignable-users",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const result = await enrollmentCollection
+            .find(
+              {
+                isSetupComplete: true,
+              },
+              {
+                projection: {
+                  _id: 1,
+                  fullName: 1,
+                },
+              }
+            )
+            .toArray();
+
+          res.send(result);
+        } catch (error) {
+          console.error("Error fetching assignable users:", error);
+          res.status(500).send({
+            success: false,
+            message: "Failed to fetch assignable users",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    // GET /assigned-users/:messageId
+    app.get(
+      "/assigned-users/:messageId",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const messageId = req.params.messageId;
+          const message = await customerSupportCollection.findOne({
+            _id: new ObjectId(messageId),
+          });
+
+          if (!message)
+            return res
+              .status(404)
+              .json({ success: false, message: "Message not found" });
+
+          const assignedUsers = message.assignedUsers || [];
+
+          // Optionally join with user collection to get full name
+          const userIds = assignedUsers.map((a) => new ObjectId(a.userId));
+          const users = await enrollmentCollection
+            .find({ _id: { $in: userIds } })
+            .toArray();
+
+          // Map details back
+          const detailedAssignedUsers = assignedUsers.map((assignment) => {
+            const user = users.find(
+              (u) => u._id.toString() === assignment.userId
+            );
+            return {
+              ...assignment,
+              fullName: user?.fullName || "Unknown",
+            };
+          });
+
+          res.json({ success: true, assignedUsers: detailedAssignedUsers });
+        } catch (error) {
+          console.error("Error fetching assigned users:", error);
+          res.status(500).json({
+            success: false,
+            message: "Failed to fetch assigned users",
+          });
+        }
+      }
+    );
+
+    // GET - /assigned-notifications-customer-support/:userId
+    app.get(
+      "/assigned-notifications-customer-support/:userId",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { userId } = req.params;
+
+          const rawNotifications = await customerSupportCollection
+            .find(
+              { "assignedUsers.userId": userId },
+              {
+                projection: {
+                  assignedUsers: { $elemMatch: { userId } },
+                  name: 1,
+                  email: 1,
+                  topic: 1,
+                },
+              }
+            )
+            .toArray();
+
+          // Transform the structure to be flat and frontend-friendly
+          const transformed = rawNotifications
+            .map((doc) => ({
+              _id: doc._id,
+              name: doc.name,
+              email: doc.email,
+              topic: doc.topic,
+              dateTime: doc.assignedUsers?.[0]?.assignedAt || null,
+              isRead: doc.assignedUsers?.[0]?.isRead ?? false,
+              type: "Inbox",
+            }))
+            .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+
+          res.send(transformed);
+        } catch (error) {
+          console.error(
+            "Error fetching customer support notifications:",
+            error
+          );
+          res.status(500).json({
+            success: false,
+            message: "Failed to fetch customer support notifications",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    app.patch(
+      "/mark-support-notification-read/:messageId",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const messageId = req.params.messageId;
+          const { userId } = req.body;
+
+          const result = await customerSupportCollection.updateOne(
+            { _id: new ObjectId(messageId), "assignedUsers.userId": userId },
+            { $set: { "assignedUsers.$.isRead": true } }
+          );
+
+          if (result.modifiedCount === 1) {
+            return res.json({ success: true });
+          } else {
+            return res.json({ success: false });
+          }
+        } catch (error) {
+          console.error("Error marking as read:", error);
+          res
+            .status(500)
+            .json({ success: false, message: "Internal server error" });
+        }
+      }
+    );
+
+    app.patch(
+      "/assign-customer-support-user/:messageId",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { messageId } = req.params;
+          const { userId, assignedAt, isRead } = req.body;
+
+          if (!userId || !assignedAt) {
+            return res
+              .status(400)
+              .json({ success: false, message: "Missing required fields" });
+          }
+
+          // Prevent duplicate assignment
+          const existing = await customerSupportCollection.findOne({
+            _id: new ObjectId(messageId),
+            "assignedUsers.userId": userId,
+          });
+
+          if (existing) {
+            return res
+              .status(400)
+              .json({ success: false, message: "User already assigned" });
+          }
+
+          const updateResult = await customerSupportCollection.updateOne(
+            { _id: new ObjectId(messageId) },
+            {
+              $push: {
+                assignedUsers: {
+                  userId,
+                  assignedAt,
+                  isRead: isRead ?? false,
+                },
+              },
+            }
+          );
+
+          if (updateResult.modifiedCount === 1) {
+            res.json({ success: true, message: "User assigned successfully" });
+          } else {
+            res
+              .status(500)
+              .json({ success: false, message: "Failed to assign user" });
+          }
+        } catch (err) {
+          console.error("Error assigning user:", err);
+          res
+            .status(500)
+            .json({ success: false, message: "Internal server error" });
+        }
+      }
+    );
+
+    app.patch(
+      "/unassign-customer-support-user/:messageId",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        try {
+          const messageId = req.params.messageId;
+          const { userId } = req.body;
+
+          const result = await customerSupportCollection.updateOne(
+            { _id: new ObjectId(messageId) },
+            { $pull: { assignedUsers: { userId: userId } } }
+          );
+
+          if (result.modifiedCount > 0) {
+            return res.json({
+              success: true,
+              message: "User unassigned successfully",
+            });
+          }
+
+          return res
+            .status(404)
+            .json({ success: false, message: "Message or user not found" });
+        } catch (error) {
+          console.error("Error unassigning user:", error);
+          res.status(500).json({
+            success: false,
+            message: "Unassign failed",
+            error: error.message,
+          });
         }
       }
     );
@@ -1981,7 +2235,7 @@ async function run() {
     app.get(
       "/all-customer-support-information",
       limiter,
-      // verifyJWT,
+      verifyJWT,
       originChecker,
       async (req, res) => {
         try {
