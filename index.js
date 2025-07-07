@@ -1985,7 +1985,10 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const result = await customerSupportCollection.find().toArray();
+          const result = await customerSupportCollection
+            .find()
+            .sort({ dateTime: -1 })
+            .toArray();
           res.send(result);
         } catch (error) {
           console.error(
@@ -1994,6 +1997,90 @@ async function run() {
           );
           res.status(500).send({
             message: "Failed to fetch Customer Support Information's",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    app.patch(
+      "/mark-as-read-customer-support/:id",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        const { id } = req.params;
+        if (!ObjectId.isValid(id)) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid ID" });
+        }
+
+        try {
+          const result = await customerSupportCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { isRead: true } }
+          );
+
+          if (result.modifiedCount === 0) {
+            return res.status(404).json({
+              success: false,
+              message: "Message not found or already read.",
+            });
+          }
+
+          res
+            .status(200)
+            .json({ success: true, message: "Marked as read successfully." });
+        } catch (error) {
+          console.error("Error marking message as read:", error);
+          res.status(500).json({
+            success: false,
+            message: "Failed to mark as read",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    app.patch(
+      "/mark-as-unread-customer-support",
+      limiter,
+      verifyJWT,
+      originChecker,
+      async (req, res) => {
+        const { ids } = req.body;
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+          return res
+            .status(400)
+            .json({ success: false, message: "No IDs provided." });
+        }
+
+        const invalidId = ids.find((id) => !ObjectId.isValid(id));
+        if (invalidId) {
+          return res
+            .status(400)
+            .json({ success: false, message: `Invalid ID: ${invalidId}` });
+        }
+
+        const objectIds = ids.map((id) => new ObjectId(id));
+
+        try {
+          const result = await customerSupportCollection.updateMany(
+            { _id: { $in: objectIds } },
+            { $set: { isRead: false } }
+          );
+
+          res.status(200).json({
+            success: true,
+            message: `${result.modifiedCount} message(s) marked as unread.`,
+          });
+        } catch (error) {
+          console.error("Error marking messages as unread:", error);
+          res.status(500).json({
+            success: false,
+            message: "Failed to mark as unread",
             error: error.message,
           });
         }
