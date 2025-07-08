@@ -358,41 +358,50 @@ async function run() {
     }
 
     // Route to generate signed URL for uploading a single file
-    app.post("/generate-upload-url", async (req, res) => {
-      try {
-        const { fileName, contentType } = req.body;
+    app.post(
+      "/generate-upload-url",
+      verifyJWT,
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { fileName, contentType } = req.body;
 
-        if (!fileName || !contentType) {
-          return res
-            .status(400)
-            .json({ error: "Missing fileName or contentType" });
+          if (!fileName || !contentType) {
+            return res
+              .status(400)
+              .json({ error: "Missing fileName or contentType" });
+          }
+
+          const file = bucket.file(`${Date.now()}_${fileName}`);
+
+          const options = {
+            version: "v4",
+            action: "write", // For upload
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+            contentType: contentType,
+          };
+
+          // Get a v4 signed URL for uploading file
+          const [url] = await file.getSignedUrl(options);
+
+          return res.status(200).json({
+            uploadUrl: url,
+            publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}`,
+          });
+        } catch (error) {
+          console.error("Error generating signed URL:", error);
+          return res.status(500).json({ error: "Internal server error" });
         }
-
-        const file = bucket.file(`${Date.now()}_${fileName}`);
-
-        const options = {
-          version: "v4",
-          action: "write", // For upload
-          expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-          contentType: contentType,
-        };
-
-        // Get a v4 signed URL for uploading file
-        const [url] = await file.getSignedUrl(options);
-
-        return res.status(200).json({
-          uploadUrl: url,
-          publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}`,
-        });
-      } catch (error) {
-        console.error("Error generating signed URL:", error);
-        return res.status(500).json({ error: "Internal server error" });
       }
-    });
+    );
 
     // Route to upload single file
     app.post(
       "/upload-single-file",
+      verifyJWT,
+      limiter,
+      originChecker,
       upload.single("attachment"),
       async (req, res) => {
         if (!req.file) {
