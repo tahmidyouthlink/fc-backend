@@ -871,7 +871,7 @@ async function run() {
     );
 
     // checking token is valid or not
-    app.post("/validate-token", async (req, res) => {
+    app.post("/validate-token", limiter, originChecker, async (req, res) => {
       const { token } = req.body; // Assuming the token comes in the body of the request.
 
       if (!token) {
@@ -1256,72 +1256,81 @@ async function run() {
     );
 
     // after completed setup, put the information
-    app.patch("/complete-setup/:email", async (req, res) => {
-      try {
-        const { email } = req.params; // Get email from URL parameter
-        const { username, dob, password, fullName } = req.body; // Get username, dob, and password from request body
+    app.patch(
+      "/complete-setup/:email",
+      limiter,
+      originChecker,
+      async (req, res) => {
+        try {
+          const { email } = req.params; // Get email from URL parameter
+          const { username, dob, password, fullName } = req.body; // Get username, dob, and password from request body
 
-        // Validate if all required fields are provided
-        if (!username) {
-          return res.status(400).json({ error: "Username is required." });
-        } else if (!dob) {
-          return res.status(400).json({ error: "Date of Birth is required." });
-        } else if (!password) {
-          return res.status(400).json({ error: "Password is required." });
-        } else if (!fullName) {
-          return res.status(400).json({ error: "Full Name is required." });
-        }
-
-        // Hash the password before storing it in the database
-        const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
-
-        // Check if the user with this email already exists
-        const existingUser = await enrollmentCollection.findOne({ email });
-
-        if (!existingUser) {
-          return res.status(404).json({ error: "User not found." });
-        }
-
-        // Check if the username already exists in the database
-        const usernameExists = await enrollmentCollection.findOne({ username });
-
-        if (usernameExists) {
-          return res.status(400).json({ error: "Username already exists." });
-        }
-
-        // Update the existing user's data with the new information
-        const updatedUser = await enrollmentCollection.updateOne(
-          { email },
-          {
-            $set: {
-              username,
-              fullName,
-              dob,
-              password: hashedPassword,
-              isSetupComplete: true,
-            },
+          // Validate if all required fields are provided
+          if (!username) {
+            return res.status(400).json({ error: "Username is required." });
+          } else if (!dob) {
+            return res
+              .status(400)
+              .json({ error: "Date of Birth is required." });
+          } else if (!password) {
+            return res.status(400).json({ error: "Password is required." });
+          } else if (!fullName) {
+            return res.status(400).json({ error: "Full Name is required." });
           }
-        );
 
-        if (updatedUser.modifiedCount === 0) {
-          return res
-            .status(500)
-            .json({ error: "Failed to update user information." });
+          // Hash the password before storing it in the database
+          const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
+
+          // Check if the user with this email already exists
+          const existingUser = await enrollmentCollection.findOne({ email });
+
+          if (!existingUser) {
+            return res.status(404).json({ error: "User not found." });
+          }
+
+          // Check if the username already exists in the database
+          const usernameExists = await enrollmentCollection.findOne({
+            username,
+          });
+
+          if (usernameExists) {
+            return res.status(400).json({ error: "Username already exists." });
+          }
+
+          // Update the existing user's data with the new information
+          const updatedUser = await enrollmentCollection.updateOne(
+            { email },
+            {
+              $set: {
+                username,
+                fullName,
+                dob,
+                password: hashedPassword,
+                isSetupComplete: true,
+              },
+            }
+          );
+
+          if (updatedUser.modifiedCount === 0) {
+            return res
+              .status(500)
+              .json({ error: "Failed to update user information." });
+          }
+
+          // Send response after the user information is updated
+          res.status(200).json({
+            success: true,
+            message: "Account setup completed successfully!",
+          });
+        } catch (error) {
+          res.status(500).json({
+            success: false,
+            message: "Something went wrong!",
+            error: error.message,
+          });
         }
-
-        // Send response after the user information is updated
-        res.status(200).json({
-          success: true,
-          message: "Account setup completed successfully!",
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Something went wrong!",
-          error: error.message,
-        });
       }
-    });
+    );
 
     app.put(
       "/update-user-permissions/:id",
