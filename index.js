@@ -2493,7 +2493,6 @@ async function run() {
     // Send password reset email
     app.put(
       "/request-password-reset",
-      verifyJWT,
       limiter,
       originChecker,
       async (req, res) => {
