@@ -937,7 +937,6 @@ async function run() {
       "/all-existing-users",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -970,43 +969,36 @@ async function run() {
       }
     );
 
-    app.get(
-      "/assignable-users",
-      limiter,
-      verifyJWT,
-      originChecker,
-      async (req, res) => {
-        try {
-          const result = await enrollmentCollection
-            .find(
-              {
-                isSetupComplete: true,
+    app.get("/assignable-users", verifyJWT, originChecker, async (req, res) => {
+      try {
+        const result = await enrollmentCollection
+          .find(
+            {
+              isSetupComplete: true,
+            },
+            {
+              projection: {
+                _id: 1,
+                fullName: 1,
               },
-              {
-                projection: {
-                  _id: 1,
-                  fullName: 1,
-                },
-              }
-            )
-            .toArray();
+            }
+          )
+          .toArray();
 
-          res.send(result);
-        } catch (error) {
-          console.error("Error fetching assignable users:", error);
-          res.status(500).send({
-            success: false,
-            message: "Failed to fetch assignable users",
-            error: error.message,
-          });
-        }
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching assignable users:", error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch assignable users",
+          error: error.message,
+        });
       }
-    );
+    });
 
     // GET /assigned-users/:messageId
     app.get(
       "/assigned-users/:messageId",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -1054,7 +1046,6 @@ async function run() {
     // GET - /assigned-notifications-customer-support/:userId
     app.get(
       "/assigned-notifications-customer-support/:userId",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -1105,7 +1096,6 @@ async function run() {
 
     app.patch(
       "/mark-support-notification-read/:messageId",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -1134,7 +1124,6 @@ async function run() {
 
     app.patch(
       "/assign-customer-support-user/:messageId",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -1191,7 +1180,6 @@ async function run() {
 
     app.patch(
       "/unassign-customer-support-user/:messageId",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -1339,7 +1327,6 @@ async function run() {
       "/update-user-permissions/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -1405,7 +1392,7 @@ async function run() {
     }
 
     // backend dashboard log in via nextAuth
-    app.post("/loginForDashboard", async (req, res) => {
+    app.post("/loginForDashboard", limiter, originChecker, async (req, res) => {
       const { emailOrUsername, password, otp } = req.body;
 
       try {
@@ -1622,7 +1609,7 @@ async function run() {
       );
     });
 
-    app.post("/logout", (req, res) => {
+    app.post("/logout", originChecker, (req, res) => {
       res.clearCookie("refreshToken", {
         httpOnly: true,
         secure: true, // false if on localhost
@@ -2258,7 +2245,6 @@ async function run() {
     // Get All Customer Support Information's
     app.get(
       "/all-customer-support-information",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -2283,7 +2269,6 @@ async function run() {
 
     app.patch(
       "/mark-as-read-customer-support/:id",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -2323,7 +2308,6 @@ async function run() {
 
     app.patch(
       "/mark-as-unread-customer-support",
-      limiter,
       verifyJWT,
       originChecker,
       async (req, res) => {
@@ -2901,7 +2885,6 @@ async function run() {
       "/delete-existing-user/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -2928,7 +2911,6 @@ async function run() {
       "/addProduct",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3053,7 +3035,6 @@ async function run() {
       "/singleProduct/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3081,7 +3062,6 @@ async function run() {
       "/productFromCategory/:categoryName",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3111,7 +3091,6 @@ async function run() {
       "/editProductDetails/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3371,7 +3350,6 @@ async function run() {
       "/getProductIds",
       verifyJWT,
       authorizeAccess([], "Orders", "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         const { ids } = req.body; // array of productIds
@@ -3543,7 +3521,6 @@ async function run() {
       "/get-merged-notifications",
       verifyJWT,
       authorizeAccess([], "Orders", "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         const { email } = req.query;
@@ -3646,7 +3623,6 @@ async function run() {
       "/mark-notification-read",
       verifyJWT,
       authorizeAccess([], "Orders", "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         const { type, orderNumber, productId, dateTime, email, orderStatus } =
@@ -3688,7 +3664,6 @@ async function run() {
       "/addVendor",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3707,7 +3682,6 @@ async function run() {
       "/add-policy-pdfs",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3766,7 +3740,6 @@ async function run() {
       "/edit-policy-pdfs/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3798,7 +3771,6 @@ async function run() {
       "/deleteVendor/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3825,7 +3797,6 @@ async function run() {
       "/allVendors",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3845,7 +3816,6 @@ async function run() {
       "/getSingleVendorDetails/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3872,7 +3842,6 @@ async function run() {
       "/editVendor/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3904,7 +3873,6 @@ async function run() {
       "/addTag",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3926,7 +3894,6 @@ async function run() {
       "/deleteTag/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3953,7 +3920,6 @@ async function run() {
       "/allTags",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3973,7 +3939,6 @@ async function run() {
       "/addColor",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3997,7 +3962,6 @@ async function run() {
       "/deleteColor/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4024,7 +3988,6 @@ async function run() {
       "/allColors",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4044,7 +4007,6 @@ async function run() {
       "/addSeason",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         const seasonData = req.body;
@@ -4065,7 +4027,6 @@ async function run() {
       "/allSeasons",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4082,7 +4043,6 @@ async function run() {
       "/allSeasons/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4109,7 +4069,6 @@ async function run() {
       "/deleteSeason/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4136,7 +4095,6 @@ async function run() {
       "/editSeason/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4164,7 +4122,6 @@ async function run() {
       "/productFromSeason/:seasonName",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4194,7 +4151,6 @@ async function run() {
       "/addCategory",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         const categoryData = req.body;
@@ -4225,7 +4181,6 @@ async function run() {
       "/allCategories/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4253,7 +4208,6 @@ async function run() {
       "/deleteCategory/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4281,7 +4235,6 @@ async function run() {
       "/editCategory/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4312,7 +4265,6 @@ async function run() {
       "/updateFeaturedCategories",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         const categoriesToUpdate = req.body; // Array of category objects with label and isFeatured fields
@@ -4349,7 +4301,6 @@ async function run() {
       "/allSizeRanges",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4370,7 +4321,6 @@ async function run() {
       "/allSubCategories",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4603,7 +4553,6 @@ async function run() {
         "Marketing",
         "Customers"
       ),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4692,7 +4641,6 @@ async function run() {
       "/get-todays-orders",
       verifyJWT,
       authorizeAccess([], "Dashboard"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4752,7 +4700,6 @@ async function run() {
       "/orderList",
       verifyJWT,
       authorizeAccess([], "Orders"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -4789,7 +4736,6 @@ async function run() {
       "/addReturnSkuToProduct",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Orders"),
-      limiter,
       originChecker,
       async (req, res) => {
         const returnDataToSend = req.body;
@@ -4901,7 +4847,6 @@ async function run() {
       "/decreaseSkuFromProduct",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Orders"),
-      limiter,
       originChecker,
       async (req, res) => {
         const productDetailsArray = req.body;
@@ -5025,7 +4970,6 @@ async function run() {
       "/decreaseOnHandSkuFromProduct",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Orders"),
-      limiter,
       originChecker,
       async (req, res) => {
         const productDetailsArray = req.body;
@@ -5583,7 +5527,6 @@ async function run() {
       "/allCustomerDetails",
       verifyJWT,
       authorizeAccess([], "Customers"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5665,7 +5608,6 @@ async function run() {
       "/customerList",
       verifyJWT,
       authorizeAccess([], "Customers"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5703,7 +5645,6 @@ async function run() {
       "/addPromoCode",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5725,7 +5666,6 @@ async function run() {
       "/allPromoCodes",
       verifyJWT,
       authorizeAccess([], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5745,7 +5685,6 @@ async function run() {
       "/getSinglePromo/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5806,7 +5745,6 @@ async function run() {
       "/deletePromo/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5833,7 +5771,6 @@ async function run() {
       "/updatePromo/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5865,7 +5802,6 @@ async function run() {
       "/addOffer",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5896,7 +5832,6 @@ async function run() {
       "/getSingleOffer/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5923,7 +5858,6 @@ async function run() {
       "/updateOffer/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5955,7 +5889,6 @@ async function run() {
       "/deleteOffer/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -5982,7 +5915,6 @@ async function run() {
       "/addShippingZone",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6016,7 +5948,6 @@ async function run() {
         // Frontend middleware
         (req, res, next) => next()
       ),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6037,7 +5968,6 @@ async function run() {
       "/deleteShippingZone/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6065,7 +5995,6 @@ async function run() {
       "/getSingleShippingZone/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6093,7 +6022,6 @@ async function run() {
       "/editShippingZone/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6129,7 +6057,6 @@ async function run() {
       "/addShipmentHandler",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6153,7 +6080,6 @@ async function run() {
       "/allShipmentHandlers",
       verifyJWT,
       authorizeAccess([], "Supply Chain", "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6174,7 +6100,6 @@ async function run() {
       "/deleteShipmentHandler/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6204,7 +6129,6 @@ async function run() {
       "/getSingleShipmentHandler/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6234,7 +6158,6 @@ async function run() {
       "/editShipmentHandler/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6272,7 +6195,6 @@ async function run() {
       "/addPaymentMethod",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Finances"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6294,7 +6216,6 @@ async function run() {
       "/allPaymentMethods",
       verifyJWT,
       authorizeAccess([], "Finances"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6315,7 +6236,6 @@ async function run() {
       "/deletePaymentMethod/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Finances"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6345,7 +6265,6 @@ async function run() {
       "/getSinglePaymentMethod/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Finances"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6375,7 +6294,6 @@ async function run() {
       "/editPaymentMethod/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Finances"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6413,7 +6331,6 @@ async function run() {
       "/addLocation",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6445,7 +6362,6 @@ async function run() {
       "/allLocations",
       verifyJWT,
       authorizeAccess([], "Supply Chain", "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6490,7 +6406,6 @@ async function run() {
       "/deleteLocation/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6518,7 +6433,6 @@ async function run() {
       "/updateLocation/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6565,7 +6479,6 @@ async function run() {
       "/getSingleLocationDetails/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Supply Chain"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6593,7 +6506,6 @@ async function run() {
       "/addPurchaseOrder",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6617,7 +6529,6 @@ async function run() {
       "/allPurchaseOrders",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6638,7 +6549,6 @@ async function run() {
       "/deletePurchaseOrder/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6668,7 +6578,6 @@ async function run() {
       "/getSinglePurchaseOrder/:id",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6698,7 +6607,6 @@ async function run() {
       "/editPurchaseOrder/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6736,7 +6644,6 @@ async function run() {
       "/addTransferOrder",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6760,7 +6667,6 @@ async function run() {
       "/allTransferOrders",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6781,7 +6687,6 @@ async function run() {
       "/getSingleTransferOrder/:id",
       verifyJWT,
       authorizeAccess([], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6811,7 +6716,6 @@ async function run() {
       "/editTransferOrder/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6849,7 +6753,6 @@ async function run() {
       "/deleteTransferOrder/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Product Hub"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6879,7 +6782,6 @@ async function run() {
       "/addMarketingBanner",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6903,7 +6805,6 @@ async function run() {
       "/editMarketingBanner/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6960,7 +6861,6 @@ async function run() {
       "/addLoginRegisterImageUrls",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -6998,7 +6898,6 @@ async function run() {
       "/editLoginRegisterImageUrls/:id",
       verifyJWT,
       authorizeAccess(["Editor", "Owner"], "Marketing"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7036,7 +6935,6 @@ async function run() {
       "/addHeroBannerImageUrls",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7079,7 +6977,6 @@ async function run() {
       "/editHeroBannerImageUrls/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7193,7 +7090,6 @@ async function run() {
       "/add-faq",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7225,7 +7121,6 @@ async function run() {
       "/update-faqs/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7259,7 +7154,6 @@ async function run() {
       "/get-single-faq/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7286,7 +7180,6 @@ async function run() {
       "/add-top-header",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7324,7 +7217,6 @@ async function run() {
       "/update-top-header/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7362,7 +7254,6 @@ async function run() {
       "/add-our-story-information",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7410,7 +7301,6 @@ async function run() {
       "/get-all-story-collection-backend",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7431,7 +7321,6 @@ async function run() {
       "/get-single-story/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7464,7 +7353,6 @@ async function run() {
       "/update-our-story/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7501,7 +7389,6 @@ async function run() {
       "/delete-story/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7528,7 +7415,6 @@ async function run() {
       "/add-logo",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7561,7 +7447,6 @@ async function run() {
       "/update-logo/:id",
       verifyJWT,
       authorizeAccess(["Owner"], "Settings"),
-      limiter,
       originChecker,
       async (req, res) => {
         try {
