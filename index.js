@@ -61,8 +61,6 @@ const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket
 const upload = multer({ storage: multer.memoryStorage() });
 
 let limiter = (req, res, next) => next(); // No-op middleware by default
-// let loginLimiter = (req, res, next) => next(); // No-op middleware by default
-// let apiLimiter = (req, res, next) => next(); // No-op middleware by default
 
 if (process.env.NODE_ENV === "production") {
   limiter = rateLimit({
@@ -79,26 +77,6 @@ if (process.env.NODE_ENV === "production") {
     },
   });
 }
-
-// if (process.env.NODE_ENV === 'production') {
-//   loginLimiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 5,
-//     standardHeaders: true,
-//     legacyHeaders: false,
-//     message: 'Too many requests from this IP, please try again after 15 minutes',
-//   });
-// };
-
-// if (process.env.NODE_ENV === 'production') {
-//   apiLimiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 100,
-//     standardHeaders: true,
-//     legacyHeaders: false,
-//     message: 'Too many requests from this IP, please try again after 15 minutes',
-//   });
-// };
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.n9or6wr.mongodb.net/?appName=Cluster0`;
 
@@ -1570,7 +1548,48 @@ async function run() {
       }
     });
 
-    app.post("/refresh-token", limiter, originChecker, (req, res) => {
+    app.post("/refresh-token-backend", originChecker, async (req, res) => {
+      const refreshToken =
+        req.cookies?.refreshToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
+
+      if (!refreshToken) {
+        return res.status(401).json({ message: "No refresh token" });
+      }
+
+      try {
+        const decoded = await new Promise((resolve, reject) => {
+          jwt.verify(
+            refreshToken,
+            process.env.REFRESH_TOKEN_SECRET,
+            (err, decoded) => {
+              if (err) return reject(err);
+              resolve(decoded);
+            }
+          );
+        });
+
+        const user = await enrollmentCollection.findOne({
+          _id: new ObjectId(decoded._id),
+        });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const newAccessToken = jwt.sign(
+          { _id: decoded._id },
+          process.env.ACCESS_TOKEN_SECRET,
+          { expiresIn: "5m" }
+        );
+
+        return res.status(200).json({ accessToken: newAccessToken });
+      } catch (err) {
+        console.log("❌ Refresh failed:", err);
+        return res
+          .status(401)
+          .json({ message: "Invalid or expired refresh token" });
+      }
+    });
+
+    app.post("/refresh-token", originChecker, (req, res) => {
       // console.log("hit refresh");
 
       const refreshToken =
