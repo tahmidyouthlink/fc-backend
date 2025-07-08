@@ -5609,7 +5609,10 @@ async function run() {
         }
 
         try {
-          const customer = await customerListCollection.findOne({ email }); // Query the database
+          const customer = await customerListCollection.findOne(
+            { email },
+            { projection: { password: 0 } }
+          );
           if (!customer) {
             return res.status(404).send("Customer not found"); // Handle case where no customer is found
           }
