@@ -2392,10 +2392,12 @@ async function run() {
           const salt = await bcrypt.genSalt(10);
           const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-          // Update the password in MongoDB
+          // Update the password and credentials link status in MongoDB
           const result = await customerListCollection.updateOne(
             { email },
-            { $set: { password: hashedPassword } }
+            {
+              $set: { password: hashedPassword, isLinkedWithCredentials: true },
+            }
           );
 
           if (result.modifiedCount > 0) {
