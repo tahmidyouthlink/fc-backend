@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -72,6 +72,11 @@ if (process.env.NODE_ENV === "production") {
     legacyHeaders: false,
     message:
       "Too many requests from this IP, please try again after 15 minutes",
+    keyGenerator: function (req) {
+      const forwarded = req.headers["x-forwarded-for"];
+      const ip = forwarded ? forwarded.split(",")[0].trim() : req.ip;
+      return ip;
+    },
   });
 }
 
@@ -1533,7 +1538,7 @@ async function run() {
               _id: user._id,
             },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "30s" } // short-lived
+            { expiresIn: "5m" } // short-lived
           );
 
           const refreshToken = jwt.sign(
@@ -1588,7 +1593,7 @@ async function run() {
           const newAccessToken = jwt.sign(
             { _id: decoded._id },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: "30s" }
+            { expiresIn: "5m" }
           );
 
           // console.log("refresh token generated");
