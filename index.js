@@ -2947,7 +2947,7 @@ async function run() {
     );
 
     // get all products
-    app.get("/allProducts", limiter, originChecker, async (req, res) => {
+    app.get("/allProducts", originChecker, async (req, res) => {
       try {
         const result = await productInformationCollection.find().toArray();
         res.send(result);
@@ -3424,7 +3424,6 @@ async function run() {
     // get all availability info
     app.get(
       "/get-all-availability-notifications",
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -3735,23 +3734,18 @@ async function run() {
     });
 
     // Get All Policy Pages Pdfs
-    app.get(
-      "/get-all-policy-pdfs",
-      limiter,
-      originChecker,
-      async (req, res) => {
-        try {
-          const result = await policyPagesCollection.find().toArray();
-          res.send(result);
-        } catch (error) {
-          console.error("Error fetching Policy pdfs:", error);
-          res.status(500).send({
-            message: "Failed to fetch Policy pdfs",
-            error: error.message,
-          });
-        }
+    app.get("/get-all-policy-pdfs", originChecker, async (req, res) => {
+      try {
+        const result = await policyPagesCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Policy pdfs:", error);
+        res.status(500).send({
+          message: "Failed to fetch Policy pdfs",
+          error: error.message,
+        });
       }
-    );
+    });
 
     // edit policy pages pdf
     app.put(
@@ -4185,7 +4179,7 @@ async function run() {
     );
 
     // Get All Categories
-    app.get("/allCategories", limiter, originChecker, async (req, res) => {
+    app.get("/allCategories", originChecker, async (req, res) => {
       try {
         const categories = await categoryCollection.find().toArray();
         res.status(200).send(categories);
@@ -4587,42 +4581,35 @@ async function run() {
     );
 
     // Get orders for a specific user by email
-    app.get(
-      "/customer-orders",
-      verifyJWT,
-      limiter,
-      originChecker,
-      async (req, res) => {
-        const customerEmail = req.query.email;
+    app.get("/customer-orders", verifyJWT, originChecker, async (req, res) => {
+      const customerEmail = req.query.email;
 
-        if (!customerEmail) {
-          return res
-            .status(400)
-            .send({ message: "Unauthorized: Please log in." });
-        }
-
-        try {
-          const userOrders = await orderListCollection
-            .find({ "customerInfo.email": customerEmail })
-            .sort({ _id: -1 })
-            .toArray();
-
-          res.status(200).send(userOrders);
-        } catch (error) {
-          console.error("Error fetching user orders:", error);
-          res.status(500).send({
-            message: "Failed to fetch user orders.",
-            error: error.message,
-          });
-        }
+      if (!customerEmail) {
+        return res
+          .status(400)
+          .send({ message: "Unauthorized: Please log in." });
       }
-    );
+
+      try {
+        const userOrders = await orderListCollection
+          .find({ "customerInfo.email": customerEmail })
+          .sort({ _id: -1 })
+          .toArray();
+
+        res.status(200).send(userOrders);
+      } catch (error) {
+        console.error("Error fetching user orders:", error);
+        res.status(500).send({
+          message: "Failed to fetch user orders.",
+          error: error.message,
+        });
+      }
+    });
 
     // Get a specific order by order number and customer email
     app.get(
       "/customer-orders/:orderNumber",
       verifyJWT,
-      limiter,
       originChecker,
       async (req, res) => {
         const { orderNumber } = req.params;
@@ -5560,7 +5547,6 @@ async function run() {
     app.get(
       "/customerDetailsViaEmail/:email",
       verifyJWT,
-      limiter,
       originChecker,
       async (req, res) => {
         const email = req.params.email; // Retrieve email from query parameters
@@ -5725,38 +5711,33 @@ async function run() {
     );
 
     // get a promo info by code
-    app.get(
-      "/promo-by-code/:code",
-      limiter,
-      originChecker,
-      async (req, res) => {
-        try {
-          const codeParam = req.params.code;
+    app.get("/promo-by-code/:code", originChecker, async (req, res) => {
+      try {
+        const codeParam = req.params.code;
 
-          if (!codeParam) {
-            return res.status(400).send({ message: "Promo code is required." });
-          }
-
-          const query = {
-            promoCode: { $regex: `^${codeParam}$`, $options: "i" },
-          };
-
-          const promo = await promoCollection.findOne(query);
-
-          if (!promo) {
-            return res.status(404).send({ message: "Promo code not found." });
-          }
-
-          res.send(promo);
-        } catch (error) {
-          console.error("Error fetching promo by code:", error);
-          res.status(500).send({
-            message: "Failed to fetch promo by code",
-            error: error.message,
-          });
+        if (!codeParam) {
+          return res.status(400).send({ message: "Promo code is required." });
         }
+
+        const query = {
+          promoCode: { $regex: `^${codeParam}$`, $options: "i" },
+        };
+
+        const promo = await promoCollection.findOne(query);
+
+        if (!promo) {
+          return res.status(404).send({ message: "Promo code not found." });
+        }
+
+        res.send(promo);
+      } catch (error) {
+        console.error("Error fetching promo by code:", error);
+        res.status(500).send({
+          message: "Failed to fetch promo by code",
+          error: error.message,
+        });
       }
-    );
+    });
 
     // delete single promo
     app.delete(
@@ -5836,7 +5817,7 @@ async function run() {
     );
 
     // Get All Offer
-    app.get("/allOffers", limiter, originChecker, async (req, res) => {
+    app.get("/allOffers", originChecker, async (req, res) => {
       try {
         const offers = await offerCollection.find().sort({ _id: -1 }).toArray();
         res.status(200).send(offers);
@@ -6396,7 +6377,7 @@ async function run() {
     );
 
     // get the primary location's name
-    app.get("/primary-location", limiter, originChecker, async (req, res) => {
+    app.get("/primary-location", originChecker, async (req, res) => {
       try {
         const primaryLocation = await locationCollection.findOne(
           { isPrimaryLocation: true },
@@ -6856,23 +6837,18 @@ async function run() {
     );
 
     // get all marketing banner
-    app.get(
-      "/allMarketingBanners",
-      limiter,
-      originChecker,
-      async (req, res) => {
-        try {
-          const result = await marketingBannerCollection.find().toArray();
-          res.send(result);
-        } catch (error) {
-          console.error("Error fetching marketing banner:", error);
-          res.status(500).send({
-            message: "Failed to fetch marketing banner",
-            error: error.message,
-          });
-        }
+    app.get("/allMarketingBanners", originChecker, async (req, res) => {
+      try {
+        const result = await marketingBannerCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching marketing banner:", error);
+        res.status(500).send({
+          message: "Failed to fetch marketing banner",
+          error: error.message,
+        });
       }
-    );
+    });
 
     // post a login register slides
     app.post(
@@ -6972,23 +6948,18 @@ async function run() {
     );
 
     // get all hero banner slides
-    app.get(
-      "/allHeroBannerImageUrls",
-      limiter,
-      originChecker,
-      async (req, res) => {
-        try {
-          const result = await heroBannerCollection.find().toArray();
-          res.send(result);
-        } catch (error) {
-          console.error("Error fetching hero banner slides:", error);
-          res.status(500).send({
-            message: "Failed to fetch hero banner slides",
-            error: error.message,
-          });
-        }
+    app.get("/allHeroBannerImageUrls", originChecker, async (req, res) => {
+      try {
+        const result = await heroBannerCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching hero banner slides:", error);
+        res.status(500).send({
+          message: "Failed to fetch hero banner slides",
+          error: error.message,
+        });
       }
-    );
+    });
 
     //update a single hero banner image urls
     app.put(
@@ -7042,7 +7013,7 @@ async function run() {
     });
 
     // get all newsletters
-    app.get("/allNewsletters", limiter, originChecker, async (req, res) => {
+    app.get("/allNewsletters", originChecker, async (req, res) => {
       try {
         const result = await newsletterCollection.find().toArray();
         res.send(result);
@@ -7059,7 +7030,6 @@ async function run() {
     app.get(
       "/getSingleNewsletter/:email",
       verifyJWT,
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7122,7 +7092,7 @@ async function run() {
     );
 
     // get all faq
-    app.get("/all-faqs", limiter, originChecker, async (req, res) => {
+    app.get("/all-faqs", originChecker, async (req, res) => {
       try {
         const result = await faqCollection.find().toArray();
         res.send(result);
@@ -7212,23 +7182,18 @@ async function run() {
     );
 
     // all header collection
-    app.get(
-      "/get-all-header-collection",
-      limiter,
-      originChecker,
-      async (req, res) => {
-        try {
-          const result = await topHeaderCollection.find().toArray();
-          res.send(result);
-        } catch (error) {
-          console.error("Error fetching header collection:", error);
-          res.status(500).send({
-            message: "Failed to fetch header collection",
-            error: error.message,
-          });
-        }
+    app.get("/get-all-header-collection", originChecker, async (req, res) => {
+      try {
+        const result = await topHeaderCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching header collection:", error);
+        res.status(500).send({
+          message: "Failed to fetch header collection",
+          error: error.message,
+        });
       }
-    );
+    });
 
     //update a TOP HEADER Collection
     app.put(
@@ -7290,7 +7255,6 @@ async function run() {
     // all story collection frontend
     app.get(
       "/get-all-story-collection-frontend",
-      limiter,
       originChecker,
       async (req, res) => {
         try {
@@ -7447,7 +7411,7 @@ async function run() {
     );
 
     // all logo collection
-    app.get("/get-all-logo", limiter, originChecker, async (req, res) => {
+    app.get("/get-all-logo", originChecker, async (req, res) => {
       try {
         const result = await logoCollection.find().toArray();
         res.send(result);
