@@ -187,7 +187,7 @@ const allowedOrigins = [
 ];
 
 const originChecker = (req, res, next) => {
-  const origin = req.headers.origin;
+  const origin = req.headers.origin || req.headers["x-client-origin"];
 
   if (!origin || allowedOrigins.includes(origin)) {
     return next();
@@ -201,7 +201,7 @@ const multiClientAccess = (
   frontendAccessMiddleware
 ) => {
   return async (req, res, next) => {
-    const origin = req.headers.origin;
+    const origin = req.headers.origin || req.headers["x-client-origin"];
 
     try {
       if (
