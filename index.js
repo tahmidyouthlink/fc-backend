@@ -189,7 +189,7 @@ const allowedOrigins = [
 const originChecker = (req, res, next) => {
   const origin = req.headers.origin;
 
-  if (!origin || allowedOrigins.includes(origin)) {
+  if (allowedOrigins.includes(origin)) {
     return next();
   }
 
