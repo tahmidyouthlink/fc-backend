@@ -95,7 +95,6 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://fashion-commerce-pi.vercel.app",
       "https://fc-frontend-664306765395.asia-south1.run.app",
       "https://poshax-backend-664306765395.asia-south1.run.app",
     ],
@@ -3049,31 +3048,25 @@ async function run() {
     });
 
     // get single product info
-    app.get(
-      "/singleProduct/:id",
-      verifyJWT,
-      authorizeAccess(["Editor", "Owner"], "Product Hub"),
-      originChecker,
-      async (req, res) => {
-        try {
-          const id = req.params.id;
-          const query = { _id: new ObjectId(id) };
-          const result = await productInformationCollection.findOne(query);
+    app.get("/singleProduct/:id", originChecker, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await productInformationCollection.findOne(query);
 
-          if (!result) {
-            return res.status(404).send({ message: "Product not found" });
-          }
-
-          res.send(result);
-        } catch (error) {
-          console.error("Error fetching Product Details:", error);
-          res.status(500).send({
-            message: "Failed to fetch Product Details",
-            error: error.message,
-          });
+        if (!result) {
+          return res.status(404).send({ message: "Product not found" });
         }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching Product Details:", error);
+        res.status(500).send({
+          message: "Failed to fetch Product Details",
+          error: error.message,
+        });
       }
-    );
+    });
 
     // get single product info
     app.get(
