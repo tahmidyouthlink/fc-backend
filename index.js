@@ -20,7 +20,6 @@ const compression = require("compression");
 const helmet = require("helmet");
 const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
-const customCurrentDateTimeFormat = require("./utils/customCurrentDateTimeFormat");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
 const {
   calculateFinalPrice,
@@ -4466,7 +4465,7 @@ async function run() {
             };
           });
 
-          const dateTime = customCurrentDateTimeFormat();
+          const dateTime = moment().tz("Asia/Dhaka").format("DD-MM-YY | HH:mm");
           const estimatedTime = getEstimatedDeliveryTime(
             city,
             deliveryType,
