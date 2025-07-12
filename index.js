@@ -94,8 +94,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://fc-frontend-664306765395.asia-southeast1.run.app",
-      "https://poshax-sub-domain-664306765395.asia-southeast1.run.app",
+      "https://poshax.shop",
+      "https://backend.poshax.shop",
     ],
     credentials: true, // if using cookies or auth
   })
@@ -180,8 +180,8 @@ const authorizeAccess = (requiredRoles = [], ...moduleNames) => {
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://fc-frontend-664306765395.asia-southeast1.run.app",
-  "https://poshax-sub-domain-664306765395.asia-southeast1.run.app",
+  "https://poshax.shop",
+  "https://backend.poshax.shop",
 ];
 
 const originChecker = (req, res, next) => {
@@ -202,10 +202,7 @@ const multiClientAccess = (
     const origin = req.headers.origin || req.headers["x-client-origin"];
 
     try {
-      if (
-        origin ===
-        "https://poshax-sub-domain-664306765395.asia-southeast1.run.app"
-      ) {
+      if (origin === "https://backend.poshax.shop") {
         return backendAccessMiddleware(req, res, next);
       }
 
@@ -213,9 +210,7 @@ const multiClientAccess = (
       //   return backendAccessMiddleware(req, res, next);
       // }
 
-      if (
-        origin === "https://fc-frontend-664306765395.asia-southeast1.run.app"
-      ) {
+      if (origin === "https://poshax.shop") {
         return frontendAccessMiddleware(req, res, next);
       }
 
