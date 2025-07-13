@@ -95,7 +95,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "https://poshax.shop",
-      "https://backend.poshax.shop",
+      "https://px-portal-025.poshax.shop",
     ],
     credentials: true, // if using cookies or auth
   })
@@ -181,7 +181,7 @@ const authorizeAccess = (requiredRoles = [], ...moduleNames) => {
 const allowedOrigins = [
   "http://localhost:3000",
   "https://poshax.shop",
-  "https://backend.poshax.shop",
+  "https://px-portal-025.poshax.shop",
 ];
 
 const originChecker = (req, res, next) => {
@@ -202,7 +202,7 @@ const multiClientAccess = (
     const origin = req.headers.origin || req.headers["x-client-origin"];
 
     try {
-      if (origin === "https://backend.poshax.shop") {
+      if (origin === "https://px-portal-025.poshax.shop") {
         return backendAccessMiddleware(req, res, next);
       }
 
