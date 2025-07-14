@@ -18,6 +18,8 @@ const os = require("os");
 const moment = require("moment-timezone");
 const compression = require("compression");
 const helmet = require("helmet");
+const { ImapFlow } = require("imapflow");
+const { simpleParser } = require("mailparser");
 const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
@@ -2005,15 +2007,33 @@ async function run() {
       const { name, email, phone, topic, message } = req.body;
 
       const isRead = false;
+      const date = new Date();
+      const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ""); // "20250713"
+
+      const customerSupportCollection = client
+        .db("fashion-commerce")
+        .collection("customer-support");
+
+      // Step 1: Count how many requests today already exist
+      const countToday = await customerSupportCollection.countDocuments({
+        supportId: { $regex: `^SUP-${dateStr}-` },
+      });
+
+      // Step 2: Format counter (001, 002, etc.)
+      const paddedCounter = String(countToday + 1).padStart(3, "0");
+
+      // Step 3: Generate supportId
+      const supportId = `SUP-${dateStr}-${paddedCounter}`;
 
       const customerInput = {
+        supportId,
         name,
         email,
         phone,
         topic,
         message,
         isRead,
-        dateTime: new Date().toISOString(),
+        dateTime: date.toISOString(),
       };
 
       if (!name || !email || !phone || !topic || !message) {
@@ -2280,6 +2300,80 @@ async function run() {
         }
       }
     );
+
+    app.post("/send-reply", verifyJWT, originChecker, async (req, res) => {
+      const { messageId, supportReplyHtml } = req.body;
+
+      if (!messageId) {
+        return res.status(400).json({ error: "Missing messageId" });
+      }
+      if (!supportReplyHtml) {
+        return res.status(400).json({ error: "Missing reply" });
+      }
+
+      try {
+        const message = await customerSupportCollection.findOne({
+          _id: new ObjectId(messageId),
+        });
+
+        if (!message) {
+          return res.status(404).json({ error: "Support message not found" });
+        }
+
+        if (!message.supportId) {
+          return res
+            .status(400)
+            .json({ error: "Missing supportId in original message" });
+        }
+
+        // Inject Support ID footer into the reply HTML
+        const supportIdFooter = `
+  <hr style="margin-top:20px; border: none; border-top: 1px solid #ccc;" />
+  <p style="font-size: 12px; color: #777;">
+    Support ID: <strong>${message.supportId}</strong><br />
+    Please reference this ID in any future communication with us.
+  </p>
+`;
+
+        // Combine original reply HTML + footer
+        const fullHtml = `${supportReplyHtml}${supportIdFooter}`;
+
+        // === 1. Save the reply in the database ===
+        const replyEntry = {
+          from: "support",
+          html: fullHtml,
+          dateTime: new Date().toISOString(),
+        };
+
+        const mailOptions = {
+          from: `"PoshaX Support Team" <${process.env.EMAIL_USER}>`,
+          to: message.email,
+          subject: `Re: [${message.supportId}] ${message.topic}`,
+          html: fullHtml,
+        };
+
+        const mailResult = await transport.sendMail(mailOptions);
+
+        if (
+          mailResult &&
+          mailResult.accepted &&
+          mailResult.accepted.length > 0
+        ) {
+          await customerSupportCollection.updateOne(
+            { _id: new ObjectId(messageId) },
+            { $push: { replies: replyEntry } }
+          );
+        }
+
+        res.json({
+          success: true,
+          message: "Reply sent and saved successfully",
+        });
+      } catch (error) {
+        console.error("Error sending reply:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 
     app.patch(
       "/mark-as-read-customer-support/:id",
@@ -7448,6 +7542,104 @@ async function run() {
         }
       }
     );
+
+    const run2 = async () => {
+      try {
+        // Now start the IMAP listener here and reuse `customerSupportCollection`
+        const imapClient = new ImapFlow({
+          host: "imap.titan.email",
+          port: 993,
+          secure: true,
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+          logger: false,
+        });
+
+        await imapClient.connect();
+
+        let lock = await imapClient.getMailboxLock("INBOX");
+
+        imapClient.on("exists", async () => {
+          // Fetch new emails from last message to newest
+          for await (let message of imapClient.fetch(
+            `${imapClient.mailbox.exists}:*`,
+            {
+              envelope: true,
+              source: true,
+            }
+          )) {
+            const parsed = await simpleParser(message.source);
+            const fromEmail = parsed.from?.value?.[0]?.address;
+            const html = parsed.html || parsed.textAsHtml || parsed.text;
+            const dateTime = parsed.date || new Date().toISOString();
+            const subject = parsed.subject || "";
+
+            // Skip self-sent support emails
+            if (fromEmail === process.env.EMAIL_USER) continue;
+
+            // === Extract supportId from subject if present ===
+            // let supportIdMatch = subject.match(/\[(SUP-[\d\-]+)\]/);
+            let supportIdMatch = subject.match(/\[(SUP-\d{8}-\d+)\]/);
+            let supportId = supportIdMatch?.[1];
+
+            // === If not found in subject, try extracting from footer in HTML ===
+            if (!supportId && html) {
+              const footerMatch = html.match(
+                /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
+              );
+              supportId = footerMatch?.[1];
+            }
+
+            if (supportId) {
+              const thread = await customerSupportCollection.findOne({
+                supportId,
+              });
+
+              if (thread) {
+                await customerSupportCollection.updateOne(
+                  { _id: thread._id },
+                  {
+                    $push: {
+                      replies: {
+                        from: "customer",
+                        html,
+                        dateTime,
+                      },
+                    },
+                  }
+                );
+              } else {
+                console.warn(
+                  "Support ID found but no matching thread in DB:",
+                  supportId
+                );
+              }
+            } else {
+              await customerSupportCollection.insertOne({
+                email: fromEmail,
+                name: parsed.from?.text,
+                topic: parsed.subject,
+                message: html,
+                dateTime,
+                replies: [],
+                isRead: false,
+                supportId: null,
+                status: "untracked", // or "unlinked"
+                source: "direct-email",
+              });
+            }
+          }
+        });
+
+        lock.release();
+      } catch (err) {
+        console.error("Error in run function:", err);
+      }
+    };
+
+    run2().catch(console.dir);
 
     await client.db("admin").command({ ping: 1 });
     console.log(
