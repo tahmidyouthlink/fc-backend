@@ -7597,8 +7597,8 @@ async function run() {
       try {
         // Now start the IMAP listener here and reuse `customerSupportCollection`
         const imapClient = new ImapFlow({
-          host: "imap.titan.email",
-          port: 993,
+          host: process.env.IMAP_HOST,
+          port: process.env.IMAP_PORT,
           secure: true,
           auth: {
             user: process.env.EMAIL_USER,
