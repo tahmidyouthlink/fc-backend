@@ -1,6 +1,7 @@
 function generateOrderId(orderIds, fullName, phoneNumber) {
   // Get today's date in the format YYMMDD (e.g., 240804)
   const today = new Date();
+  today.setHours(today.getHours() + 6); // Adjust to UTC+6
   const year = String(today.getFullYear()).slice(2); // Last 2 digits of the year
   const month = String(today.getMonth() + 1).padStart(2, "0"); // Month (2 digits)
   const day = String(today.getDate()).padStart(2, "0"); // Day (2 digits)

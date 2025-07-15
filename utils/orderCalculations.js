@@ -1,6 +1,9 @@
 const checkIfPromoCodeIsValid = require("./isPromoCodeValid");
 
 const checkIfAnyDiscountIsAvailable = (product, specialOffers) => {
+  const now = new Date();
+  now.setHours(now.getHours() + 6); // Adjust to Bangladesh time (UTC+6)
+
   return (
     !!Number(product?.discountValue) ||
     specialOffers?.some(
@@ -8,7 +11,7 @@ const checkIfAnyDiscountIsAvailable = (product, specialOffers) => {
         offer.offerStatus === true &&
         (offer.selectedProductIds?.includes(product?.productId) ||
           offer.selectedCategories?.includes(product?.category)) &&
-        new Date() <= new Date(offer?.expiryDate)
+        now <= new Date(offer?.expiryDate + "T23:59:59")
     )
   );
 };
@@ -21,22 +24,28 @@ const checkIfOnlyRegularDiscountIsAvailable = (product, specialOffers) => {
 };
 
 const checkIfSpecialOfferIsAvailable = (product, specialOffers) => {
+  const now = new Date();
+  now.setHours(now.getHours() + 6); // Adjust to Bangladesh time (UTC+6)
+
   return specialOffers?.some(
     (offer) =>
       offer.offerStatus === true &&
-      new Date() <= new Date(offer?.expiryDate) &&
+      now <= new Date(offer?.expiryDate + "T23:59:59") &&
       (offer.selectedProductIds?.includes(product?.productId) ||
         offer.selectedCategories?.includes(product?.category))
   );
 };
 
 const getProductSpecialOffer = (product, specialOffers, cartSubtotal) => {
+  const now = new Date();
+  now.setHours(now.getHours() + 6); // Adjust to Bangladesh time (UTC+6)
+
   return specialOffers?.find(
     (offer) =>
       offer.offerStatus === true &&
       (offer.selectedProductIds?.includes(product?.productId) ||
         offer.selectedCategories?.includes(product?.category)) &&
-      new Date() <= new Date(offer?.expiryDate) &&
+      now <= new Date(offer?.expiryDate + "T23:59:59") &&
       (cartSubtotal === "NA" || cartSubtotal >= parseFloat(offer.minAmount))
   );
 };
