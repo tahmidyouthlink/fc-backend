@@ -6538,6 +6538,26 @@ async function run() {
               .send({ message: "Invalid new primary location ID." });
           }
 
+          // ✅ Fetch existing location
+          const existingLocation = await locationCollection.findOne({
+            _id: new ObjectId(id),
+          });
+
+          if (!existingLocation) {
+            return res.status(404).send({ message: "Location not found" });
+          }
+
+          // ✅ Block turning OFF a primary location
+          if (
+            existingLocation.isPrimaryLocation &&
+            locationData.status === false
+          ) {
+            return res.status(400).send({
+              message:
+                "Cannot disable a primary location. Please assign a new one first.",
+            });
+          }
+
           // If the updated location is set as primary, update all other locations to set `isPrimaryLocation` to false
           if (locationData.isPrimaryLocation) {
             await locationCollection.updateMany(
