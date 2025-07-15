@@ -530,7 +530,7 @@ async function run() {
                 .digest("hex");
               const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // New expiry
 
-              const magicLink = `${process.env.SUBDOMAIN_URL}/auth/setup?token=${token}`;
+              const magicLink = `${process.env.SUB_DOMAIN_URL}/auth/setup?token=${token}`;
 
               try {
                 const mailResult = await transport.sendMail({
@@ -705,7 +705,7 @@ async function run() {
           const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
           // Magic Link
-          const magicLink = `${process.env.SUBDOMAIN_URL}/auth/setup?token=${token}`;
+          const magicLink = `${process.env.SUB_DOMAIN_URL}/auth/setup?token=${token}`;
 
           try {
             const mailResult = await transport.sendMail({
