@@ -7628,7 +7628,6 @@ async function run() {
             if (fromEmail === process.env.EMAIL_USER) continue;
 
             // === Extract supportId from subject if present ===
-            // let supportIdMatch = subject.match(/\[(SUP-[\d\-]+)\]/);
             let supportIdMatch = subject.match(/\[(SUP-\d{8}-\d+)\]/);
             let supportId = supportIdMatch?.[1];
 
@@ -7665,18 +7664,21 @@ async function run() {
                 );
               }
             } else {
-              await customerSupportCollection.insertOne({
-                email: fromEmail,
-                name: parsed.from?.text,
-                topic: parsed.subject,
-                message: html,
-                dateTime,
-                replies: [],
-                isRead: false,
-                supportId: null,
-                status: "untracked", // or "unlinked"
-                source: "direct-email",
-              });
+              // await customerSupportCollection.insertOne({
+              //   email: fromEmail,
+              //   name: parsed.from?.text,
+              //   topic: parsed.subject,
+              //   message: html,
+              //   dateTime,
+              //   replies: [],
+              //   isRead: false,
+              //   supportId: null,
+              //   status: "untracked", // or "unlinked"
+              //   source: "direct-email",
+              // });
+              console.warn(
+                "No support ID found in subject or footer. Cannot link message."
+              );
             }
           }
         });
