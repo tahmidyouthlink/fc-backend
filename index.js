@@ -6521,11 +6521,34 @@ async function run() {
           const id = req.params.id;
           const locationData = req.body;
 
+          // ✅ Validate main location id
+          if (!ObjectId.isValid(id)) {
+            return res.status(400).send({ message: "Invalid location ID." });
+          }
+
+          // ✅ Validate new primary ID if provided
+          if (
+            locationData.newPrimaryId &&
+            !ObjectId.isValid(locationData.newPrimaryId)
+          ) {
+            return res
+              .status(400)
+              .send({ message: "Invalid new primary location ID." });
+          }
+
           // If the updated location is set as primary, update all other locations to set `isPrimaryLocation` to false
           if (locationData.isPrimaryLocation) {
             await locationCollection.updateMany(
               { isPrimaryLocation: true },
               { $set: { isPrimaryLocation: false } }
+            );
+          }
+
+          // If current location is being UNSET as primary AND a new one is provided
+          if (!locationData.isPrimaryLocation && locationData.newPrimaryId) {
+            await locationCollection.updateOne(
+              { _id: new ObjectId(locationData.newPrimaryId) },
+              { $set: { isPrimaryLocation: true } }
             );
           }
 
@@ -6577,6 +6600,31 @@ async function run() {
           console.error("Error fetching Location:", error);
           res.status(500).send({
             message: "Failed to fetch Location",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    app.get(
+      "/getAllOtherLocations/:id",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Supply Chain"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const id = req.params.id;
+
+          const otherLocations = await locationCollection
+            .find({ _id: { $ne: new ObjectId(id) } })
+            .project({ locationName: 1 }) // Return only needed fields
+            .toArray();
+
+          res.send(otherLocations);
+        } catch (error) {
+          console.error("Error fetching other locations:", error);
+          res.status(500).send({
+            message: "Failed to fetch other locations",
             error: error.message,
           });
         }
