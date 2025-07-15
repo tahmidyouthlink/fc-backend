@@ -1866,7 +1866,7 @@ async function run() {
           
             Start shopping now!
 
-            Shop Now: ${process.env.FRONTEND_URL}/shop
+            Shop Now: ${process.env.MAIN_DOMAIN_URL}/shop
           
             Stay Posh
             ${process.env.WEBSITE_NAME} Team
@@ -1946,7 +1946,7 @@ async function run() {
                       <tr>
                         <td align="center">
                           <a
-                            href="${process.env.FRONTEND_URL}/shop"
+                            href="${process.env.MAIN_DOMAIN_URL}/shop"
                             style="
                               display: inline-block;
                               font-size: 0.825rem;
@@ -2633,7 +2633,7 @@ async function run() {
               message: "Failed to create a token for password reset.",
             });
 
-          const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+          const resetLink = `${process.env.MAIN_DOMAIN_URL}/reset-password?token=${token}`;
           const fullName = userData?.userInfo?.personalInfo?.customerName;
 
           const mailResult = await transport.sendMail({
@@ -3275,7 +3275,9 @@ async function run() {
                   if (notified) continue;
 
                   // Create a cart URL with the product info
-                  const cartLink = `https://fashion-commerce-pi.vercel.app/shop?productId=${productId}&colorCode=${encodeURIComponent(
+                  const cartLink = `${
+                    process.env.MAIN_DOMAIN_URL
+                  }/shop?productId=${productId}&colorCode=${encodeURIComponent(
                     colorCode
                   )}&size=${encodeURIComponent(size)}`;
 
