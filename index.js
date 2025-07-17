@@ -2284,11 +2284,21 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const result = await customerSupportCollection
-            .find()
-            .sort({ dateTime: -1 })
-            .toArray();
-          res.send(result);
+          const messages = await customerSupportCollection.find().toArray();
+
+          messages.sort((a, b) => {
+            const getLastActivity = (msg) => {
+              if (Array.isArray(msg.replies) && msg.replies.length > 0) {
+                const lastReply = msg.replies[msg.replies.length - 1];
+                return new Date(lastReply.dateTime).getTime();
+              }
+              return new Date(msg.dateTime).getTime(); // fallback to message time
+            };
+
+            return getLastActivity(b) - getLastActivity(a); // Descending order
+          });
+
+          res.send(messages);
         } catch (error) {
           console.error(
             "Error fetching Customer Support Information's:",
@@ -7660,6 +7670,8 @@ async function run() {
               envelope: true,
               source: true,
             })) {
+              if (message.uid <= startUID) continue; // ✅ Prevent duplicate processing
+
               const parsed = await simpleParser(message.source);
               const fromEmail = parsed.from?.value?.[0]?.address;
               const html = parsed.html || parsed.textAsHtml || parsed.text;
