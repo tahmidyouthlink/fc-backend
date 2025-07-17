@@ -7625,73 +7625,92 @@ async function run() {
       }
     );
 
-    app.post("/email-receive", upload.none(), async (req, res) => {
-      try {
-        // Mailgun sends email fields in req.body
-        const {
-          recipient: recipient,
-          sender: sender,
-          subject: subject,
-          "body-html": bodyHtml,
-          "body-plain": bodyPlain,
-          "stripped-text": strippedText,
-          timestamp: timestamp,
-          "Message-Id": messageId,
-        } = req.body;
+    app.post(
+      "/email-receive",
+      express.urlencoded({ extended: true }),
+      async (req, res) => {
+        try {
+          // Mailgun sends email fields in req.body
+          const {
+            recipient,
+            sender,
+            subject,
+            "body-html": bodyHtml,
+            "body-plain": bodyPlain,
+            "stripped-text": strippedText,
+            timestamp: timestamp,
+            "Message-Id": messageId,
+          } = req.body;
 
-        // Example: parse supportId from subject or email body (adjust regex to your needs)
-        let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
-        let supportId = supportIdMatch?.[1];
+          console.log("📌 Parsed fields:", {
+            recipient,
+            sender,
+            subject,
+            bodyHtml,
+            bodyPlain,
+            strippedText,
+            timestamp,
+            messageId,
+          });
 
-        if (!supportId && bodyHtml) {
-          const footerMatch = bodyHtml.match(
-            /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
-          );
-          supportId = footerMatch?.[1];
-        }
+          // Example: parse supportId from subject or email body (adjust regex to your needs)
+          let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
+          let supportId = supportIdMatch?.[1];
+          console.log("🆔 Extracted supportId from subject:", supportId);
 
-        const dateTime = timestamp
-          ? new Date(parseInt(timestamp) * 1000)
-          : new Date();
-
-        if (supportId) {
-          // Find existing thread by supportId
-          const thread = await customerSupportCollection.findOne({ supportId });
-
-          if (thread) {
-            // Update thread with new reply
-            await customerSupportCollection.updateOne(
-              { _id: thread._id },
-              {
-                $push: {
-                  replies: {
-                    from: "customer",
-                    html: bodyHtml || bodyPlain || strippedText || "",
-                    dateTime,
-                    messageId,
-                  },
-                },
-                $set: { isRead: false },
-              }
+          if (!supportId && bodyHtml) {
+            const footerMatch = bodyHtml.match(
+              /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
             );
-            console.log(`Added reply to supportId ${supportId}`);
-          } else {
-            // If no thread found, optionally create new one or log
-            console.warn(`Support ID ${supportId} not found in DB.`);
+            supportId = footerMatch?.[1];
+            console.log("🆔 Extracted supportId from footer:", supportId);
           }
-        } else {
-          console.warn(
-            "No support ID found in subject or footer. Cannot link message."
-          );
-        }
 
-        // Respond to Mailgun quickly
-        res.status(200).send("OK");
-      } catch (err) {
-        console.error("Error processing inbound email:", err);
-        res.status(500).send("Internal Server Error");
+          const dateTime = timestamp
+            ? new Date(parseInt(timestamp) * 1000)
+            : new Date();
+
+          if (supportId) {
+            // Find existing thread by supportId
+            const thread = await customerSupportCollection.findOne({
+              supportId,
+            });
+
+            if (thread) {
+              // Update thread with new reply
+              await customerSupportCollection.updateOne(
+                { _id: thread._id },
+                {
+                  $push: {
+                    replies: {
+                      from: "customer",
+                      html: bodyHtml || bodyPlain || strippedText || "",
+                      dateTime,
+                      messageId,
+                    },
+                  },
+                  $set: { isRead: false },
+                }
+              );
+              console.log(`Added reply to supportId ${supportId}`);
+            } else {
+              // If no thread found, optionally create new one or log
+              console.warn(`Support ID ${supportId} not found in DB.`);
+            }
+          } else {
+            console.warn(
+              "No support ID found in subject or footer. Cannot link message."
+            );
+          }
+
+          // Respond to Mailgun quickly
+          res.status(200).send("OK");
+        } catch (err) {
+          console.error("Error processing inbound email:", err);
+          res.status(500).send("Internal Server Error");
+        }
       }
-    });
+    );
 
     // const getLastProcessedUID = async () => {
     //   const meta = await imapCollection.findOne({ _id: "imap-tracking" });
