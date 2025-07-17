@@ -104,6 +104,7 @@ app.use(
 );
 app.use(compression());
 app.use(helmet());
+app.use(express.urlencoded({ extended: true }));
 
 const verifyJWT = (req, res, next) => {
   if (!req?.headers?.authorization) {
