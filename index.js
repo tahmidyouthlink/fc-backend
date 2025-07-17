@@ -7625,7 +7625,7 @@ async function run() {
       }
     );
 
-    app.post("/email-receive", async (req, res) => {
+    app.post("/email-receive", upload.none(), async (req, res) => {
       try {
         // Mailgun sends email fields in req.body
         const {
