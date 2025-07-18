@@ -2340,11 +2340,16 @@ async function run() {
 
         // Inject Support ID footer into the reply HTML
         const supportIdFooter = `
-  <hr style="margin-top:20px; border: none; border-top: 1px solid #ccc;" />
-  <p style="font-size: 12px; color: #777;">
-    Support ID: <strong>${message.supportId}</strong><br />
-    Please reference this ID in any future communication with us.
-  </p>
+  <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;" />
+  <div style="font-family: Arial, sans-serif; font-size: 13px; color: #555; line-height: 1.6;">
+    <p style="margin: 0 0 6px;">
+      If you need further assistance, please reply to this message.
+    </p>
+    <p style="margin: 0; font-size: 12px; color: #888;">
+      Support ID: <strong>${message.supportId}</strong><br />
+      Please include this ID in any future communication for faster service.
+    </p>
+  </div>
 `;
 
         // Combine original reply HTML + footer
@@ -7751,13 +7756,29 @@ async function run() {
 
           try {
             const startUID = await getLastProcessedUID();
+            const status = await imapClient.status("INBOX", { uidNext: true });
+            const uidNext = status.uidNext;
+            const adjustedStartUID = Math.max(startUID, uidNext - 1);
+
+            // 💥 Defensive skip if UID looks outdated
+            if (startUID < uidNext - 10) {
+              console.warn(
+                `[IMAP] Skipping fetch. startUID=${startUID}, uidNext=${uidNext}`
+              );
+              await setLastProcessedUID(uidNext - 1);
+              isFetching = false;
+              return;
+            }
 
             // Fetch new emails from last processed UID + 1
-            for await (let message of imapClient.fetch(`${startUID + 1}:*`, {
-              uid: true,
-              envelope: true,
-              source: true,
-            })) {
+            for await (let message of imapClient.fetch(
+              `${adjustedStartUID + 1}:*`,
+              {
+                uid: true,
+                envelope: true,
+                source: true,
+              }
+            )) {
               if (message.uid <= startUID) continue; // ✅ Prevent duplicate processing
 
               const parsed = await simpleParser(message.source);
