@@ -7642,83 +7642,129 @@ async function run() {
       express.urlencoded({ extended: true }),
       async (req, res) => {
         try {
-          // Mailgun sends email fields in req.body
+          // Log full payload for debugging
+          // console.log(
+          //   "Received webhook payload:",
+          //   JSON.stringify(req.body, null, 2)
+          // );
+
+          // Verify Mailgun webhook signature
+          const { timestamp, token, signature } = req.body;
+          const apiKey = process.env.MAILGUN_API_KEY; // Use the private API key
+          if (!timestamp || !token || !signature || !apiKey) {
+            console.warn("Missing signature fields or API key:", {
+              timestamp,
+              token,
+              signature,
+              apiKey,
+            });
+            return res.status(401).send("Invalid webhook signature");
+          }
+          const hmac = crypto
+            .createHmac("sha256", apiKey)
+            .update(`${timestamp}${token}`)
+            .digest("hex");
+          if (hmac !== signature) {
+            console.warn("Invalid webhook signature:", {
+              provided: signature,
+              computed: hmac,
+            });
+            return res.status(401).send("Invalid webhook signature");
+          }
+          // console.log("Webhook signature verified successfully");
+
+          // Extract fields
           const {
             recipient,
-            sender,
+            // sender,
             subject,
             "body-html": bodyHtml,
             "body-plain": bodyPlain,
             "stripped-text": strippedText,
-            timestamp: timestamp,
+            timestamp: emailTimestamp,
             "Message-Id": messageId,
           } = req.body;
 
-          // console.log("📌 Parsed fields:", {
-          //   recipient,
-          //   sender,
-          //   subject,
-          //   bodyHtml,
-          //   bodyPlain,
-          //   strippedText,
-          //   timestamp,
-          //   messageId,
-          // });
+          // Validate recipient
+          if (
+            !recipient ||
+            recipient.toLowerCase() !== "support@mg.poshax.shop"
+          ) {
+            console.warn("Invalid or missing recipient:", recipient);
+            return res.status(200).send("Invalid recipient");
+          }
 
-          // Example: parse supportId from subject or email body (adjust regex to your needs)
+          // Extract supportId from subject or body
           let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
           let supportId = supportIdMatch?.[1];
-          // console.log("🆔 Extracted supportId from subject:", supportId);
-
           if (!supportId && bodyHtml) {
             const footerMatch = bodyHtml.match(
               /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
             );
             supportId = footerMatch?.[1];
-            // console.log("🆔 Extracted supportId from footer:", supportId);
+          }
+          if (!supportId) {
+            console.warn("No supportId found in subject or body:", {
+              subject,
+              bodyHtml,
+            });
+            return res.status(200).send("No supportId found");
+          }
+          // console.log("Extracted supportId:", supportId);
+
+          // Check for duplicate messageId
+          if (messageId) {
+            const existingReply = await customerSupportCollection.findOne({
+              "replies.messageId": messageId,
+            });
+            if (existingReply) {
+              // console.log("Duplicate messageId detected:", messageId);
+              return res.status(200).send("Duplicate message");
+            }
           }
 
-          const dateTime = timestamp
-            ? new Date(parseInt(timestamp) * 1000)
+          // Convert timestamp to Date
+          const dateTime = emailTimestamp
+            ? new Date(parseInt(emailTimestamp) * 1000)
             : new Date();
 
-          if (supportId) {
-            // Find existing thread by supportId
-            const thread = await customerSupportCollection.findOne({
-              supportId,
-            });
-
-            if (thread) {
-              // Update thread with new reply
-              await customerSupportCollection.updateOne(
-                { _id: thread._id },
-                {
-                  $push: {
-                    replies: {
-                      from: "customer",
-                      html: bodyHtml || bodyPlain || strippedText || "",
-                      dateTime,
-                      messageId,
-                    },
-                  },
-                  $set: { isRead: false },
-                }
-              );
-              // console.log(`Added reply to supportId ${supportId}`);
-            } else {
-              // If no thread found, optionally create new one or log
-              console.warn(`Support ID ${supportId} not found in DB.`);
-            }
-          } else {
-            console.warn(
-              "No support ID found in subject or footer. Cannot link message."
-            );
+          // Find thread
+          const thread = await customerSupportCollection.findOne({ supportId });
+          if (!thread) {
+            console.warn("Support ID not found in database:", supportId);
+            return res.status(200).send("Support ID not found");
           }
 
-          // Respond to Mailgun quickly
-          res.status(200).send("OK");
+          // Create reply entry
+          const replyEntry = {
+            from: "customer",
+            html: bodyHtml || bodyPlain || strippedText || "",
+            dateTime,
+            messageId, // Continue storing messageId for tracking
+          };
+
+          // Update thread
+          const updateResult = await customerSupportCollection.updateOne(
+            { _id: thread._id },
+            {
+              $push: { replies: replyEntry },
+              $set: { isRead: false },
+            }
+          );
+
+          if (updateResult.modifiedCount === 1) {
+            // console.log("Reply stored successfully for supportId:", supportId);
+            res.status(200).send("OK");
+          } else {
+            console.error("Failed to update database: No document modified");
+            res.status(500).send("Failed to update database");
+          }
         } catch (err) {
-          console.error("Error processing inbound email:", err);
+          console.error(
+            "Error processing inbound email:",
+            err.message,
+            err.stack
+          );
           res.status(500).send("Internal Server Error");
         }
       }
