@@ -2363,7 +2363,7 @@ async function run() {
         };
 
         const mailOptions = {
-          from: `"PoshaX Support Team" <${process.env.EMAIL_USER}>`,
+          from: `"PoshaX Support Team" <${process.env.SUPPORT_EMAIL}>`,
           to: message.email,
           subject: `Re: [${message.supportId}] ${message.topic}`,
           html: fullHtml,
@@ -7630,6 +7630,41 @@ async function run() {
       }
     );
 
+    app.post("/inbound-email", async (req, res) => {
+      try {
+        const {
+          recipient,
+          subject,
+          "stripped-html": strippedHtml,
+          "stripped-text": strippedText,
+        } = req.body;
+        if (recipient !== "support@mg.poshax.shop") {
+          return res.status(200).send("Invalid recipient");
+        }
+        const supportIdMatch = subject.match(/\[(\d+)\]/);
+        if (!supportIdMatch) return res.status(200).send("No Support ID found");
+        const supportId = supportIdMatch[1];
+
+        const message = await customerSupportCollection.findOne({ supportId });
+        if (!message) return res.status(200).send("Support ID not found");
+
+        const replyEntry = {
+          from: "customer",
+          html: strippedHtml || strippedText,
+          dateTime: new Date().toISOString(),
+        };
+
+        await customerSupportCollection.updateOne(
+          { _id: message._id },
+          { $push: { replies: replyEntry } }
+        );
+        res.status(200).send("Reply stored successfully");
+      } catch (error) {
+        console.error("Error processing inbound email:", error);
+        res.status(500).send("Internal server error");
+      }
+    });
+
     // app.post(
     //   "/email-receive",
     //   express.urlencoded({ extended: true }),
@@ -7717,160 +7752,160 @@ async function run() {
     //   }
     // );
 
-    const getLastProcessedUID = async () => {
-      const meta = await imapCollection.findOne({ _id: "imap-tracking" });
-      return meta?.lastProcessedUID || 0;
-    };
+    // const getLastProcessedUID = async () => {
+    //   const meta = await imapCollection.findOne({ _id: "imap-tracking" });
+    //   return meta?.lastProcessedUID || 0;
+    // };
 
-    const setLastProcessedUID = async (uid) => {
-      await imapCollection.updateOne(
-        { _id: "imap-tracking" },
-        { $set: { lastProcessedUID: uid } },
-        { upsert: true }
-      );
-    };
+    // const setLastProcessedUID = async (uid) => {
+    //   await imapCollection.updateOne(
+    //     { _id: "imap-tracking" },
+    //     { $set: { lastProcessedUID: uid } },
+    //     { upsert: true }
+    //   );
+    // };
 
-    const runImapListener = async () => {
-      const imapClient = new ImapFlow({
-        host: process.env.IMAP_HOST,
-        port: process.env.IMAP_PORT,
-        secure: true,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-        logger: false,
-      });
+    // const runImapListener = async () => {
+    //   const imapClient = new ImapFlow({
+    //     host: process.env.IMAP_HOST,
+    //     port: process.env.IMAP_PORT,
+    //     secure: true,
+    //     auth: {
+    //       user: process.env.EMAIL_USER,
+    //       pass: process.env.EMAIL_PASS,
+    //     },
+    //     logger: false,
+    //   });
 
-      await imapClient.connect();
+    //   await imapClient.connect();
 
-      let lock;
-      try {
-        lock = await imapClient.getMailboxLock("INBOX");
+    //   let lock;
+    //   try {
+    //     lock = await imapClient.getMailboxLock("INBOX");
 
-        let isFetching = false;
+    //     let isFetching = false;
 
-        imapClient.on("exists", async () => {
-          if (isFetching) return; // Prevent overlapping fetches
-          isFetching = true;
+    //     imapClient.on("exists", async () => {
+    //       if (isFetching) return; // Prevent overlapping fetches
+    //       isFetching = true;
 
-          try {
-            const startUID = await getLastProcessedUID();
-            const status = await imapClient.status("INBOX", { uidNext: true });
-            const uidNext = status.uidNext;
-            const adjustedStartUID = Math.max(startUID, uidNext - 1);
+    //       try {
+    //         const startUID = await getLastProcessedUID();
+    //         const status = await imapClient.status("INBOX", { uidNext: true });
+    //         const uidNext = status.uidNext;
+    //         const adjustedStartUID = Math.max(startUID, uidNext - 1);
 
-            // 💥 Defensive skip if UID looks outdated
-            if (startUID < uidNext - 10) {
-              console.warn(
-                `[IMAP] Skipping fetch. startUID=${startUID}, uidNext=${uidNext}`
-              );
-              await setLastProcessedUID(uidNext - 1);
-              isFetching = false;
-              return;
-            }
+    //         // 💥 Defensive skip if UID looks outdated
+    //         if (startUID < uidNext - 10) {
+    //           console.warn(
+    //             `[IMAP] Skipping fetch. startUID=${startUID}, uidNext=${uidNext}`
+    //           );
+    //           await setLastProcessedUID(uidNext - 1);
+    //           isFetching = false;
+    //           return;
+    //         }
 
-            // Fetch new emails from last processed UID + 1
-            for await (let message of imapClient.fetch(
-              `${adjustedStartUID + 1}:*`,
-              {
-                uid: true,
-                envelope: true,
-                source: true,
-              }
-            )) {
-              if (message.uid <= startUID) continue; // ✅ Prevent duplicate processing
+    //         // Fetch new emails from last processed UID + 1
+    //         for await (let message of imapClient.fetch(
+    //           `${adjustedStartUID + 1}:*`,
+    //           {
+    //             uid: true,
+    //             envelope: true,
+    //             source: true,
+    //           }
+    //         )) {
+    //           if (message.uid <= startUID) continue; // ✅ Prevent duplicate processing
 
-              const parsed = await simpleParser(message.source);
-              const fromEmail = parsed.from?.value?.[0]?.address;
-              const html = parsed.html || parsed.textAsHtml || parsed.text;
-              const dateTime = parsed.date || new Date().toISOString();
-              const subject = parsed.subject || "";
+    //           const parsed = await simpleParser(message.source);
+    //           const fromEmail = parsed.from?.value?.[0]?.address;
+    //           const html = parsed.html || parsed.textAsHtml || parsed.text;
+    //           const dateTime = parsed.date || new Date().toISOString();
+    //           const subject = parsed.subject || "";
 
-              // Skip self-sent support emails
-              if (fromEmail === process.env.EMAIL_USER) continue;
+    //           // Skip self-sent support emails
+    //           if (fromEmail === process.env.EMAIL_USER) continue;
 
-              // === Extract supportId from subject if present ===
-              let supportIdMatch = subject.match(/\[(SUP-\d{8}-\d+)\]/);
-              let supportId = supportIdMatch?.[1];
+    //           // === Extract supportId from subject if present ===
+    //           let supportIdMatch = subject.match(/\[(SUP-\d{8}-\d+)\]/);
+    //           let supportId = supportIdMatch?.[1];
 
-              // === If not found in subject, try extracting from footer in HTML ===
-              if (!supportId && html) {
-                const footerMatch = html.match(
-                  /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
-                );
-                supportId = footerMatch?.[1];
-              }
+    //           // === If not found in subject, try extracting from footer in HTML ===
+    //           if (!supportId && html) {
+    //             const footerMatch = html.match(
+    //               /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
+    //             );
+    //             supportId = footerMatch?.[1];
+    //           }
 
-              if (supportId) {
-                const thread = await customerSupportCollection.findOne({
-                  supportId,
-                });
+    //           if (supportId) {
+    //             const thread = await customerSupportCollection.findOne({
+    //               supportId,
+    //             });
 
-                if (thread) {
-                  await customerSupportCollection.updateOne(
-                    { _id: thread._id },
-                    {
-                      $push: {
-                        replies: {
-                          from: "customer",
-                          html,
-                          dateTime,
-                        },
-                      },
-                      $set: {
-                        isRead: false,
-                      },
-                    }
-                  );
-                } else {
-                  console.warn(
-                    "Support ID found but no matching thread in DB:",
-                    supportId
-                  );
-                }
-              } else {
-                // await customerSupportCollection.insertOne({
+    //             if (thread) {
+    //               await customerSupportCollection.updateOne(
+    //                 { _id: thread._id },
+    //                 {
+    //                   $push: {
+    //                     replies: {
+    //                       from: "customer",
+    //                       html,
+    //                       dateTime,
+    //                     },
+    //                   },
+    //                   $set: {
+    //                     isRead: false,
+    //                   },
+    //                 }
+    //               );
+    //             } else {
+    //               console.warn(
+    //                 "Support ID found but no matching thread in DB:",
+    //                 supportId
+    //               );
+    //             }
+    //           } else {
+    //             // await customerSupportCollection.insertOne({
 
-                //   email: fromEmail,
-                //   name: parsed.from?.text,
-                //   topic: parsed.subject,
-                //   message: html,
-                //   dateTime,
-                //   replies: [],
-                //   isRead: false,
-                //   supportId: null,
-                //   status: "untracked", // or "unlinked"
-                //   source: "direct-email",
-                // });
-                console.warn(
-                  "No support ID found in subject or footer. Cannot link message."
-                );
-              }
+    //             //   email: fromEmail,
+    //             //   name: parsed.from?.text,
+    //             //   topic: parsed.subject,
+    //             //   message: html,
+    //             //   dateTime,
+    //             //   replies: [],
+    //             //   isRead: false,
+    //             //   supportId: null,
+    //             //   status: "untracked", // or "unlinked"
+    //             //   source: "direct-email",
+    //             // });
+    //             console.warn(
+    //               "No support ID found in subject or footer. Cannot link message."
+    //             );
+    //           }
 
-              // Save processed UID after handling each message
-              await setLastProcessedUID(message.uid);
-            }
-          } catch (err) {
-            console.error("Error processing new messages:", err);
-          } finally {
-            isFetching = false;
-          }
-        });
-      } catch (err) {
-        console.error("Error during IMAP listener setup:", err);
-      } finally {
-        if (lock) {
-          try {
-            await lock.release();
-          } catch (releaseErr) {
-            console.error("Failed to release mailbox lock:", releaseErr);
-          }
-        }
-      }
-    };
+    //           // Save processed UID after handling each message
+    //           await setLastProcessedUID(message.uid);
+    //         }
+    //       } catch (err) {
+    //         console.error("Error processing new messages:", err);
+    //       } finally {
+    //         isFetching = false;
+    //       }
+    //     });
+    //   } catch (err) {
+    //     console.error("Error during IMAP listener setup:", err);
+    //   } finally {
+    //     if (lock) {
+    //       try {
+    //         await lock.release();
+    //       } catch (releaseErr) {
+    //         console.error("Failed to release mailbox lock:", releaseErr);
+    //       }
+    //     }
+    //   }
+    // };
 
-    runImapListener().catch(console.dir);
+    // runImapListener().catch(console.dir);
 
     await client.db("admin").command({ ping: 1 });
     console.log(
