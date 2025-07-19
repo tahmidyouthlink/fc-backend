@@ -18,7 +18,6 @@ const os = require("os");
 const moment = require("moment-timezone");
 const compression = require("compression");
 const helmet = require("helmet");
-const nodemailer = require("nodemailer");
 const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
@@ -2366,16 +2365,7 @@ async function run() {
           html: fullHtml,
         };
 
-        const transport2 = nodemailer.createTransport({
-          host: "smtp.mailgun.org",
-          port: 587,
-          auth: {
-            user: "support@mg.poshax.shop",
-            pass: process.env.EMAIL_PASS, // From Mailgun dashboard
-          },
-        });
-
-        const mailResult = await transport2.sendMail(mailOptions);
+        const mailResult = await transport.sendMail(mailOptions);
         console.log(mailResult, "mailResult");
 
         if (
@@ -7645,7 +7635,7 @@ async function run() {
           // Mailgun sends email fields in req.body
           const {
             recipient,
-            // sender,
+            sender,
             subject,
             "body-html": bodyHtml,
             "body-plain": bodyPlain,
@@ -7668,7 +7658,7 @@ async function run() {
           // Validate recipient
           if (
             !recipient ||
-            recipient.toLowerCase() !== "support@mg.poshax.shop"
+            recipient.toLowerCase() !== process.env.SUPPORT_EMAIL
           ) {
             console.warn("Invalid or missing recipient:", recipient);
             return res.status(200).send("Invalid recipient");
@@ -7687,56 +7677,114 @@ async function run() {
             // console.log("🆔 Extracted supportId from footer:", supportId);
           }
 
+          // Find existing thread
+          let thread;
+          let isNewThread = false;
+          if (supportId) {
+            // Look for thread by supportId (replies)
+            thread = await customerSupportCollection.findOne({ supportId });
+          } else {
+            // For direct emails, check if a thread exists for the sender without a reply containing a supportId
+            thread = await customerSupportCollection.findOne({
+              email: sender,
+              "replies.messageId": { $ne: messageId }, // Avoid matching the current email
+            });
+          }
+
+          // Generate new supportId and create thread if none exists
+          if (!thread) {
+            // Generate new supportId if none found
+            const dateStr = moment().tz("Asia/Dhaka").format("YYYYMMDD");
+            // Step 1: Count how many requests today already exist
+            const countToday = await customerSupportCollection.countDocuments({
+              supportId: { $regex: `^SUP-${dateStr}-` },
+            });
+
+            // Step 2: Format counter (001, 002, etc.)
+            const paddedCounter = String(countToday + 1).padStart(3, "0");
+
+            // Step 3: Generate supportId
+            supportId = `SUP-${dateStr}-${paddedCounter}`;
+            // console.log("Generated new supportId:", supportId);
+
+            thread = {
+              supportId,
+              email: sender,
+              name: null,
+              phone: null,
+              topic: subject || "Direct Email Inquiry",
+              replies: [],
+              isRead: false,
+              dateTime: new Date(
+                emailTimestamp ? parseInt(emailTimestamp) * 1000 : Date.now()
+              ),
+            };
+            const insertResult = await customerSupportCollection.insertOne(
+              thread
+            );
+            isNewThread = !!insertResult.insertedId; // Mark as new thread if inserted
+            // console.log("Created new thread for supportId:", supportId);
+          }
+
           // Check for duplicate messageId
           if (messageId) {
             const existingReply = await customerSupportCollection.findOne({
               "replies.messageId": messageId,
             });
             if (existingReply) {
-              // console.log("Duplicate messageId detected:", messageId);
+              console.log("Duplicate messageId detected:", messageId);
               return res.status(200).send("Duplicate message");
             }
           }
 
-          const dateTime = timestamp
-            ? new Date(parseInt(timestamp) * 1000)
+          // Convert timestamp to Date
+          const dateTime = emailTimestamp
+            ? new Date(parseInt(emailTimestamp) * 1000)
             : new Date();
 
-          if (supportId) {
-            // Find existing thread by supportId
-            const thread = await customerSupportCollection.findOne({
-              supportId,
-            });
+          // Create reply entry
+          const replyEntry = {
+            from: "customer",
+            html: bodyHtml || bodyPlain || strippedText || "",
+            dateTime,
+            messageId,
+          };
 
-            if (thread) {
-              // Update thread with new reply
-              await customerSupportCollection.updateOne(
-                { _id: thread._id },
-                {
-                  $push: {
-                    replies: {
-                      from: "customer",
-                      html: bodyHtml || bodyPlain || strippedText || "",
-                      dateTime,
-                      messageId,
-                    },
-                  },
-                  $set: { isRead: false },
-                }
-              );
-              // console.log(`Added reply to supportId ${supportId}`);
-            } else {
-              // If no thread found, optionally create new one or log
-              console.warn(`Support ID ${supportId} not found in DB.`);
+          // Update thread
+          const updateResult = await customerSupportCollection.updateOne(
+            { supportId },
+            {
+              $push: { replies: replyEntry },
+              $set: { isRead: false },
             }
-          } else {
-            console.warn(
-              "No support ID found in subject or footer. Cannot link message."
-            );
-          }
+          );
 
-          // Respond to Mailgun quickly
-          res.status(200).send("OK");
+          // Check if update or insert was successful
+          if (updateResult.modifiedCount === 1 || isNewThread) {
+            // console.log("Reply stored successfully for supportId:", supportId);
+
+            // Send confirmation email only for new threads
+            if (isNewThread) {
+              const mailOptions = {
+                from: `"PoshaX Support Team" <${process.env.SUPPORT_EMAIL}>`,
+                to: sender,
+                subject: `[${supportId}] Your Support Request`,
+                html: `
+            <p>Thank you for contacting PoshaX Support. We have received your request and will respond soon.</p>
+            <p>Support ID: <strong>${supportId}</strong></p>
+            <p>Please include this Support ID in any further communication.</p>
+          `,
+              };
+
+              await transport.sendMail(mailOptions);
+              // console.log("Confirmation email sent to:", sender);
+            }
+
+            res.status(200).send("OK");
+          } else {
+            console.error("Failed to update database: No document modified");
+            res.status(500).send("Failed to update database");
+          }
         } catch (err) {
           console.error("Error processing inbound email:", err);
           res.status(500).send("Internal Server Error");
