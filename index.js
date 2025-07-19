@@ -103,7 +103,6 @@ app.use(
 );
 app.use(compression());
 app.use(helmet());
-// app.use(express.urlencoded({ extended: true }));
 
 const verifyJWT = (req, res, next) => {
   if (!req?.headers?.authorization) {
@@ -307,7 +306,6 @@ async function run() {
     const customerSupportCollection = client
       .db("fashion-commerce")
       .collection("customer-support");
-    const imapCollection = client.db("fashion-commerce").collection("imapMeta");
 
     // Generate a 6-digit OTP as a string
     function generateOtp() {
@@ -7656,28 +7654,28 @@ async function run() {
             "Message-Id": messageId,
           } = req.body;
 
-          console.log("📌 Parsed fields:", {
-            recipient,
-            sender,
-            subject,
-            bodyHtml,
-            bodyPlain,
-            strippedText,
-            timestamp,
-            messageId,
-          });
+          // console.log("📌 Parsed fields:", {
+          //   recipient,
+          //   sender,
+          //   subject,
+          //   bodyHtml,
+          //   bodyPlain,
+          //   strippedText,
+          //   timestamp,
+          //   messageId,
+          // });
 
           // Example: parse supportId from subject or email body (adjust regex to your needs)
           let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
           let supportId = supportIdMatch?.[1];
-          console.log("🆔 Extracted supportId from subject:", supportId);
+          // console.log("🆔 Extracted supportId from subject:", supportId);
 
           if (!supportId && bodyHtml) {
             const footerMatch = bodyHtml.match(
               /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
             );
             supportId = footerMatch?.[1];
-            console.log("🆔 Extracted supportId from footer:", supportId);
+            // console.log("🆔 Extracted supportId from footer:", supportId);
           }
 
           const dateTime = timestamp
@@ -7706,7 +7704,7 @@ async function run() {
                   $set: { isRead: false },
                 }
               );
-              console.log(`Added reply to supportId ${supportId}`);
+              // console.log(`Added reply to supportId ${supportId}`);
             } else {
               // If no thread found, optionally create new one or log
               console.warn(`Support ID ${supportId} not found in DB.`);
