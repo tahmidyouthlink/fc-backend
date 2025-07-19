@@ -2375,7 +2375,7 @@ async function run() {
           port: 587,
           auth: {
             user: "support@mg.poshax.shop",
-            pass: process.env.MAILGUN_SMTP_PASSWORD, // From Mailgun dashboard
+            pass: process.env.EMAIL_PASS, // From Mailgun dashboard
           },
         });
 
