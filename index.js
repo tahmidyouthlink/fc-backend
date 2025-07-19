@@ -20,6 +20,7 @@ const compression = require("compression");
 const helmet = require("helmet");
 const { ImapFlow } = require("imapflow");
 const { simpleParser } = require("mailparser");
+const nodemailer = require("nodemailer");
 const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
@@ -2369,7 +2370,16 @@ async function run() {
           html: fullHtml,
         };
 
-        const mailResult = await transport.sendMail(mailOptions);
+        const transport2 = nodemailer.createTransport({
+          host: "smtp.mailgun.org",
+          port: 587,
+          auth: {
+            user: "support@mg.poshax.shop",
+            pass: process.env.MAILGUN_SMTP_PASSWORD, // From Mailgun dashboard
+          },
+        });
+
+        const mailResult = await transport2.sendMail(mailOptions);
 
         if (
           mailResult &&
