@@ -7,7 +7,6 @@ const crypto = require("crypto");
 const multer = require("multer");
 const rateLimit = require("express-rate-limit");
 const { Storage } = require("@google-cloud/storage");
-const nodemailer = require("nodemailer");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 require("dotenv").config();
@@ -36,6 +35,7 @@ const {
 } = require("./utils/orderCalculations");
 const sendEmailToCustomer = require("./utils/email/sendEmailToCustomer");
 const transport = require("./utils/email/transport");
+const transportViaMailGun = require("./utils/email/transportViaMailGun");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -2365,15 +2365,6 @@ async function run() {
           subject: `Re: [${message.supportId}] ${message.topic}`,
           html: fullHtml,
         };
-
-        const transportViaMailGun = nodemailer.createTransport({
-          host: "smtp.mailgun.org",
-          port: 587,
-          auth: {
-            user: "support@mg.poshax.shop",
-            pass: process.env.EMAIL_PASS, // From Mailgun dashboard
-          },
-        });
 
         const mailResult = await transportViaMailGun.sendMail(mailOptions);
 
@@ -7784,7 +7775,7 @@ async function run() {
           `,
               };
 
-              await transport.sendMail(mailOptions);
+              await transportViaMailGun.sendMail(mailOptions);
               // console.log("Confirmation email sent to:", sender);
             }
 
