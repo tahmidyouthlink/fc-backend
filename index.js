@@ -7694,10 +7694,12 @@ async function run() {
             // console.log("🆔 Extracted supportId from footer:", supportId);
           }
 
+          // Validate timestamp
           const dateTime =
             timestamp && !isNaN(parseInt(timestamp))
-              ? new Date(parseInt(timestamp) * 1000)
-              : new Date();
+              ? new Date(parseInt(timestamp) * 1000).toISOString()
+              : new Date().toISOString();
+          // console.log('Generated dateTime:', { dateTime, sender });
 
           // Find existing thread
           let thread;
@@ -7745,64 +7747,78 @@ async function run() {
             );
             isNewThread = !!insertResult.insertedId; // Mark as new thread if inserted
             // console.log("Created new thread for supportId:", supportId);
-          }
+          } else {
+            // Check for duplicate messageId
+            if (messageId) {
+              const existingReply = await customerSupportCollection.findOne({
+                "replies.messageId": messageId,
+              });
+              if (existingReply) {
+                // console.log("Duplicate messageId detected:", messageId);
+                return res.status(200).send("Duplicate message");
+              }
+            }
 
-          // Check for duplicate messageId
-          if (messageId) {
-            const existingReply = await customerSupportCollection.findOne({
-              "replies.messageId": messageId,
-            });
-            if (existingReply) {
-              // console.log("Duplicate messageId detected:", messageId);
-              return res.status(200).send("Duplicate message");
+            // Create reply entry for follow-up emails
+            const replyEntry = {
+              from: "customer",
+              html: bodyHtml || bodyPlain || strippedText || "",
+              dateTime,
+              messageId,
+            };
+            // console.log("Created reply entry:", { replyEntry, sender });
+
+            // Update existing thread with new reply
+            // console.log("Updating thread with supportId:", {
+            //   supportId,
+            //   sender,
+            // });
+            const updateResult = await customerSupportCollection.updateOne(
+              { supportId },
+              {
+                $push: { replies: replyEntry },
+                $set: { isRead: false },
+              }
+            );
+            // console.log("Update result:", { updateResult, sender });
+
+            if (updateResult.modifiedCount !== 1) {
+              console.error(
+                "Failed to update database: No document modified for supportId:",
+                {
+                  supportId,
+                  sender,
+                }
+              );
+              return res.status(500).send("Failed to update database");
             }
           }
 
-          // Create reply entry
-          const replyEntry = {
-            from: "customer",
-            html: bodyHtml || bodyPlain || strippedText || "",
-            dateTime,
-            messageId,
-          };
-
-          // Update thread
-          const updateResult = await customerSupportCollection.updateOne(
-            { supportId },
-            {
-              $push: { replies: replyEntry },
-              $set: { isRead: false },
-            }
-          );
-
-          // Check if update or insert was successful
-          if (updateResult.modifiedCount === 1 || isNewThread) {
-            // console.log("Reply stored successfully for supportId:", supportId);
-
-            // Send confirmation email only for new threads
-            if (isNewThread) {
-              const mailOptions = {
-                from: `"PoshaX Support Team" <${process.env.SUPPORT_EMAIL}>`,
-                to: sender,
-                subject: `[${supportId}] Your Support Request`,
-                html: `
+          // Send confirmation email only for new threads
+          if (isNewThread) {
+            const mailOptions = {
+              from: `"PoshaX Support Team" <${process.env.SUPPORT_EMAIL}>`,
+              to: sender,
+              subject: `[${supportId}] Your Support Request`,
+              html: `
             <p>Thank you for contacting PoshaX Support. We have received your request and will respond soon.</p>
             <p>Support ID: <strong>${supportId}</strong></p>
             <p>Please include this Support ID in any further communication.</p>
           `,
-              };
+            };
 
-              await transportViaMailGun.sendMail(mailOptions);
-              // console.log("Confirmation email sent to:", sender);
-            }
-
-            res.status(200).send("OK");
-          } else {
-            console.error("Failed to update database: No document modified");
-            res.status(500).send("Failed to update database");
+            await transportViaMailGun.sendMail(mailOptions);
+            // console.log("Confirmation email sent to:", sender);
           }
+          res.status(200).send("OK");
         } catch (err) {
-          console.error("Error processing inbound email:", err);
+          console.error("Error processing inbound email:", {
+            message: err.message,
+            stack: err.stack,
+            sender,
+            supportId,
+            timestamp: new Date().toISOString(),
+          });
           res.status(500).send("Internal Server Error");
         }
       }
