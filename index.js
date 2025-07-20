@@ -7640,20 +7640,20 @@ async function run() {
             "body-html": bodyHtml,
             "body-plain": bodyPlain,
             "stripped-text": strippedText,
-            timestamp: timestamp,
+            timestamp,
             "Message-Id": messageId,
           } = req.body;
 
-          // console.log("📌 Parsed fields:", {
-          //   recipient,
-          //   sender,
-          //   subject,
-          //   bodyHtml,
-          //   bodyPlain,
-          //   strippedText,
-          //   timestamp,
-          //   messageId,
-          // });
+          console.log("📌 Parsed fields:", {
+            recipient,
+            sender,
+            subject,
+            bodyHtml,
+            bodyPlain,
+            strippedText,
+            timestamp,
+            messageId,
+          });
 
           // Validate recipient
           if (
@@ -7667,15 +7667,20 @@ async function run() {
           // Example: parse supportId from subject or email body (adjust regex to your needs)
           let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
           let supportId = supportIdMatch?.[1];
-          // console.log("🆔 Extracted supportId from subject:", supportId);
+          console.log("🆔 Extracted supportId from subject:", supportId);
 
           if (!supportId && bodyHtml) {
             const footerMatch = bodyHtml.match(
               /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
             );
             supportId = footerMatch?.[1];
-            // console.log("🆔 Extracted supportId from footer:", supportId);
+            console.log("🆔 Extracted supportId from footer:", supportId);
           }
+
+          const dateTime =
+            timestamp && !isNaN(parseInt(timestamp))
+              ? new Date(parseInt(timestamp) * 1000)
+              : new Date();
 
           // Find existing thread
           let thread;
@@ -7715,15 +7720,13 @@ async function run() {
               topic: subject || "Direct Email Inquiry",
               replies: [],
               isRead: false,
-              dateTime: new Date(
-                emailTimestamp ? parseInt(emailTimestamp) * 1000 : Date.now()
-              ),
+              dateTime,
             };
             const insertResult = await customerSupportCollection.insertOne(
               thread
             );
             isNewThread = !!insertResult.insertedId; // Mark as new thread if inserted
-            // console.log("Created new thread for supportId:", supportId);
+            console.log("Created new thread for supportId:", supportId);
           }
 
           // Check for duplicate messageId
@@ -7736,10 +7739,6 @@ async function run() {
               return res.status(200).send("Duplicate message");
             }
           }
-
-          const dateTime = timestamp
-            ? new Date(parseInt(timestamp) * 1000)
-            : new Date();
 
           // Create reply entry
           const replyEntry = {
@@ -7776,7 +7775,7 @@ async function run() {
               };
 
               await transportViaMailGun.sendMail(mailOptions);
-              // console.log("Confirmation email sent to:", sender);
+              console.log("Confirmation email sent to:", sender);
             }
 
             res.status(200).send("OK");
