@@ -4,7 +4,7 @@ const transportViaMailGun = nodemailer.createTransport({
   host: "smtp.mailgun.org",
   port: 587,
   auth: {
-    user: "support@mg.poshax.shop",
+    user: process.env.SUPPORT_EMAIL,
     pass: process.env.EMAIL_PASS, // From Mailgun dashboard
   },
 });
