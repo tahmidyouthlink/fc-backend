@@ -7636,6 +7636,7 @@ async function run() {
           const {
             recipient,
             sender,
+            From: fromHeader,
             subject,
             "body-html": bodyHtml,
             "body-plain": bodyPlain,
@@ -7644,16 +7645,17 @@ async function run() {
             "Message-Id": messageId,
           } = req.body;
 
-          console.log("📌 Parsed fields:", {
-            recipient,
-            sender,
-            subject,
-            bodyHtml,
-            bodyPlain,
-            strippedText,
-            timestamp,
-            messageId,
-          });
+          // console.log("📌 Parsed fields:", {
+          //   recipient,
+          //   sender,
+          //   fromHeader,
+          //   subject,
+          //   bodyHtml,
+          //   bodyPlain,
+          //   strippedText,
+          //   timestamp,
+          //   messageId,
+          // });
 
           // Validate recipient
           if (
@@ -7664,17 +7666,32 @@ async function run() {
             return res.status(200).send("Invalid recipient");
           }
 
+          // Parse name from From header
+          let name = null;
+          if (fromHeader) {
+            const nameMatch =
+              fromHeader.match(/^([^<]+)\s*</) || fromHeader.match(/^([^@]+)@/);
+            if (nameMatch) {
+              name = nameMatch[1].trim();
+            }
+          }
+          // console.log("Parsed name from From header:", {
+          //   fromHeader,
+          //   name,
+          //   sender,
+          // });
+
           // Example: parse supportId from subject or email body (adjust regex to your needs)
           let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
           let supportId = supportIdMatch?.[1];
-          console.log("🆔 Extracted supportId from subject:", supportId);
+          // console.log("🆔 Extracted supportId from subject:", supportId);
 
           if (!supportId && bodyHtml) {
             const footerMatch = bodyHtml.match(
               /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
             );
             supportId = footerMatch?.[1];
-            console.log("🆔 Extracted supportId from footer:", supportId);
+            // console.log("🆔 Extracted supportId from footer:", supportId);
           }
 
           const dateTime =
@@ -7715,9 +7732,10 @@ async function run() {
             thread = {
               supportId,
               email: sender,
-              name: null,
+              name,
               phone: null,
               topic: subject || "Direct Email Inquiry",
+              message: bodyHtml || bodyPlain || strippedText || "",
               replies: [],
               isRead: false,
               dateTime,
@@ -7726,7 +7744,7 @@ async function run() {
               thread
             );
             isNewThread = !!insertResult.insertedId; // Mark as new thread if inserted
-            console.log("Created new thread for supportId:", supportId);
+            // console.log("Created new thread for supportId:", supportId);
           }
 
           // Check for duplicate messageId
@@ -7775,7 +7793,7 @@ async function run() {
               };
 
               await transportViaMailGun.sendMail(mailOptions);
-              console.log("Confirmation email sent to:", sender);
+              // console.log("Confirmation email sent to:", sender);
             }
 
             res.status(200).send("OK");
