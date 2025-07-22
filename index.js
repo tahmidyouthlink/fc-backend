@@ -36,6 +36,7 @@ const {
 const sendEmailToCustomer = require("./utils/email/sendEmailToCustomer");
 const transport = require("./utils/email/transport");
 const transportViaMailGun = require("./utils/email/transportViaMailGun");
+const getResetPasswordEmailOptions = require("./utils/email/getResetPasswordEmailOptions");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -2650,130 +2651,9 @@ async function run() {
           const resetLink = `${process.env.MAIN_DOMAIN_URL}/reset-password?token=${token}`;
           const fullName = userData?.userInfo?.personalInfo?.customerName;
 
-          const mailResult = await transport.sendMail({
-            from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: `Reset Password for ${process.env.WEBSITE_NAME}`,
-            text: `Hello ${fullName},
-            
-              You have requested to reset your ${process.env.WEBSITE_NAME} password for your ${email} account. Please use the button below to reset your password:
-            
-              Reset Link: ${resetLink}
-            
-              Please note that this is valid for **30 minutes**. If you didn't ask to reset your password, you can safely ignore this email.
-            
-              Thanks,  
-              ${process.env.WEBSITE_NAME} Team`,
-            html: `
-              <!DOCTYPE html>
-              <html lang="en">
-                <head>
-                  <meta charset="UTF-8" />
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                  <link
-                    href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap"
-                    rel="stylesheet"
-                  />
-                </head>
-                <body style="font-family: 'Oxygen', sans-serif; margin: 0; padding: 0">
-                  <div
-                    style="
-                      width: 100%;
-                      max-width: 600px;
-                      margin: 0 auto;
-                      background-color: #ffffff;
-                      border-radius: 14px;
-                      border: 1px solid #dfdfdf;
-                      padding: 32px;
-                    "
-                  >
-                    <div
-                      style="
-                        text-align: center;
-                        border-bottom: 1px solid #dfdfdf;
-                        height: fit-content;
-                      "
-                    >
-                      <h2
-                        style="
-                          color: #404040;
-                          font-size: 1.5rem;
-                          margin: 0;
-                          padding-bottom: 10px;
-                        "
-                      >
-                        Reset Password for ${process.env.WEBSITE_NAME}
-                      </h2>
-                    </div>
-                    <div>
-                      <p
-                        style="
-                          color: #525252;
-                          font-size: 1rem;
-                          line-height: 1.6;
-                          padding-top: 10px;
-                        "
-                      >
-                        Hello ${fullName},
-                      </p>
-                      <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                        You have requested to reset your ${process.env.WEBSITE_NAME} password for your
-                        <a href="mailto:${email}" style="color: #4d8944"
-                          >${email}</a
-                        >
-                        account. Please use the button below to reset your password:
-                      </p>
-                      <table
-                        role="presentation"
-                        width="100%"
-                        cellspacing="0"
-                        cellpadding="0"
-                        border="0"
-                      >
-                        <tr>
-                          <td align="center">
-                            <a
-                              href="${resetLink}"
-                              style="
-                                display: inline-block;
-                                font-size: 0.825rem;
-                                font-weight: 700;
-                                color: #404040;
-                                background-color: #d4ffce;
-                                padding: 12px 30px;
-                                text-decoration: none;
-                                border-radius: 8px;
-                                margin-top: 12px;
-                                margin-bottom: 24px;
-                              "
-                              >Reset Password</a
-                            >
-                          </td>
-                        </tr>
-                      </table>
-                      <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                        Please note that this is valid for <strong>30 minutes</strong>. If you
-                        didn't ask to reset your password, you can safely ignore this email.
-                      </p>
-                    </div>
-                    <div
-                      style="
-                        text-align: center;
-                        padding-top: 10px;
-                        font-size: 0.825rem;
-                        color: #737373;
-                      "
-                    >
-                      <p>
-                        Best Regards,<span style="display: block; margin-top: 2px"
-                          >${process.env.WEBSITE_NAME} Team</span
-                        >
-                      </p>
-                    </div>
-                  </div>
-                </body>
-              </html>`,
-          });
+          const mailResult = await transport.sendMail(
+            getResetPasswordEmailOptions(fullName, email, resetLink)
+          );
 
           // Check if email was sent successfully
           if (
