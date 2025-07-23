@@ -2015,14 +2015,14 @@ async function run() {
 
       // Step 1: Count how many requests today already exist
       const countToday = await customerSupportCollection.countDocuments({
-        supportId: { $regex: `^SUP-${dateStr}-` },
+        supportId: { $regex: `^PXT-${dateStr}-` },
       });
 
       // Step 2: Format counter (001, 002, etc.)
       const paddedCounter = String(countToday + 1).padStart(3, "0");
 
       // Step 3: Generate supportId
-      const supportId = `SUP-${dateStr}-${paddedCounter}`;
+      const supportId = `PXT-${dateStr}-${paddedCounter}`;
 
       const customerInput = {
         supportId,
@@ -7682,13 +7682,13 @@ async function run() {
           // });
 
           // Example: parse supportId from subject or email body (adjust regex to your needs)
-          let supportIdMatch = subject?.match(/\[(SUP-\d{8}-\d+)\]/);
+          let supportIdMatch = subject?.match(/\[(PXT-\d{8}-\d+)\]/);
           let supportId = supportIdMatch?.[1];
           // console.log("🆔 Extracted supportId from subject:", supportId);
 
           if (!supportId && bodyHtml) {
             const footerMatch = bodyHtml.match(
-              /Support ID:\s*<strong>(SUP-\d{8}-\d+)<\/strong>/i
+              /Support ID:\s*<strong>(PXT-\d{8}-\d+)<\/strong>/i
             );
             supportId = footerMatch?.[1];
             // console.log("🆔 Extracted supportId from footer:", supportId);
@@ -7721,14 +7721,14 @@ async function run() {
             const dateStr = moment().tz("Asia/Dhaka").format("YYYYMMDD");
             // Step 1: Count how many requests today already exist
             const countToday = await customerSupportCollection.countDocuments({
-              supportId: { $regex: `^SUP-${dateStr}-` },
+              supportId: { $regex: `^PXT-${dateStr}-` },
             });
 
             // Step 2: Format counter (001, 002, etc.)
             const paddedCounter = String(countToday + 1).padStart(3, "0");
 
             // Step 3: Generate supportId
-            supportId = `SUP-${dateStr}-${paddedCounter}`;
+            supportId = `PXT-${dateStr}-${paddedCounter}`;
             // console.log("Generated new supportId:", supportId);
 
             thread = {
