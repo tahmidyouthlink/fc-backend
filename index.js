@@ -7326,19 +7326,6 @@ async function run() {
             "attachment-count": attachmentCount,
           } = req.body;
 
-          // console.log("📌 Parsed fields:", {
-          //   recipient,
-          //   sender,
-          //   fromHeader,
-          //   subject,
-          //   bodyHtml,
-          //   bodyPlain,
-          //   strippedText,
-          //   timestamp,
-          //   messageId,
-          // attachmentCount,
-          // });
-
           // Validate recipient
           if (
             !recipient ||
@@ -7348,56 +7335,79 @@ async function run() {
             return res.status(200).send("Invalid recipient");
           }
 
-          // Parse attachments from req.files (multer)
-          const attachments = [];
-          const count = parseInt(attachmentCount) || 0;
-          if (req.files && req.files.length > 0) {
-            req.files.forEach((file, index) => {
-              console.log(`Processing attachment-${index + 1}:`, {
-                fieldname: file.fieldname,
-                originalname: file.originalname,
-                mimetype: file.mimetype,
-                size: file.size,
-              });
-              attachments.push({
-                url: "", // Mailgun provides URL via attachment-x, handled below
-                name: file.originalname || `attachment-${index + 1}`,
-                size: file.size || 0,
-                contentType: file.mimetype || "application/octet-stream",
-              });
-            });
+          let tempSupportId = null;
+          // Example: parse supportId from subject or email body (adjust regex to your needs)
+          let supportIdMatch = subject?.match(/\[(PXT-\d{8}-\d+)\]/);
+          supportId = supportIdMatch?.[1];
+          // console.log("🆔 Extracted supportId from subject:", supportId);
+
+          if (!supportId && bodyHtml) {
+            const footerMatch = bodyHtml.match(
+              /Support ID:\s*<strong>(PXT-\d{8}-\d+)<\/strong>/i
+            );
+            supportId = footerMatch?.[1];
+            // console.log("🆔 Extracted supportId from footer:", supportId);
           }
 
-          // Parse attachment metadata from req.body (Mailgun provides URLs)
-          for (let i = 1; i <= count; i++) {
-            const attachmentKey = `attachment-${i}`;
-            if (req.body[attachmentKey]) {
-              try {
-                const attachmentData = JSON.parse(req.body[attachmentKey]);
-                const index = attachments.findIndex(
-                  (a) => a.name === attachmentData.name
-                );
-                if (index !== -1) {
-                  attachments[index].url = attachmentData.url || "";
-                } else {
-                  attachments.push({
-                    url: attachmentData.url || "",
-                    name: attachmentData.name || `attachment-${i}`,
-                    size: attachmentData.size || 0,
-                    contentType:
-                      attachmentData["content-type"] ||
-                      "application/octet-stream",
-                  });
-                }
-              } catch (err) {
-                console.warn(`Failed to parse attachment-${i} metadata:`, {
-                  error: err.message,
-                  sender,
+          // Use temporary ID if supportId not found yet
+          tempSupportId = supportId || `temp-${Date.now()}`;
+
+          // Parse and upload attachments to GCS
+          const attachments = [];
+          if (req.files && req.files.length > 0) {
+            const uploadPromises = req.files.map((file) => {
+              return new Promise((resolve, reject) => {
+                const gcsFileName = `support-attachments/${tempSupportId}_${Date.now()}_${
+                  file.originalname
+                }`;
+                const blob = bucket.file(gcsFileName);
+                const blobStream = blob.createWriteStream({
+                  resumable: false,
+                  contentType: file.mimetype,
+                  metadata: { contentType: file.mimetype },
                 });
-              }
-            }
+
+                blobStream.on("error", (err) => {
+                  console.warn(`Failed to upload attachment to GCS:`, {
+                    error: err.message,
+                    file: file.originalname,
+                    sender,
+                  });
+                  reject(err);
+                });
+
+                blobStream.on("finish", async () => {
+                  try {
+                    await blob.acl.add({
+                      entity: "allUsers",
+                      role: "READER",
+                    });
+                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    console.log(`Uploaded attachment to GCS:`, {
+                      gcsFileName,
+                      publicUrl,
+                    });
+                    resolve({
+                      url: publicUrl,
+                      name:
+                        file.originalname ||
+                        `attachment-${attachments.length + 1}`,
+                      size: file.size || 0,
+                      contentType: file.mimetype || "application/octet-stream",
+                    });
+                  } catch (err) {
+                    reject(err);
+                  }
+                });
+
+                blobStream.end(file.buffer);
+              });
+            });
+
+            const uploadedAttachments = await Promise.all(uploadPromises);
+            attachments.push(...uploadedAttachments);
           }
-          console.log("Parsed attachments:", { attachments, sender });
+          // console.log("Parsed attachments:", { attachments, sender });
 
           // Parse name from From header
           let name = null;
@@ -7413,19 +7423,6 @@ async function run() {
           //   name,
           //   sender,
           // });
-
-          // Example: parse supportId from subject or email body (adjust regex to your needs)
-          let supportIdMatch = subject?.match(/\[(PXT-\d{8}-\d+)\]/);
-          supportId = supportIdMatch?.[1];
-          // console.log("🆔 Extracted supportId from subject:", supportId);
-
-          if (!supportId && bodyHtml) {
-            const footerMatch = bodyHtml.match(
-              /Support ID:\s*<strong>(PXT-\d{8}-\d+)<\/strong>/i
-            );
-            supportId = footerMatch?.[1];
-            // console.log("🆔 Extracted supportId from footer:", supportId);
-          }
 
           // Validate timestamp
           const dateTime =
@@ -7446,6 +7443,47 @@ async function run() {
               email: sender,
               topic: subject ? subject.trim() : "Direct Email Inquiry",
             });
+          }
+
+          // Rename GCS files with final supportId
+          if (attachments.length > 0) {
+            const updatePromises = attachments.map(async (attachment) => {
+              const oldFileName = attachment.url.split("/").pop();
+              const newFileName = oldFileName.replace(
+                /^[^_]+_/,
+                `${supportId || tempSupportId}_`
+              );
+              if (oldFileName !== newFileName) {
+                const oldFile = bucket.file(
+                  `support-attachments/${oldFileName}`
+                );
+                const newFile = bucket.file(
+                  `support-attachments/${newFileName}`
+                );
+                try {
+                  await oldFile.move(newFile);
+                  await newFile.acl.add({
+                    entity: "allUsers",
+                    role: "READER",
+                  });
+                  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${newFile.name}`;
+                  console.log(`Renamed GCS file:`, {
+                    oldFileName,
+                    newFileName,
+                    publicUrl,
+                  });
+                  attachment.url = publicUrl;
+                } catch (err) {
+                  console.warn(`Failed to rename GCS file:`, {
+                    error: err.message,
+                    oldFileName,
+                    newFileName,
+                    sender,
+                  });
+                }
+              }
+            });
+            await Promise.all(updatePromises);
           }
 
           // Generate new supportId and create thread if none exists
