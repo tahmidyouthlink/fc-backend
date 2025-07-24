@@ -7390,7 +7390,7 @@ async function run() {
             // For direct emails, check if a thread exists for the sender without a reply containing a supportId
             thread = await customerSupportCollection.findOne({
               email: sender,
-              // "replies.messageId": { $ne: messageId }, // Avoid matching the current email
+              topic: subject ? subject.trim() : "Direct Email Inquiry",
             });
           }
 
