@@ -7473,7 +7473,7 @@ async function run() {
 
           // Send confirmation email only for new threads
           if (isNewThread) {
-            await transport.sendMail(getContactEmailOptions(name, email));
+            await transport.sendMail(getContactEmailOptions(name, sender));
           }
           res.status(200).send("OK");
         } catch (err) {
