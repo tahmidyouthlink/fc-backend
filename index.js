@@ -2032,7 +2032,10 @@ async function run() {
         email,
         phone,
         topic,
-        message,
+        message: {
+          html: message,
+          attachments: [],
+        },
         isRead,
         replies: [],
         dateTime: date.toISOString(),
