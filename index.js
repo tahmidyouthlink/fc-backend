@@ -22,6 +22,7 @@ const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
 const {
+  checkIfSpecialOfferIsAvailable,
   calculateFinalPrice,
   calculateProductSpecialOfferDiscount,
   calculatePromoDiscount,
@@ -37,6 +38,7 @@ const sendEmailToCustomer = require("./utils/email/sendEmailToCustomer");
 const transport = require("./utils/email/transport");
 const getResetPasswordEmailOptions = require("./utils/email/getResetPasswordEmailOptions");
 const getContactEmailOptions = require("./utils/email/getContactEmailOptions");
+const getWelcomeEmailOptions = require("./utils/email/getWelcomeEmailOptions");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -1771,6 +1773,81 @@ async function run() {
                 .json({ message: "Failed to create an account." });
             }
 
+            const promo = {
+              code: "POSHAX10",
+              amount: "10%",
+            };
+
+            const productList = await productInformationCollection
+              .find()
+              .toArray();
+            const specialOffers = await offerCollection.find().toArray();
+            const primaryLocation = await locationCollection.findOne({
+              isPrimaryLocation: true,
+            });
+
+            const filteredProducts = productList
+              .filter((product) => {
+                const isInStock =
+                  product.productVariants
+                    ?.filter(
+                      (variant) =>
+                        variant?.location === primaryLocation.locationName
+                    )
+                    .reduce((acc, variant) => acc + Number(variant?.sku), 0) >
+                  0;
+
+                return (
+                  product.status === "active" &&
+                  !checkIfSpecialOfferIsAvailable(product, specialOffers) &&
+                  isInStock
+                );
+              })
+              .slice(0, 3);
+
+            const truncateTitle = (title, maxChars = 16) => {
+              return title.length > maxChars
+                ? title.slice(0, maxChars).trim() + "..."
+                : title;
+            };
+
+            const products = filteredProducts.map((product) => {
+              const title = truncateTitle(product.productTitle);
+              const pageUrl = `${
+                process.env.MAIN_DOMAIN_URL
+              }/product/${product.productTitle
+                .split(" ")
+                .join("-")
+                .toLowerCase()}`;
+              const imageUrl = product.productVariants[0].imageUrls[0];
+              const isOnlyRegularDiscountAvailable =
+                checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+              const price = calculateFinalPrice(product, specialOffers);
+              const originalPrice = isOnlyRegularDiscountAvailable
+                ? Number(product.regularPrice)
+                : null;
+
+              return {
+                title,
+                pageUrl,
+                imageUrl,
+                price,
+                originalPrice,
+              };
+            });
+
+            const mailResult = await transport.sendMail(
+              getWelcomeEmailOptions(name, email, promo, products)
+            );
+
+            // Check if email was sent successfully
+            if (!mailResult?.accepted?.length) {
+              return res.status(500).json({
+                success: false,
+                message: "Failed to send the welcome email.",
+              });
+            }
+
             return res
               .status(201)
               .json({ message: "Account created successfully." });
@@ -1847,142 +1924,66 @@ async function run() {
             await newsletterCollection.insertOne({ email: data.email });
         }
 
-        const name = data.name;
-        const promoCode = "POSHAX10";
-        const promoAmount = "10%";
+        const promo = {
+          code: "POSHAX10",
+          amount: "10%",
+        };
 
-        const mailResult = await transport.sendMail({
-          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-          to: data.email,
-          subject: `Welcome to ${process.env.WEBSITE_NAME}! Let's Get Posh!`,
-          text: `
-            Hi ${name},
-
-            We are thrilled to have you join our fashion-forward platform, ${process.env.WEBSITE_NAME}!
-
-            Expect exclusive drops, early access to new collections, and more!
-
-            Use the code ${promoCode} at checkout to get ${promoAmount} off your first order.
-          
-            Start shopping now!
-
-            Shop Now: ${process.env.MAIN_DOMAIN_URL}/shop
-          
-            Stay Posh
-            ${process.env.WEBSITE_NAME} Team
-          `,
-          html: `
-            <!DOCTYPE html>
-            <html lang="en">
-              <head>
-                <meta charset="UTF-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <link
-                  href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap"
-                  rel="stylesheet"
-                />
-              </head>
-              <body style="font-family: 'Oxygen', sans-serif; margin: 0; padding: 0">
-                <div
-                  style="
-                    width: 100%;
-                    max-width: 600px;
-                    margin: 0 auto;
-                    background-color: #ffffff;
-                    border-radius: 14px;
-                    border: 1px solid #dfdfdf;
-                    padding: 32px;
-                  "
-                >
-                  <div
-                    style="
-                      text-align: center;
-                      border-bottom: 1px solid #dfdfdf;
-                      height: fit-content;
-                    "
-                  >
-                    <h2
-                      style="
-                        color: #404040;
-                        font-size: 1.5rem;
-                        margin: 0;
-                        padding-bottom: 10px;
-                      "
-                    >
-                      Welcome to ${process.env.WEBSITE_NAME}! Let's Get Posh!
-                    </h2>
-                  </div>
-                  <div>
-                    <p
-                      style="
-                        color: #525252;
-                        font-size: 1rem;
-                        line-height: 1.6;
-                        padding-top: 10px;
-                      "
-                    >
-                      Hi ${name},
-                    </p>
-                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                      We are thrilled to have you join our fashion-forward platform,
-                      <strong>${process.env.WEBSITE_NAME}</strong>!
-                    </p>
-                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                      Expect exclusive drops, early access to new collections, and more!
-                    </p>
-                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                      Use the code <strong>${promoCode}</strong> at checkout to get ${promoAmount} off your first order.
-                    </p>
-                    <p style="color: #525252; font-size: 1rem; line-height: 1.6">
-                      Start shopping now!
-                    </p>
-                    <table
-                      role="presentation"
-                      width="100%"
-                      cellspacing="0"
-                      cellpadding="0"
-                      border="0"
-                    >
-                      <tr>
-                        <td align="center">
-                          <a
-                            href="${process.env.MAIN_DOMAIN_URL}/shop"
-                            style="
-                              display: inline-block;
-                              font-size: 0.825rem;
-                              font-weight: 700;
-                              color: #404040;
-                              background-color: #d4ffce;
-                              padding: 12px 30px;
-                              text-decoration: none;
-                              border-radius: 8px;
-                              margin-top: 12px;
-                              margin-bottom: 24px;
-                            "
-                            >Shop Now</a
-                          >
-                        </td>
-                      </tr>
-                    </table>
-                  </div>
-                  <div
-                    style="
-                      text-align: center;
-                      padding-top: 10px;
-                      font-size: 0.825rem;
-                      color: #737373;
-                    "
-                  >
-                    <p>
-                      Stay Posh
-                      <span style="display: block; margin-top: 2px">${process.env.WEBSITE_NAME} Team</span>
-                    </p>
-                  </div>
-                </div>
-              </body>
-            </html>
-          `,
+        const productList = await productInformationCollection.find().toArray();
+        const specialOffers = await offerCollection.find().toArray();
+        const primaryLocation = await locationCollection.findOne({
+          isPrimaryLocation: true,
         });
+
+        const filteredProducts = productList
+          .filter((product) => {
+            const isInStock =
+              product.productVariants
+                ?.filter(
+                  (variant) =>
+                    variant?.location === primaryLocation.locationName
+                )
+                .reduce((acc, variant) => acc + Number(variant?.sku), 0) > 0;
+
+            return (
+              product.status === "active" &&
+              !checkIfSpecialOfferIsAvailable(product, specialOffers) &&
+              isInStock
+            );
+          })
+          .slice(0, 3);
+
+        const truncateTitle = (title, maxChars = 16) => {
+          return title.length > maxChars
+            ? title.slice(0, maxChars).trim() + "..."
+            : title;
+        };
+
+        const products = filteredProducts.map((product) => {
+          const title = truncateTitle(product.productTitle);
+          const pageUrl = `${
+            process.env.MAIN_DOMAIN_URL
+          }/product/${product.productTitle.split(" ").join("-").toLowerCase()}`;
+          const imageUrl = product.productVariants[0].imageUrls[0];
+          const isOnlyRegularDiscountAvailable =
+            checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+          const price = calculateFinalPrice(product, specialOffers);
+          const originalPrice = isOnlyRegularDiscountAvailable
+            ? Number(product.regularPrice)
+            : null;
+
+          return {
+            title,
+            pageUrl,
+            imageUrl,
+            price,
+            originalPrice,
+          };
+        });
+
+        const mailResult = await transport.sendMail(
+          getWelcomeEmailOptions(data.name, data.email, promo, products)
+        );
 
         // Check if email was sent successfully
         if (!mailResult?.accepted?.length) {
