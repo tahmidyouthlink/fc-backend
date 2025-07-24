@@ -62,7 +62,6 @@ const storage = new Storage({
 const bucket = storage.bucket(process.env.BUCKET_NAME); // Make sure this bucket exists
 
 const upload = multer({ storage: multer.memoryStorage() });
-const upload2 = multer();
 
 let limiter = (req, res, next) => next(); // No-op middleware by default
 
@@ -7309,8 +7308,7 @@ async function run() {
 
     app.post(
       "/email-receive",
-      // express.urlencoded({ extended: true }),
-      upload2.any(),
+      [express.urlencoded({ extended: true }), upload.any()],
       async (req, res) => {
         let supportId;
         try {
