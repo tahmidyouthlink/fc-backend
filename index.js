@@ -7308,7 +7308,8 @@ async function run() {
 
     app.post(
       "/email-receive",
-      express.urlencoded({ extended: true }),
+      // express.urlencoded({ extended: true }),
+      upload.any(),
       async (req, res) => {
         let supportId;
         try {
@@ -7348,30 +7349,56 @@ async function run() {
             return res.status(200).send("Invalid recipient");
           }
 
-          // Parse attachments
+          // Parse attachments from req.files (multer)
           const attachments = [];
           const count = parseInt(attachmentCount) || 0;
+          if (req.files && req.files.length > 0) {
+            req.files.forEach((file, index) => {
+              console.log(`Processing attachment-${index + 1}:`, {
+                fieldname: file.fieldname,
+                originalname: file.originalname,
+                mimetype: file.mimetype,
+                size: file.size,
+              });
+              attachments.push({
+                url: "", // Mailgun provides URL via attachment-x, handled below
+                name: file.originalname || `attachment-${index + 1}`,
+                size: file.size || 0,
+                contentType: file.mimetype || "application/octet-stream",
+              });
+            });
+          }
+
+          // Parse attachment metadata from req.body (Mailgun provides URLs)
           for (let i = 1; i <= count; i++) {
             const attachmentKey = `attachment-${i}`;
             if (req.body[attachmentKey]) {
               try {
-                const attachment = JSON.parse(req.body[attachmentKey]);
-                attachments.push({
-                  url: attachment.url || "",
-                  name: attachment.name || `attachment-${i}`,
-                  size: attachment.size || 0,
-                  contentType:
-                    attachment["content-type"] || "application/octet-stream",
-                });
+                const attachmentData = JSON.parse(req.body[attachmentKey]);
+                const index = attachments.findIndex(
+                  (a) => a.name === attachmentData.name
+                );
+                if (index !== -1) {
+                  attachments[index].url = attachmentData.url || "";
+                } else {
+                  attachments.push({
+                    url: attachmentData.url || "",
+                    name: attachmentData.name || `attachment-${i}`,
+                    size: attachmentData.size || 0,
+                    contentType:
+                      attachmentData["content-type"] ||
+                      "application/octet-stream",
+                  });
+                }
               } catch (err) {
-                console.warn(`Failed to parse attachment-${i}:`, {
+                console.warn(`Failed to parse attachment-${i} metadata:`, {
                   error: err.message,
                   sender,
                 });
               }
             }
           }
-          // console.log("Parsed attachments:", { attachments, sender });
+          console.log("Parsed attachments:", { attachments, sender });
 
           // Parse name from From header
           let name = null;
