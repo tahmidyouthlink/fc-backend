@@ -35,7 +35,6 @@ const {
 } = require("./utils/orderCalculations");
 const sendEmailToCustomer = require("./utils/email/sendEmailToCustomer");
 const transport = require("./utils/email/transport");
-const transportViaMailGun = require("./utils/email/transportViaMailGun");
 const getResetPasswordEmailOptions = require("./utils/email/getResetPasswordEmailOptions");
 const getContactEmailOptions = require("./utils/email/getContactEmailOptions");
 
@@ -2159,13 +2158,13 @@ async function run() {
         };
 
         const mailOptions = {
-          from: `"PoshaX Support Team" <${process.env.SUPPORT_EMAIL}>`,
+          from: `"PoshaX Support Team" <${process.env.EMAIL_USER}>`,
           to: message.email,
           subject: `Re: [${message.supportId}] ${message.topic}`,
           html: fullHtml,
         };
 
-        const mailResult = await transportViaMailGun.sendMail(mailOptions);
+        const mailResult = await transport.sendMail(mailOptions);
 
         if (
           mailResult &&
@@ -7338,7 +7337,7 @@ async function run() {
           // Validate recipient
           if (
             !recipient ||
-            recipient.toLowerCase() !== process.env.SUPPORT_EMAIL
+            recipient.toLowerCase() !== process.env.EMAIL_USER
           ) {
             console.warn("Invalid or missing recipient:", recipient);
             return res.status(200).send("Invalid recipient");
@@ -7474,19 +7473,7 @@ async function run() {
 
           // Send confirmation email only for new threads
           if (isNewThread) {
-            const mailOptions = {
-              from: `"PoshaX Support Team" <${process.env.SUPPORT_EMAIL}>`,
-              to: sender,
-              subject: `[${supportId}] Your Support Request`,
-              html: `
-            <p>Thank you for contacting PoshaX Support. We have received your request and will respond soon.</p>
-            <p>Support ID: <strong>${supportId}</strong></p>
-            <p>Please include this Support ID in any further communication.</p>
-          `,
-            };
-
-            await transportViaMailGun.sendMail(mailOptions);
-            // console.log("Confirmation email sent to:", sender);
+            await transport.sendMail(getContactEmailOptions(name, email));
           }
           res.status(200).send("OK");
         } catch (err) {
