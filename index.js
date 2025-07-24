@@ -2160,7 +2160,7 @@ async function run() {
         const mailOptions = {
           from: `"PoshaX Support Team" <${process.env.EMAIL_USER}>`,
           to: message.email,
-          subject: `Re: [${message.supportId}] ${message.topic}`,
+          subject: `Re: ${message.topic} [${message.supportId}] `,
           html: fullHtml,
         };
 
