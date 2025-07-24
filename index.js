@@ -7322,6 +7322,7 @@ async function run() {
             "stripped-text": strippedText,
             timestamp,
             "Message-Id": messageId,
+            "attachment-count": attachmentCount,
           } = req.body;
 
           // console.log("📌 Parsed fields:", {
@@ -7334,6 +7335,7 @@ async function run() {
           //   strippedText,
           //   timestamp,
           //   messageId,
+          // attachmentCount,
           // });
 
           // Validate recipient
@@ -7344,6 +7346,31 @@ async function run() {
             console.warn("Invalid or missing recipient:", recipient);
             return res.status(200).send("Invalid recipient");
           }
+
+          // Parse attachments
+          const attachments = [];
+          const count = parseInt(attachmentCount) || 0;
+          for (let i = 1; i <= count; i++) {
+            const attachmentKey = `attachment-${i}`;
+            if (req.body[attachmentKey]) {
+              try {
+                const attachment = JSON.parse(req.body[attachmentKey]);
+                attachments.push({
+                  url: attachment.url || "",
+                  name: attachment.name || `attachment-${i}`,
+                  size: attachment.size || 0,
+                  contentType:
+                    attachment["content-type"] || "application/octet-stream",
+                });
+              } catch (err) {
+                console.warn(`Failed to parse attachment-${i}:`, {
+                  error: err.message,
+                  sender,
+                });
+              }
+            }
+          }
+          // console.log("Parsed attachments:", { attachments, sender });
 
           // Parse name from From header
           let name = null;
@@ -7416,7 +7443,14 @@ async function run() {
               name,
               phone: null,
               topic: subject || "Direct Email Inquiry",
-              message: bodyHtml || bodyPlain || strippedText || "",
+              message: {
+                html:
+                  bodyHtml ||
+                  bodyPlain ||
+                  strippedText ||
+                  "Attachment-only email",
+                attachments,
+              },
               replies: [],
               isRead: false,
               dateTime,
@@ -7441,7 +7475,12 @@ async function run() {
             // Create reply entry for follow-up emails
             const replyEntry = {
               from: "customer",
-              html: bodyHtml || bodyPlain || strippedText || "",
+              html:
+                bodyHtml ||
+                bodyPlain ||
+                strippedText ||
+                "Attachment-only email",
+              attachments,
               dateTime,
               messageId,
             };
