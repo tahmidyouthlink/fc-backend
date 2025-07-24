@@ -2033,6 +2033,7 @@ async function run() {
         topic,
         message,
         isRead,
+        replies: [],
         dateTime: date.toISOString(),
       };
 
@@ -7308,6 +7309,7 @@ async function run() {
       "/email-receive",
       express.urlencoded({ extended: true }),
       async (req, res) => {
+        let supportId;
         try {
           // Mailgun sends email fields in req.body
           const {
@@ -7360,7 +7362,7 @@ async function run() {
 
           // Example: parse supportId from subject or email body (adjust regex to your needs)
           let supportIdMatch = subject?.match(/\[(PXT-\d{8}-\d+)\]/);
-          let supportId = supportIdMatch?.[1];
+          supportId = supportIdMatch?.[1];
           // console.log("🆔 Extracted supportId from subject:", supportId);
 
           if (!supportId && bodyHtml) {
@@ -7388,7 +7390,7 @@ async function run() {
             // For direct emails, check if a thread exists for the sender without a reply containing a supportId
             thread = await customerSupportCollection.findOne({
               email: sender,
-              "replies.messageId": { $ne: messageId }, // Avoid matching the current email
+              // "replies.messageId": { $ne: messageId }, // Avoid matching the current email
             });
           }
 
@@ -7451,7 +7453,7 @@ async function run() {
             //   sender,
             // });
             const updateResult = await customerSupportCollection.updateOne(
-              { supportId },
+              { supportId: thread.supportId },
               {
                 $push: { replies: replyEntry },
                 $set: { isRead: false },
