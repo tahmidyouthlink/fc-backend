@@ -39,6 +39,7 @@ const transport = require("./utils/email/transport");
 const getResetPasswordEmailOptions = require("./utils/email/getResetPasswordEmailOptions");
 const getContactEmailOptions = require("./utils/email/getContactEmailOptions");
 const getWelcomeEmailOptions = require("./utils/email/getWelcomeEmailOptions");
+const getNotifyRequestEmailOptions = require("./utils/email/getNotifyRequestEmailOptions");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -3253,7 +3254,9 @@ async function run() {
             );
 
             if (alreadyExists) {
-              return res.status(409).send({ message: "Already subscribed" });
+              return res
+                .status(409)
+                .send({ message: "You're already subscribed." });
             }
 
             const result = await availabilityNotifications.updateOne(
@@ -3269,8 +3272,6 @@ async function run() {
                 },
               }
             );
-
-            return res.status(200).send(result);
           } else {
             const newEntry = {
               productId,
@@ -3287,8 +3288,116 @@ async function run() {
             };
 
             const result = await availabilityNotifications.insertOne(newEntry);
-            return res.status(201).send(result);
           }
+
+          const productList = await productInformationCollection
+            .find()
+            .toArray();
+          const selectedProduct = await productInformationCollection.findOne({
+            _id: new ObjectId(productId),
+          });
+          const specialOffers = await offerCollection.find().toArray();
+          const primaryLocation = await locationCollection.findOne({
+            isPrimaryLocation: true,
+          });
+
+          const isOnlyRegularDiscountAvailable =
+            checkIfOnlyRegularDiscountIsAvailable(
+              selectedProduct,
+              specialOffers
+            );
+          const selectedVariant = selectedProduct.productVariants.find(
+            (variant) =>
+              variant.color.color == colorCode && variant.size == size
+          );
+          const colorName = selectedVariant.color.label;
+          const imageUrl = selectedVariant.imageUrls[0];
+
+          const notifyProduct = {
+            pageUrl: `${
+              process.env.MAIN_DOMAIN_URL
+            }/product/${selectedProduct.productTitle
+              .split(" ")
+              .join("-")
+              .toLowerCase()}`,
+            imageUrl,
+            title: selectedProduct.productTitle,
+            price: calculateFinalPrice(selectedProduct, specialOffers),
+            originalPrice: isOnlyRegularDiscountAvailable
+              ? Number(selectedProduct.regularPrice)
+              : null,
+            size,
+            color: {
+              code: colorCode,
+              name: colorName,
+            },
+          };
+
+          const filteredProducts = productList
+            .filter((product) => {
+              const isInStock =
+                product.productVariants
+                  ?.filter(
+                    (variant) =>
+                      variant?.location === primaryLocation.locationName
+                  )
+                  .reduce((acc, variant) => acc + Number(variant?.sku), 0) > 0;
+
+              return (
+                product.status === "active" &&
+                product.category == selectedProduct.category &&
+                product._id.toString() != productId &&
+                isInStock
+              );
+            })
+            .slice(0, 3);
+
+          const truncateTitle = (title, maxChars = 16) => {
+            return title.length > maxChars
+              ? title.slice(0, maxChars).trim() + "..."
+              : title;
+          };
+
+          const similarProducts = filteredProducts.map((product) => {
+            const title = truncateTitle(product.productTitle);
+            const pageUrl = `${
+              process.env.MAIN_DOMAIN_URL
+            }/product/${product.productTitle
+              .split(" ")
+              .join("-")
+              .toLowerCase()}`;
+            const imageUrl = product.productVariants[0].imageUrls[0];
+            const isOnlyRegularDiscountAvailable =
+              checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+            const price = calculateFinalPrice(product, specialOffers);
+            const originalPrice = isOnlyRegularDiscountAvailable
+              ? Number(product.regularPrice)
+              : null;
+
+            return {
+              title,
+              pageUrl,
+              imageUrl,
+              price,
+              originalPrice,
+            };
+          });
+
+          const mailResult = await transport.sendMail(
+            getNotifyRequestEmailOptions(email, notifyProduct, similarProducts)
+          );
+
+          // Check if email was sent successfully
+          if (!mailResult?.accepted?.length) {
+            return res.status(500).json({
+              success: false,
+              message: "Failed to send the notify request email.",
+            });
+          }
+
+          return res
+            .status(existingDoc ? 200 : 201)
+            .json({ message: "Request submitted successfully." });
         } catch (error) {
           console.error("Error adding availability notification:", error);
           res.status(500).send({ error: "Failed to add notification request" });
