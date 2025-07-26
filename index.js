@@ -5225,8 +5225,8 @@ async function run() {
           const updateDoc = {};
           const currentTime = new Date();
           const undoAvailableUntil = new Date(
-            currentTime.getTime() + 6 * 60 * 60 * 1000
-          ); // 6 hours later
+            currentTime.getTime() + 1 * 60 * 60 * 1000
+          ); // 1 hours later
 
           if (isUndo) {
             if (
