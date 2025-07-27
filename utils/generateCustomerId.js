@@ -4,7 +4,7 @@ function generateCustomerId(customerIds) {
   now.setHours(now.getHours() + 6); // Adjust to UTC+6
   const year = String(now.getFullYear()); // Full year (4 digits)
   const month = String(now.getMonth() + 1).padStart(2, "0"); // Month (2 digits)
-  const currentPrefix = `FC${year}${month}`;
+  const currentPrefix = `PXC${year}${month}`;
 
   // Filter customer IDs for the current month
   const currentMonthCustomers = customerIds.filter((customerId) =>
