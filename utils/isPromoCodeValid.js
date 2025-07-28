@@ -12,7 +12,7 @@ function checkIfPromoCodeIsValid(userPromoCode, cartSubtotal) {
     }).format(new Date())
   );
 
-  const expiryDate = new Date(`${userPromoCode.expiryDate}T23:59:59+06:00`);
+  const expiryDate = new Date(`${userPromoCode?.expiryDate}T23:59:59+06:00`);
 
   return (
     userPromoCode?.promoStatus == true &&
