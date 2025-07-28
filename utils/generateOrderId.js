@@ -1,10 +1,15 @@
 function generateOrderId(orderIds, fullName, phoneNumber) {
-  // Get today's date in the format YYMMDD (e.g., 240804)
-  const today = new Date();
-  today.setHours(today.getHours() + 6); // Adjust to UTC+6
-  const year = String(today.getFullYear()).slice(2); // Last 2 digits of the year
-  const month = String(today.getMonth() + 1).padStart(2, "0"); // Month (2 digits)
-  const day = String(today.getDate()).padStart(2, "0"); // Day (2 digits)
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Dhaka",
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year").value;
+  const month = parts.find((p) => p.type === "month").value;
+  const day = parts.find((p) => p.type === "day").value;
   const todayPrefix = `${year}${month}${day}`;
 
   // Filter order IDs for today's orders

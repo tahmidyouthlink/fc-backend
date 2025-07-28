@@ -1,9 +1,13 @@
 function generateCustomerId(customerIds) {
-  // Get the current year and month in the format YYYYMM (e.g., 202408)
-  const now = new Date();
-  now.setHours(now.getHours() + 6); // Adjust to UTC+6
-  const year = String(now.getFullYear()); // Full year (4 digits)
-  const month = String(now.getMonth() + 1).padStart(2, "0"); // Month (2 digits)
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year").value;
+  const month = parts.find((p) => p.type === "month").value;
   const currentPrefix = `PXC${year}${month}`;
 
   // Filter customer IDs for the current month

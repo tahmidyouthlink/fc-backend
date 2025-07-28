@@ -1,18 +1,31 @@
 const checkIfPromoCodeIsValid = require("./isPromoCodeValid");
 
 const checkIfAnyDiscountIsAvailable = (product, specialOffers) => {
-  const now = new Date();
-  now.setHours(now.getHours() + 6); // Adjust to Bangladesh time (UTC+6)
+  const now = new Date(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Dhaka",
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date())
+  );
 
   return (
     !!Number(product?.discountValue) ||
-    specialOffers?.some(
-      (offer) =>
+    specialOffers?.some((offer) => {
+      const expiryDate = new Date(`${offer?.expiryDate}T23:59:59+06:00`);
+
+      return (
         offer.offerStatus === true &&
         (offer.selectedProductIds?.includes(product?.productId) ||
           offer.selectedCategories?.includes(product?.category)) &&
-        now <= new Date(offer?.expiryDate + "T23:59:59")
-    )
+        now <= expiryDate
+      );
+    })
   );
 };
 
@@ -24,30 +37,56 @@ const checkIfOnlyRegularDiscountIsAvailable = (product, specialOffers) => {
 };
 
 const checkIfSpecialOfferIsAvailable = (product, specialOffers) => {
-  const now = new Date();
-  now.setHours(now.getHours() + 6); // Adjust to Bangladesh time (UTC+6)
+  const now = new Date(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Dhaka",
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date())
+  );
 
-  return specialOffers?.some(
-    (offer) =>
+  return specialOffers?.some((offer) => {
+    const expiryDate = new Date(`${offer?.expiryDate}T23:59:59+06:00`);
+
+    return (
       offer.offerStatus === true &&
-      now <= new Date(offer?.expiryDate + "T23:59:59") &&
+      now <= expiryDate &&
       (offer.selectedProductIds?.includes(product?.productId) ||
         offer.selectedCategories?.includes(product?.category))
-  );
+    );
+  });
 };
 
 const getProductSpecialOffer = (product, specialOffers, cartSubtotal) => {
-  const now = new Date();
-  now.setHours(now.getHours() + 6); // Adjust to Bangladesh time (UTC+6)
+  const now = new Date(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Dhaka",
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date())
+  );
 
-  return specialOffers?.find(
-    (offer) =>
+  return specialOffers?.find((offer) => {
+    const expiryDate = new Date(`${offer?.expiryDate}T23:59:59+06:00`);
+
+    return (
       offer.offerStatus === true &&
       (offer.selectedProductIds?.includes(product?.productId) ||
         offer.selectedCategories?.includes(product?.category)) &&
-      now <= new Date(offer?.expiryDate + "T23:59:59") &&
+      now <= expiryDate &&
       (cartSubtotal === "NA" || cartSubtotal >= parseFloat(offer.minAmount))
-  );
+    );
+  });
 };
 
 const calculateFinalPrice = (product, specialOffers) => {
