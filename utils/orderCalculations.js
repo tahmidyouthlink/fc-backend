@@ -1,23 +1,18 @@
+const moment = require("moment-timezone");
+
 const checkIfPromoCodeIsValid = require("./isPromoCodeValid");
 
 const checkIfAnyDiscountIsAvailable = (product, specialOffers) => {
-  const now = new Date(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Dhaka",
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(new Date())
-  );
+  const now = moment.tz("Asia/Dhaka");
 
   return (
     !!Number(product?.discountValue) ||
     specialOffers?.some((offer) => {
-      const expiryDate = new Date(`${offer?.expiryDate}T23:59:59+06:00`);
+      const expiryDate = moment.tz(
+        `${offer?.expiryDate} 23:59:59`,
+        "YYYY-MM-DD HH:mm:ss",
+        "Asia/Dhaka"
+      );
 
       return (
         offer.offerStatus === true &&
@@ -37,21 +32,14 @@ const checkIfOnlyRegularDiscountIsAvailable = (product, specialOffers) => {
 };
 
 const checkIfSpecialOfferIsAvailable = (product, specialOffers) => {
-  const now = new Date(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Dhaka",
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(new Date())
-  );
+  const now = moment.tz("Asia/Dhaka");
 
   return specialOffers?.some((offer) => {
-    const expiryDate = new Date(`${offer?.expiryDate}T23:59:59+06:00`);
+    const expiryDate = moment.tz(
+      `${offer?.expiryDate} 23:59:59`,
+      "YYYY-MM-DD HH:mm:ss",
+      "Asia/Dhaka"
+    );
 
     return (
       offer.offerStatus === true &&
@@ -63,21 +51,14 @@ const checkIfSpecialOfferIsAvailable = (product, specialOffers) => {
 };
 
 const getProductSpecialOffer = (product, specialOffers, cartSubtotal) => {
-  const now = new Date(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Dhaka",
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(new Date())
-  );
+  const now = moment.tz("Asia/Dhaka");
 
   return specialOffers?.find((offer) => {
-    const expiryDate = new Date(`${offer?.expiryDate}T23:59:59+06:00`);
+    const expiryDate = moment.tz(
+      `${offer?.expiryDate} 23:59:59`,
+      "YYYY-MM-DD HH:mm:ss",
+      "Asia/Dhaka"
+    );
 
     return (
       offer.offerStatus === true &&
@@ -267,7 +248,11 @@ const getExpectedDeliveryDate = (
   const [datePart, timePart] = orderDateTime.split(" | ");
   const [day, month, year] = datePart.split("-").map(Number);
   const [hour, minute] = timePart.split(":").map(Number);
-  const orderDate = new Date(year + 2000, month - 1, day, hour, minute); // Convert year to full year
+  const orderDate = moment.tz(
+    `${year + 2000}-${month}-${day} ${hour}:${minute}`,
+    "YYYY-M-D HH:mm",
+    "Asia/Dhaka"
+  );
 
   // Parse the estimated duration
   let maxTime; // Maximum time in the duration range
@@ -282,15 +267,14 @@ const getExpectedDeliveryDate = (
   // Calculate the delivery time based on the delivery method
   if (deliveryMethod === "EXPRESS") {
     // For EXPRESS, add maxTime hours to the order date
-    orderDate.setHours(orderDate.getHours() + maxTime);
+    orderDate.add(maxTime, "hours");
   } else {
     // For STANDARD, add maxTime days to the order date
-    orderDate.setDate(orderDate.getDate() + maxTime);
+    orderDate.add(maxTime, "days");
   }
 
-  // Format the result to "Month DD, YYYY"
-  const options = { year: "numeric", month: "long", day: "numeric" };
-  return orderDate.toLocaleDateString("en-US", options);
+  // Format the result to "MMMM DD, YYYY"
+  return orderDate.format("MMMM DD, YYYY");
 };
 
 module.exports = {

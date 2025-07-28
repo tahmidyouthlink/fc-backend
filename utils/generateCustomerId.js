@@ -1,13 +1,9 @@
-function generateCustomerId(customerIds) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Dhaka",
-    year: "numeric",
-    month: "2-digit",
-  });
+const moment = require("moment-timezone");
 
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find((p) => p.type === "year").value;
-  const month = parts.find((p) => p.type === "month").value;
+function generateCustomerId(customerIds) {
+  const now = moment.tz("Asia/Dhaka");
+  const year = now.format("YYYY");
+  const month = now.format("MM");
   const currentPrefix = `PXC${year}${month}`;
 
   // Filter customer IDs for the current month

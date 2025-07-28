@@ -1,15 +1,10 @@
-function generateOrderId(orderIds, fullName, phoneNumber) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Dhaka",
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  });
+const moment = require("moment-timezone");
 
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find((p) => p.type === "year").value;
-  const month = parts.find((p) => p.type === "month").value;
-  const day = parts.find((p) => p.type === "day").value;
+function generateOrderId(orderIds, fullName, phoneNumber) {
+  const now = moment.tz("Asia/Dhaka");
+  const year = now.format("YY");
+  const month = now.format("MM");
+  const day = now.format("DD");
   const todayPrefix = `${year}${month}${day}`;
 
   // Filter order IDs for today's orders
