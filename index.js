@@ -2974,7 +2974,10 @@ async function run() {
                   // Create a cart URL with the product info
                   const cartLink = `${
                     process.env.MAIN_DOMAIN_URL
-                  }/shop?productId=${productId}&colorCode=${encodeURIComponent(
+                  }/product/${existingProduct.productTitle
+                    .split(" ")
+                    .join("-")
+                    .toLowerCase()}?productId=${productId}&colorCode=${encodeURIComponent(
                     colorCode
                   )}&size=${encodeURIComponent(size)}`;
 
