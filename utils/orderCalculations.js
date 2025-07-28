@@ -280,12 +280,12 @@ const getExpectedDeliveryDate = (
   }
 
   // Calculate the delivery time based on the delivery method
-  if (deliveryMethod === "STANDARD") {
-    // For STANDARD, add maxTime days to the order date
-    orderDate.setDate(orderDate.getDate() + maxTime);
-  } else if (deliveryMethod === "EXPRESS") {
+  if (deliveryMethod === "EXPRESS") {
     // For EXPRESS, add maxTime hours to the order date
     orderDate.setHours(orderDate.getHours() + maxTime);
+  } else {
+    // For STANDARD, add maxTime days to the order date
+    orderDate.setDate(orderDate.getDate() + maxTime);
   }
 
   // Format the result to "Month DD, YYYY"
