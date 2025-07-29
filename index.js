@@ -2898,9 +2898,7 @@ async function run() {
           const filter = { _id: new ObjectId(id) };
 
           // Use moment-timezone to format dateTime
-          const now = moment().tz("Asia/Dhaka");
-          const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
-          const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+          const dateTime = moment().tz("Asia/Dhaka").format("DD-MM-YY | HH:mm");
 
           // 1. Fetch the current product (before update)
           const existingProduct = await productInformationCollection.findOne(
@@ -3182,29 +3180,38 @@ async function run() {
       }
     );
 
-    // for availability info, sorting
-    const parseDate = (dateTimeString) => {
-      const [date, time] = dateTimeString.split(" | ");
-      return moment(date + " " + time, "MMM D, YYYY h:mm A").toDate();
-    };
-
     // Function to format and convert the date (24-hour system)
     const convertToDateTime = (dateTimeString) => {
-      // Correct format: DD-MM-YY | HH:mm
-      const parsedDate = moment.tz(
+      if (!dateTimeString) {
+        console.error("Empty dateTimeString in convertToDateTime");
+        return null;
+      }
+      // Parse strictly in Asia/Dhaka timezone
+      const parsed = moment.tz(
         dateTimeString,
         "DD-MM-YY | HH:mm",
         true,
         "Asia/Dhaka"
       );
-
-      if (!parsedDate.isValid()) {
-        console.error("Invalid date format:");
+      if (!parsed.isValid()) {
+        console.error(
+          `Invalid date format in convertToDateTime: ${dateTimeString}`
+        );
         return null;
       }
-
-      const isoDate = parsedDate.toISOString();
-      return isoDate;
+      // Fix two-digit year (e.g., 25 -> 2025)
+      if (parsed.year() < 2000) {
+        parsed.year(parsed.year() + 100);
+      }
+      // Prevent future dates
+      const now = moment.tz("Asia/Dhaka");
+      if (parsed.isAfter(now)) {
+        console.warn(
+          `Future date detected in convertToDateTime: ${dateTimeString}, using current time`
+        );
+        return now.toISOString();
+      }
+      return parsed.toISOString();
     };
 
     // get all availability info
@@ -3418,7 +3425,7 @@ async function run() {
 
     function isWithinLast3Days(dateString) {
       const date = new Date(dateString);
-      if (isNaN(date)) return false; // this alone is enough
+      if (!isValidDate(date)) return false;
       const now = new Date();
       const diffTime = now - date;
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
@@ -3438,9 +3445,9 @@ async function run() {
 
         try {
           const user = await enrollmentCollection.findOne({ email });
-
           if (!user) return res.status(404).json({ error: "User not found" });
 
+          const now = moment.tz("Asia/Dhaka");
           const notifications = await availabilityNotifications
             .find({})
             .toArray();
@@ -3456,65 +3463,87 @@ async function run() {
                 (email) =>
                   !doc.updatedDateTime || isWithinLast3Days(doc.updatedDateTime)
               )
-              .map((email) => ({
-                type: "Notified",
-                email: email?.email,
-                dateTime: isValidDate(email.dateTime)
-                  ? new Date(email.dateTime).toISOString()
-                  : null,
-                updatedDateTime: isValidDate(doc?.updatedDateTime)
-                  ? new Date(doc.updatedDateTime).toISOString()
-                  : null,
-                productId: doc.productId,
-                size: doc.size,
-                colorCode: doc.colorCode,
-                notified: email.notified,
-                isRead: email.isRead,
-                orderNumber: null,
-                orderStatus: null,
-              }))
+              .map((email) => {
+                const dateTime =
+                  convertToDateTime(email.dateTime) || now.toISOString();
+                return {
+                  type: "Notified",
+                  email: email?.email,
+                  dateTime,
+                  updatedDateTime: isValidDate(doc?.updatedDateTime)
+                    ? new Date(doc.updatedDateTime).toISOString()
+                    : now.toISOString(),
+                  productId: doc.productId,
+                  size: doc.size,
+                  colorCode: doc.colorCode,
+                  notified: email.notified,
+                  isRead: email.isRead,
+                  orderNumber: null,
+                  orderStatus: null,
+                };
+              })
           );
 
-          const orderEntries = orders.map((order) => ({
-            type: "Ordered",
-            email: order?.customerInfo?.email,
-            dateTime:
+          const orderEntries = orders.map((order) => {
+            const dateTime =
               order.orderStatus === "Return Requested"
                 ? convertToDateTime(order.returnInfo.dateTime)
-                : convertToDateTime(order.dateTime),
-            updatedDateTime: null,
-            productId: "",
-            size: null,
-            colorCode: null,
-            notified: null,
-            isRead:
-              order.orderStatus === "Return Requested"
-                ? order.returnInfo.isRead || null
-                : order.isRead || null,
-            orderNumber: order.orderNumber,
-            orderStatus: order.orderStatus,
-          }));
+                : convertToDateTime(order.dateTime);
+            return {
+              type: "Ordered",
+              email: order?.customerInfo?.email,
+              dateTime: dateTime || now.toISOString(),
+              updatedDateTime: null,
+              productId: "",
+              size: null,
+              colorCode: null,
+              notified: null,
+              isRead:
+                order.orderStatus === "Return Requested"
+                  ? order.returnInfo.isRead || null
+                  : order.isRead || null,
+              orderNumber: order.orderNumber,
+              orderStatus: order.orderStatus,
+            };
+          });
 
-          const mergedNotifications = [...notificationEntries, ...orderEntries];
+          // Filter out invalid or future dates
+          const mergedNotifications = [
+            ...notificationEntries,
+            ...orderEntries,
+          ].filter((notification) => {
+            if (!notification.dateTime || !isValidDate(notification.dateTime)) {
+              console.warn(
+                `Invalid dateTime filtered: ${JSON.stringify(notification)}`
+              );
+              return false;
+            }
+            const date = moment.tz(notification.dateTime, "Asia/Dhaka");
+            if (date.isAfter(now)) {
+              console.warn(
+                `Future dateTime filtered: ${notification.dateTime}`
+              );
+              return false;
+            }
+            return true;
+          });
 
           // Sort by dateTime (newest first)
           mergedNotifications.sort((a, b) => {
             const dateA = new Date(a.dateTime);
             const dateB = new Date(b.dateTime);
-            return dateB - dateA; // For newest first. Use dateA - dateB for oldest first
+            return dateB - dateA; // Newest first
           });
 
           // Filter based on permissions
           const filteredNotifications = mergedNotifications.filter(
             (notification) => {
               if (notification.type === "Notified") {
-                // Requires access to "Product Hub"
                 return hasModuleAccess(user.permissions, "Product Hub");
               } else if (notification.type === "Ordered") {
-                // Requires access to "Orders"
                 return hasModuleAccess(user.permissions, "Orders");
               }
-              return false; // Block unknown types
+              return false;
             }
           );
 
