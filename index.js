@@ -3241,9 +3241,7 @@ async function run() {
           }
 
           // Use moment-timezone to format dateTime
-          const now = moment().tz("Asia/Dhaka");
-          const dateTimeFormat = now.format("MMM D, YYYY | h:mm A");
-          const dateTime = parseDate(dateTimeFormat); // This gives you a Date object
+          const dateTime = moment().tz("Asia/Dhaka").format("DD-MM-YY | HH:mm");
 
           const existingDoc = await availabilityNotifications.findOne({
             productId,
