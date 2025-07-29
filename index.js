@@ -40,6 +40,13 @@ const getResetPasswordEmailOptions = require("./utils/email/getResetPasswordEmai
 const getContactEmailOptions = require("./utils/email/getContactEmailOptions");
 const getWelcomeEmailOptions = require("./utils/email/getWelcomeEmailOptions");
 const getNotifyRequestEmailOptions = require("./utils/email/getNotifyRequestEmailOptions");
+const {
+  generateOtp,
+  sendOtpEmail,
+  getInitialPageFromPermissions,
+} = require("./utils/auth/authUtils");
+const { isValidDate, isWithinLast3Days } = require("./utils/date/dateUtils");
+const getInvitationEmailOptions = require("./utils/email/getInvitationEmailOptions");
 
 const base64Key = process.env.GCP_SERVICE_ACCOUNT_BASE64;
 
@@ -311,53 +318,6 @@ async function run() {
       .db("fashion-commerce")
       .collection("customer-support");
 
-    // Generate a 6-digit OTP as a string
-    function generateOtp() {
-      return Math.floor(100000 + Math.random() * 900000).toString();
-    }
-
-    async function sendOtpEmail(email, otp, name) {
-      try {
-        await transport.sendMail({
-          from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: `OTP for ${process.env.WEBSITE_NAME} Login`,
-          text: `Your One-Time Password  
-  
-          Dear ${name},  
-  
-          Here is your One-Time Password (OTP) to securely log in to your ${process.env.WEBSITE_NAME} account:  
-  
-          ${otp}  
-  
-          Note: This OTP is valid for 5 minutes.  
-  
-          If you did not request this OTP, please ignore this email or contact our support team.  
-  
-          Thank you for choosing ${process.env.WEBSITE_NAME}!  
-  
-          Best regards,  
-          Team ${process.env.WEBSITE_NAME}`,
-          html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-          <h2 style="text-align: center; color: #333;">🔑 <b>Your One-Time Password</b></h2>
-          <p>Dear <b>${name}</b>,</p>
-          <p>Here is your One-Time Password (OTP) to securely log in to your <b>${process.env.WEBSITE_NAME}</b> account:</p>
-          <p style="text-align: center; font-size: 24px; font-weight: bold; color: #ff6600; margin: 20px 0;">${otp}</p>
-          <p><b>Note:</b> This OTP is valid for <b>5 minutes</b>.</p>
-          <p>If you did not request this OTP, please ignore this email or contact our support team.</p>
-          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="text-align: center; color: #555;">Thank you for choosing <b>${process.env.WEBSITE_NAME}</b>! 🛍️</p>
-          <p style="text-align: center; font-size: 14px; color: #888;">Best regards,<br>Team ${process.env.WEBSITE_NAME}</p>
-        </div>
-      `,
-        });
-      } catch (emailError) {
-        console.error("Error sending OTP email:", emailError);
-        throw new Error("Error sending OTP email");
-      }
-    }
-
     // Route to generate signed URL for uploading a single file
     app.post(
       "/generate-upload-url",
@@ -536,131 +496,9 @@ async function run() {
               const magicLink = `${process.env.SUB_DOMAIN_URL}/auth/setup?token=${token}`;
 
               try {
-                const mailResult = await transport.sendMail({
-                  from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-                  to: email,
-                  subject: `You're Invited to Join ${process.env.WEBSITE_NAME}`,
-                  text: `Hello ${email},
-    
-                You have been invited to join ${
-                  process.env.WEBSITE_NAME
-                }. Please use the link below to complete your setup:
-    
-    
-    
-                🔗 Magic Link: ${magicLink}
-    
-    
-    
-                This link is valid for **72 hours** and will expire on **${new Date(
-                  Date.now() + 72 * 60 * 60 * 1000
-                ).toLocaleString("en-GB", {
-                  timeZone: "Asia/Dhaka",
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "numeric",
-                  second: "numeric",
-                  hour12: true,
-                })}**.
-    
-                If you did not expect this invitation, you can safely ignore this email.
-    
-                Best Regards,  
-                ${process.env.WEBSITE_NAME} Team`,
-                  html: `
-        <!DOCTYPE html>
-        <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Invitation - ${process.env.WEBSITE_NAME}</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 0;
-                background-color: #f7f7f7;
-              }
-              .container {
-                width: 100%;
-                max-width: 600px;
-                margin: 0 auto;
-                background-color: #ffffff;
-                padding: 20px;
-                border-radius: 10px;
-                border: 1px solid #dcdcdc; /* Added border */
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-              }
-              .header {
-                text-align: center;
-                padding-bottom: 20px;
-                border-bottom: 1px solid #ddd;
-              }
-              .header h1 {
-                margin: 0;
-                color: #007bff;
-              }
-              .content {
-                padding: 20px;
-              }
-              .content p {
-                font-size: 16px;
-                line-height: 1.6;
-              }
-              .cta-button {
-                display: inline-block;
-                font-size: 16px;
-                font-weight: bold;
-                color: #4B5563;
-                background-color: #d4ffce; /* Updated button background */
-                padding: 12px 30px;
-                text-decoration: none;
-                border-radius: 5px;
-                margin-top: 20px;
-                border: 1px solid #d4ffce; /* Button border */
-              }
-              .cta-button:hover {
-                background-color: #a3f0a3; /* Hover effect */
-                border: 1px solid #a3f0a3;
-              }
-              .footer {
-                text-align: center;
-                padding-top: 20px;
-                font-size: 14px;
-                color: #888;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Welcome to ${process.env.WEBSITE_NAME}!</h1>
-              </div>
-              <div class="content">
-                <p>Hello <strong>${email}</strong>,</p>
-                <p>You are invited to join <strong>${process.env.WEBSITE_NAME}</strong>. To accept this invitation, create account:</p>
-                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                 <tr>
-                  <td align="center">
-                     <a href="${magicLink}" class="cta-button">Create account</a>
-                  </td>
-                 </tr>
-                </table>
-    
-                <p>If you weren't expecting this invitation, you can ignore this email.</p>
-                <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong>.</p>
-                
-              </div>
-              <div class="footer">
-                <p>Best Regards, <br><strong>${process.env.WEBSITE_NAME} Team</strong></p>
-              </div>
-            </div>
-            </body>
-            </html>`,
-                });
+                const mailResult = await transport.sendMail(
+                  getInvitationEmailOptions(email, magicLink)
+                );
 
                 if (
                   mailResult &&
@@ -711,130 +549,9 @@ async function run() {
           const magicLink = `${process.env.SUB_DOMAIN_URL}/auth/setup?token=${token}`;
 
           try {
-            const mailResult = await transport.sendMail({
-              from: `${process.env.WEBSITE_NAME} <${process.env.EMAIL_USER}>`,
-              to: email,
-              subject: `You're Invited to Join ${process.env.WEBSITE_NAME}`,
-              text: `Hello ${email},
-
-            You have been invited to join ${
-              process.env.WEBSITE_NAME
-            }. Please use the link below to complete your setup:
-
-
-
-            🔗 Magic Link: ${magicLink}
-
-
-
-            This link is valid for **72 hours** and will expire on **${new Date(
-              Date.now() + 72 * 60 * 60 * 1000
-            ).toLocaleString("en-GB", {
-              timeZone: "Asia/Dhaka",
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "numeric",
-              minute: "numeric",
-              second: "numeric",
-              hour12: true,
-            })}**.
-
-            If you did not expect this invitation, you can safely ignore this email.
-
-            Best Regards,  
-            ${process.env.WEBSITE_NAME} Team`,
-              html: `<!DOCTYPE html>
-                  <html lang="en">
-                  <head>
-                  <meta charset="UTF-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Invitation - ${process.env.WEBSITE_NAME}</title>
-                  <style>
-                  body {
-                  font-family: Arial, sans-serif;
-                  margin: 0;
-                  padding: 0;
-                  background-color: #f7f7f7;
-                }
-                .container {
-                  width: 100%;
-                  max-width: 600px;
-                  margin: 0 auto;
-                  background-color: #ffffff;
-                  padding: 20px;
-                  border-radius: 10px;
-                  border: 1px solid #dcdcdc; /* Added border */
-                  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-                }
-                .header {
-                  text-align: center;
-                  padding-bottom: 20px;
-                  border-bottom: 1px solid #ddd;
-                }
-                .header h1 {
-                  margin: 0;
-                  color: #007bff;
-                }
-                .content {
-                  padding: 20px;
-                }
-                .content p {
-                  font-size: 16px;
-                  line-height: 1.6;
-                }
-                .cta-button {
-                  display: inline-block;
-                  font-size: 16px;
-                  font-weight: bold;
-                  color: #4B5563;
-                  background-color: #d4ffce; /* Updated button background */
-                  padding: 12px 30px;
-                  text-decoration: none;
-                  border-radius: 5px;
-                  margin-top: 20px;
-                  border: 1px solid #d4ffce; /* Button border */
-                }
-                .cta-button:hover {
-                  background-color: #a3f0a3; /* Hover effect */
-                  border: 1px solid #a3f0a3;
-                }
-                .footer {
-                  text-align: center;
-                  padding-top: 20px;
-                  font-size: 14px;
-                  color: #888;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <h1>Welcome to ${process.env.WEBSITE_NAME}!</h1>
-              </div>
-                <div class="content">
-                  <p>Hello <strong>${email}</strong>,</p>
-                  <p>You are invited to join <strong>${process.env.WEBSITE_NAME}</strong>. To accept this invitation, create account:</p>
-                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                   <tr>
-                    <td align="center">
-                       <a href="${magicLink}" class="cta-button">Create account</a>
-                    </td>
-                   </tr>
-                  </table>
-
-                  <p>If you weren't expecting this invitation, you can ignore this email.</p>
-                  <p><strong>Note:</strong> This link will expire in <strong>72 hours</strong>.</p>
-            
-                </div>
-                <div class="footer">
-                  <p>Best Regards, <br><strong>${process.env.WEBSITE_NAME} Team</strong></p>
-                </div>
-              </div>
-              </body>
-              </html>`,
-            });
+            const mailResult = await transport.sendMail(
+              getInvitationEmailOptions(email, magicLink)
+            );
 
             // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
             if (
@@ -1384,31 +1101,6 @@ async function run() {
         }
       }
     );
-
-    function getInitialPageFromPermissions(permissions) {
-      const moduleToPathMap = {
-        Dashboard: "/dashboard",
-        Orders: "/orders",
-        "Product Hub": "/product-hub/products/existing-products",
-        Customers: "/customers",
-        Finances: "/finances",
-        Analytics: "/analytics",
-        Marketing: "/marketing",
-        "Supply Chain": "/supply-chain/zone/existing-zones",
-        Settings: "/settings/enrollment",
-      };
-
-      for (const roleObj of permissions) {
-        for (const [module, config] of Object.entries(roleObj.modules)) {
-          if (config.access && moduleToPathMap[module]) {
-            return moduleToPathMap[module];
-          }
-        }
-      }
-
-      // Fallback route
-      return "/auth/restricted-access";
-    }
 
     // backend dashboard log in via nextAuth
     app.post("/loginForDashboard", limiter, originChecker, async (req, res) => {
@@ -3418,18 +3110,6 @@ async function run() {
         (role) => role.modules?.[moduleName]?.access === true
       );
     };
-
-    function isValidDate(date) {
-      return date && !isNaN(new Date(date).getTime());
-    }
-
-    function isWithinLast3Days(dateString) {
-      if (!isValidDate(dateString)) return false;
-      const date = moment.tz(dateString, "Asia/Dhaka");
-      const now = moment.tz("Asia/Dhaka");
-      const diffDays = now.diff(date, "days", true); // Use moment for precise day difference
-      return diffDays <= 3;
-    }
 
     // get all notifications e,g. (products, orders)
     app.get(
