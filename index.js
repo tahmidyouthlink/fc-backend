@@ -3100,7 +3100,7 @@ async function run() {
                         {
                           $set: {
                             "emails.$.notified": true,
-                            updatedDateTime: dateTime,
+                            "emails.$.updatedDateTime": dateTime,
                           },
                         }
                       );
@@ -3424,11 +3424,10 @@ async function run() {
     }
 
     function isWithinLast3Days(dateString) {
-      const date = new Date(dateString);
-      if (!isValidDate(date)) return false;
-      const now = new Date();
-      const diffTime = now - date;
-      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      if (!isValidDate(dateString)) return false;
+      const date = moment.tz(dateString, "Asia/Dhaka");
+      const now = moment.tz("Asia/Dhaka");
+      const diffDays = now.diff(date, "days", true); // Use moment for precise day difference
       return diffDays <= 3;
     }
 
@@ -3460,19 +3459,26 @@ async function run() {
           const notificationEntries = notifications.flatMap((doc) =>
             doc.emails
               .filter(
-                (email) =>
-                  !doc.updatedDateTime || isWithinLast3Days(doc.updatedDateTime)
+                (emailObj) =>
+                  // Show notifications if:
+                  // 1. Email has not been notified (notified: false) OR
+                  // 2. Email has been notified but updatedDateTime is within the last 3 days
+                  !emailObj.notified ||
+                  (emailObj.updatedDateTime &&
+                    isWithinLast3Days(
+                      convertToDateTime(emailObj.updatedDateTime)
+                    ))
               )
               .map((email) => {
-                const dateTime =
-                  convertToDateTime(email.dateTime) || now.toISOString();
+                const dateTime = convertToDateTime(email.dateTime) || null;
+                const updatedDateTime = isValidDate(email?.updatedDateTime)
+                  ? convertToDateTime(email.updatedDateTime)
+                  : null;
                 return {
                   type: "Notified",
                   email: email?.email,
                   dateTime,
-                  updatedDateTime: isValidDate(doc?.updatedDateTime)
-                    ? new Date(doc.updatedDateTime).toISOString()
-                    : now.toISOString(),
+                  updatedDateTime,
                   productId: doc.productId,
                   size: doc.size,
                   colorCode: doc.colorCode,
@@ -3492,7 +3498,7 @@ async function run() {
             return {
               type: "Ordered",
               email: order?.customerInfo?.email,
-              dateTime: dateTime || now.toISOString(),
+              dateTime: dateTime || null,
               updatedDateTime: null,
               productId: "",
               size: null,
