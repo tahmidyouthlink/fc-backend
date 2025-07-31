@@ -18,6 +18,7 @@ const os = require("os");
 const moment = require("moment-timezone");
 const compression = require("compression");
 const helmet = require("helmet");
+const cron = require("node-cron");
 const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
@@ -40,6 +41,7 @@ const getResetPasswordEmailOptions = require("./utils/email/getResetPasswordEmai
 const getContactEmailOptions = require("./utils/email/getContactEmailOptions");
 const getWelcomeEmailOptions = require("./utils/email/getWelcomeEmailOptions");
 const getNotifyRequestEmailOptions = require("./utils/email/getNotifyRequestEmailOptions");
+const getAbandonedCartEmailOptions = require("./utils/email/getAbandonedCartEmailOptions");
 const {
   generateOtp,
   sendOtpEmail,
@@ -318,6 +320,165 @@ async function run() {
     const customerSupportCollection = client
       .db("fashion-commerce")
       .collection("customer-support");
+
+    cron.schedule("0 * * * *", async () => {
+      try {
+        const now = new Date();
+        const twelveHoursAgo = new Date(
+          now - 12 * 60 * 60 * 1000
+        ).toISOString();
+        const thirtySixHoursAgo = new Date(
+          now - 36 * 60 * 60 * 1000
+        ).toISOString();
+        // const fiveMinutesAgo = new Date(now - 5 * 60 * 1000).toISOString(); // Quick time for testing only
+        // const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000).toISOString(); // Quick time for testing only
+
+        const products = await productInformationCollection.find().toArray();
+        const specialOffers = await offerCollection.find().toArray();
+
+        // Send first email after 12h
+        const firstStageUsers = await customerListCollection
+          .find({
+            cartLastModifiedAt: {
+              $lte: twelveHoursAgo,
+              $gt: thirtySixHoursAgo,
+              // $lte: fiveMinutesAgo, // Quick time for testing only
+              // $gt: fifteenMinutesAgo, // Quick time for testing only
+            },
+            abandonedEmailStage: { $lt: 1 },
+          })
+          .toArray();
+
+        for (const user of firstStageUsers) {
+          const cartItems = user.cartItems.map((cartItem) => {
+            const product = products.find(
+              (product) => product._id.toString() == cartItem._id
+            );
+
+            const title = product.productTitle;
+            const pageUrl = `${
+              process.env.MAIN_DOMAIN_URL
+            }/product/${product.productTitle
+              .split(" ")
+              .join("-")
+              .toLowerCase()}`;
+            const imageUrl = product.productVariants[0].imageUrls[0];
+            const isOnlyRegularDiscountAvailable =
+              checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+            const price = calculateFinalPrice(product, specialOffers);
+            const originalPrice = isOnlyRegularDiscountAvailable
+              ? Number(product.regularPrice)
+              : null;
+            const quantity = cartItem.selectedQuantity;
+            const size = cartItem.selectedSize;
+            const color = {
+              name: cartItem.selectedColor.label,
+              code: cartItem.selectedColor.color,
+            };
+
+            return {
+              title,
+              pageUrl,
+              imageUrl,
+              price,
+              originalPrice,
+              quantity,
+              size,
+              color,
+            };
+          });
+
+          const mailResult = await transport.sendMail(
+            getAbandonedCartEmailOptions(
+              user.email,
+              user.userInfo.personalInfo.customerName,
+              cartItems
+            )
+          );
+
+          if (!mailResult?.accepted?.length)
+            return console.error(
+              "Failed to send the first abandoned cart email."
+            );
+
+          await customerListCollection.updateOne(
+            { email: user.email },
+            { $set: { abandonedEmailStage: 1 } }
+          );
+        }
+
+        // Send second email after 36h
+        const secondStageUsers = await customerListCollection
+          .find({
+            cartLastModifiedAt: {
+              $lte: thirtySixHoursAgo,
+              // $lte: fifteenMinutesAgo, // Quick time for testing only
+            },
+            abandonedEmailStage: { $lt: 2 },
+          })
+          .toArray();
+
+        for (const user of secondStageUsers) {
+          const cartItems = user.cartItems.map((cartItem) => {
+            const product = products.find(
+              (product) => product._id.toString() == cartItem._id
+            );
+
+            const title = product.productTitle;
+            const pageUrl = `${
+              process.env.MAIN_DOMAIN_URL
+            }/product/${product.productTitle
+              .split(" ")
+              .join("-")
+              .toLowerCase()}`;
+            const imageUrl = product.productVariants[0].imageUrls[0];
+            const isOnlyRegularDiscountAvailable =
+              checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+            const price = calculateFinalPrice(product, specialOffers);
+            const originalPrice = isOnlyRegularDiscountAvailable
+              ? Number(product.regularPrice)
+              : null;
+            const quantity = cartItem.selectedQuantity;
+            const size = cartItem.selectedSize;
+            const color = {
+              name: cartItem.selectedColor.label,
+              code: cartItem.selectedColor.color,
+            };
+
+            return {
+              title,
+              pageUrl,
+              imageUrl,
+              price,
+              originalPrice,
+              quantity,
+              size,
+              color,
+            };
+          });
+
+          const mailResult = await transport.sendMail(
+            getAbandonedCartEmailOptions(
+              user.email,
+              user.userInfo.personalInfo.customerName,
+              cartItems
+            )
+          );
+
+          if (!mailResult?.accepted?.length)
+            return console.error(
+              "Failed to send the second abandoned cart email."
+            );
+
+          await customerListCollection.updateOne(
+            { email: user.email },
+            { $set: { abandonedEmailStage: 2 } }
+          );
+        }
+      } catch (error) {
+        console.error("Abandoned cart cron job error:", error);
+      }
+    });
 
     // Route to generate signed URL for uploading a single file
     app.post(
