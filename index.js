@@ -6382,28 +6382,82 @@ async function run() {
       async (req, res) => {
         try {
           const id = req.params.id;
-          const urls = req.body;
+          const { url, position } = req.body;
           const filter = { _id: new ObjectId(id) };
-          const updateUrlOrder = {
-            $set: { ...urls },
+
+          const updateDoc = {
+            $set: { url, position },
+            $addToSet: { previousUrls: url }, // store all unique uploaded URLs
           };
 
           const result = await marketingBannerCollection.updateOne(
             filter,
-            updateUrlOrder
+            updateDoc
           );
 
           if (result.matchedCount === 0) {
             return res
               .status(404)
-              .send({ message: "Login register image urls not found" });
+              .send({ message: "Marketing banner not found" });
           }
 
           res.send(result);
         } catch (error) {
-          console.error("Error updating login register image urls:", error);
+          console.error("Error updating banner:", error);
           res.status(500).send({
-            message: "Failed to update login register image urls",
+            message: "Failed to update marketing banner",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    app.delete(
+      "/deleteMarketingBannerImage",
+      verifyJWT,
+      authorizeAccess(["Owner"], "Marketing"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { imageUrl } = req.body;
+
+          if (!imageUrl) {
+            return res.status(400).send({ message: "Image URL is required" });
+          }
+
+          // Find the banner document that contains the image URL in `previousUrls`
+          const banner = await marketingBannerCollection.findOne({
+            previousUrls: imageUrl,
+          });
+
+          if (!banner) {
+            return res
+              .status(404)
+              .send({ message: "Image not found in previous uploads" });
+          }
+
+          // Prevent deletion if it's currently the active banner
+          if (banner.url === imageUrl) {
+            return res
+              .status(400)
+              .send({ message: "Cannot delete currently active image." });
+          }
+
+          // Remove just the imageUrl from previousUrls array
+          const result = await marketingBannerCollection.updateOne(
+            { _id: banner._id },
+            { $pull: { previousUrls: imageUrl } }
+          );
+
+          res.send({
+            success: true,
+            message: "Image removed from previous uploads",
+            result,
+          });
+        } catch (error) {
+          console.error("Error deleting banner image:", error);
+          res.status(500).send({
+            message: "Server error while deleting image",
             error: error.message,
           });
         }
