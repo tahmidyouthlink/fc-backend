@@ -321,17 +321,13 @@ async function run() {
       .db("fashion-commerce")
       .collection("customer-support");
 
-    cron.schedule("0 * * * *", async () => {
+    cron.schedule("* * * * *", async () => {
       try {
         const now = new Date();
-        const twelveHoursAgo = new Date(
-          now - 12 * 60 * 60 * 1000
-        ).toISOString();
-        const thirtySixHoursAgo = new Date(
-          now - 36 * 60 * 60 * 1000
-        ).toISOString();
-        // const fiveMinutesAgo = new Date(now - 5 * 60 * 1000).toISOString(); // Quick time for testing only
-        // const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000).toISOString(); // Quick time for testing only
+        // const twelveHoursAgo = new Date(now - 12 * 60 * 60 * 1000);
+        // const thirtySixHoursAgo = new Date(now - 36 * 60 * 60 * 1000);
+        const fiveMinutesAgo = new Date(now - 5 * 60 * 1000); // Quick time for testing only
+        const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000); // Quick time for testing only
 
         const products = await productInformationCollection.find().toArray();
         const specialOffers = await offerCollection.find().toArray();
@@ -340,10 +336,10 @@ async function run() {
         const firstStageUsers = await customerListCollection
           .find({
             cartLastModifiedAt: {
-              $lte: twelveHoursAgo,
-              $gt: thirtySixHoursAgo,
-              // $lte: fiveMinutesAgo, // Quick time for testing only
-              // $gt: fifteenMinutesAgo, // Quick time for testing only
+              // $lte: twelveHoursAgo,
+              // $gt: thirtySixHoursAgo,
+              $lte: fiveMinutesAgo, // Quick time for testing only
+              $gt: fifteenMinutesAgo, // Quick time for testing only
             },
             abandonedEmailStage: { $lt: 1 },
           })
@@ -411,8 +407,8 @@ async function run() {
         const secondStageUsers = await customerListCollection
           .find({
             cartLastModifiedAt: {
-              $lte: thirtySixHoursAgo,
-              // $lte: fifteenMinutesAgo, // Quick time for testing only
+              // $lte: thirtySixHoursAgo,
+              $lte: fifteenMinutesAgo, // Quick time for testing only
             },
             abandonedEmailStage: { $lt: 2 },
           })
@@ -5252,6 +5248,14 @@ async function run() {
           if (updatedData._id) {
             delete updatedData._id;
           }
+
+          // If isCartLastModified is true, set cartLastModifiedAt to current date
+          if (updatedData.isCartLastModified === true) {
+            updatedData.cartLastModifiedAt = new Date();
+          }
+
+          // Remove isCartLastModified from the data before updating DB
+          delete updatedData.isCartLastModified;
 
           const result = await customerListCollection.updateOne(
             { _id: new ObjectId(id) }, // Match the document by its _id
