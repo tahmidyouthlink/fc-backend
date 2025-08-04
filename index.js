@@ -321,14 +321,14 @@ async function run() {
       .db("fashion-commerce")
       .collection("customer-support");
 
-    cron.schedule("* * * * *", async () => {
+    cron.schedule("0 * * * *", async () => {
       try {
         const cronLocksCollection = client
           .db("fashion-commerce")
           .collection("cron-locks");
 
         const now = new Date();
-        const lockExpiration = new Date(now.getTime() + 1 * 60 * 1000); // 1 minutes TTL
+        const lockExpiration = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour TTL
 
         // Try to insert a lock
         const result = await cronLocksCollection.insertOne({
@@ -349,10 +349,10 @@ async function run() {
           { expireAfterSeconds: 0 }
         );
 
-        // const twelveHoursAgo = new Date(now - 12 * 60 * 60 * 1000);
-        // const thirtySixHoursAgo = new Date(now - 36 * 60 * 60 * 1000);
-        const fiveMinutesAgo = new Date(now - 5 * 60 * 1000); // Quick time for testing only
-        const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000); // Quick time for testing only
+        const twelveHoursAgo = new Date(now - 12 * 60 * 60 * 1000);
+        const thirtySixHoursAgo = new Date(now - 36 * 60 * 60 * 1000);
+        // const fiveMinutesAgo = new Date(now - 5 * 60 * 1000); // Quick time for testing only
+        // const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000); // Quick time for testing only
 
         const products = await productInformationCollection.find().toArray();
         const specialOffers = await offerCollection.find().toArray();
@@ -361,10 +361,10 @@ async function run() {
         const firstStageUsers = await customerListCollection
           .find({
             cartLastModifiedAt: {
-              // $lte: twelveHoursAgo,
-              // $gt: thirtySixHoursAgo,
-              $lte: fiveMinutesAgo, // Quick time for testing only
-              $gt: fifteenMinutesAgo, // Quick time for testing only
+              $lte: twelveHoursAgo,
+              $gt: thirtySixHoursAgo,
+              // $lte: fiveMinutesAgo, // Quick time for testing only
+              // $gt: fifteenMinutesAgo, // Quick time for testing only
             },
             abandonedEmailStage: { $lt: 1 },
           })
@@ -432,8 +432,8 @@ async function run() {
         const secondStageUsers = await customerListCollection
           .find({
             cartLastModifiedAt: {
-              // $lte: thirtySixHoursAgo,
-              $lte: fifteenMinutesAgo, // Quick time for testing only
+              $lte: thirtySixHoursAgo,
+              // $lte: fifteenMinutesAgo, // Quick time for testing only
             },
             abandonedEmailStage: { $lt: 2 },
           })
