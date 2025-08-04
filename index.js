@@ -323,7 +323,32 @@ async function run() {
 
     cron.schedule("* * * * *", async () => {
       try {
+        const cronLocksCollection = client
+          .db("fashion-commerce")
+          .collection("cron-locks");
+
         const now = new Date();
+        const lockExpiration = new Date(now.getTime() + 1 * 60 * 1000); // 1 minutes TTL
+
+        // Try to insert a lock
+        const result = await cronLocksCollection.insertOne({
+          _id: "abandoned-cart-cron-lock",
+          createdAt: now,
+          expiresAt: lockExpiration,
+        });
+
+        if (!result.insertedId) {
+          return console.error(
+            "Cron lock error: Another instance is already running the cron."
+          );
+        }
+
+        // Create a TTL index if it doesn’t already exist
+        await cronLocksCollection.createIndex(
+          { expiresAt: 1 },
+          { expireAfterSeconds: 0 }
+        );
+
         // const twelveHoursAgo = new Date(now - 12 * 60 * 60 * 1000);
         // const thirtySixHoursAgo = new Date(now - 36 * 60 * 60 * 1000);
         const fiveMinutesAgo = new Date(now - 5 * 60 * 1000); // Quick time for testing only
@@ -471,8 +496,19 @@ async function run() {
             { $set: { abandonedEmailStage: 2 } }
           );
         }
+
+        // Delete the lock early
+        // await cronLocksCollection.deleteOne({
+        //   _id: "abandoned-cart-cron-lock",
+        // });
       } catch (error) {
-        console.error("Abandoned cart cron job error:", error);
+        if (error.code === 11000) {
+          console.error(
+            "Cron lock already acquired by another instance. Skipping."
+          );
+        } else {
+          console.error("Abandoned cart cron job error:", error);
+        }
       }
     });
 
