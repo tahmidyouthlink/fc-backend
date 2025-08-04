@@ -215,13 +215,13 @@ const multiClientAccess = (
     const origin = req.headers.origin || req.headers["x-client-origin"];
 
     try {
-      if (origin === "https://px-portal-025.poshax.shop") {
-        return backendAccessMiddleware(req, res, next);
-      }
-
-      // if (origin === "http://localhost:3000") {
+      // if (origin === "https://px-portal-025.poshax.shop") {
       //   return backendAccessMiddleware(req, res, next);
       // }
+
+      if (origin === "http://localhost:3000") {
+        return backendAccessMiddleware(req, res, next);
+      }
 
       if (origin === "https://poshax.shop") {
         return frontendAccessMiddleware(req, res, next);
@@ -2662,19 +2662,58 @@ async function run() {
                   // Skip already notified emails
                   if (notified) continue;
 
-                  // Create a cart URL with the product info
-                  const cartLink = `${
-                    process.env.MAIN_DOMAIN_URL
-                  }/product/${existingProduct.productTitle
-                    .split(" ")
-                    .join("-")
-                    .toLowerCase()}?productId=${productId}&colorCode=${encodeURIComponent(
-                    colorCode
-                  )}&size=${encodeURIComponent(size)}`;
+                  const user = await customerListCollection.findOne({ email });
+
+                  if (!user) {
+                    return res
+                      .status(404)
+                      .json({ message: "TokenError: No account found." });
+                  }
+
+                  const selectedProduct =
+                    await productInformationCollection.findOne({
+                      _id: new ObjectId(productId),
+                    });
+                  const specialOffers = await offerCollection.find().toArray();
+
+                  const isOnlyRegularDiscountAvailable =
+                    checkIfOnlyRegularDiscountIsAvailable(
+                      selectedProduct,
+                      specialOffers
+                    );
+                  const selectedVariant = selectedProduct.productVariants.find(
+                    (variant) =>
+                      variant.color.color == colorCode && variant.size == size
+                  );
+                  const colorName = selectedVariant.color.label;
+                  const imageUrl = selectedVariant.imageUrls[0];
+
+                  const notifiedProduct = {
+                    pageUrl: `${
+                      process.env.MAIN_DOMAIN_URL
+                    }/product/${existingProduct.productTitle
+                      .split(" ")
+                      .join("-")
+                      .toLowerCase()}?productId=${productId}&colorCode=${encodeURIComponent(
+                      colorCode
+                    )}&size=${encodeURIComponent(size)}`,
+                    imageUrl,
+                    title: selectedProduct.productTitle,
+                    price: calculateFinalPrice(selectedProduct, specialOffers),
+                    originalPrice: isOnlyRegularDiscountAvailable
+                      ? Number(selectedProduct.regularPrice)
+                      : null,
+                    size,
+                    color: {
+                      code: colorCode,
+                      name: colorName,
+                    },
+                    customerName: user.userInfo.personalInfo.customerName,
+                  };
 
                   try {
                     const mailResult = await transport.sendMail(
-                      getStockUpdateEmailOptions(email, cartLink)
+                      getStockUpdateEmailOptions(email, notifiedProduct)
                     );
 
                     // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
@@ -4844,6 +4883,9 @@ async function run() {
             currentTime.getTime() + 1 * 60 * 60 * 1000
           ); // 1 hours later
 
+          // Initialize emailSentStatuses if it doesn't exist
+          const emailSentStatuses = order.emailSentStatuses || [];
+
           if (isUndo) {
             if (
               order.orderStatus === "Processing" &&
@@ -4996,13 +5038,26 @@ async function run() {
               // Store all shipping-related fields inside `shipmentInfo` object
               updateDoc.$set.declinedReason = declinedReason;
             }
+
+            // Add the new status to emailSentStatuses if email will be sent
+            if (!emailSentStatuses.includes(orderStatus)) {
+              updateDoc.$set.emailSentStatuses = [
+                ...emailSentStatuses,
+                orderStatus,
+              ];
+            }
           }
 
           const result = await orderListCollection.updateOne(filter, updateDoc);
 
           if (result.modifiedCount > 0) {
             const updatedOrder = await orderListCollection.findOne(filter); // Fetch updated order with tracking info if needed
-            await sendEmailToCustomer(updatedOrder, orderStatus); // send email based on new status
+
+            // Only send email if the status hasn't been emailed before and it's not an undo
+            if (!isUndo && !emailSentStatuses.includes(orderStatus)) {
+              await sendEmailToCustomer(updatedOrder, orderStatus);
+            }
+
             res.send(result);
           } else {
             res.status(404).send({ error: "Order not found" });
