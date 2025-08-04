@@ -217,13 +217,13 @@ const multiClientAccess = (
     const origin = req.headers.origin || req.headers["x-client-origin"];
 
     try {
-      // if (origin === "https://px-portal-025.poshax.shop") {
-      //   return backendAccessMiddleware(req, res, next);
-      // }
-
-      if (origin === "http://localhost:3000") {
+      if (origin === "https://px-portal-025.poshax.shop") {
         return backendAccessMiddleware(req, res, next);
       }
+
+      // if (origin === "http://localhost:3000") {
+      //   return backendAccessMiddleware(req, res, next);
+      // }
 
       if (origin === "https://poshax.shop") {
         return frontendAccessMiddleware(req, res, next);
