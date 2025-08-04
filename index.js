@@ -5249,9 +5249,17 @@ async function run() {
             delete updatedData._id;
           }
 
-          // If isCartLastModified is true, set cartLastModifiedAt to current date
+          // See if cart is modified
           if (updatedData.isCartLastModified === true) {
-            updatedData.cartLastModifiedAt = new Date();
+            if (!updatedData.cartItems.length) {
+              // If cart is empty, remove cartLastModifiedAt and abandonedEmailStage
+              delete updatedData.cartLastModifiedAt;
+              delete updatedData.abandonedEmailStage;
+            } else {
+              // If some items are added to cart, set cartLastModifiedAt to current date
+              updatedData.cartLastModifiedAt = new Date();
+              updatedData.abandonedEmailStage = 0;
+            }
           }
 
           // Remove isCartLastModified from the data before updating DB
