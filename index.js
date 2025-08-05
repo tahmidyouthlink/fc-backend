@@ -367,6 +367,7 @@ async function run() {
               // $gt: fifteenMinutesAgo, // Quick time for testing only
             },
             abandonedEmailStage: { $lt: 1 },
+            cartItems: { $exists: true, $ne: [] },
           })
           .toArray();
 
@@ -436,6 +437,7 @@ async function run() {
               // $lte: fifteenMinutesAgo, // Quick time for testing only
             },
             abandonedEmailStage: { $lt: 2 },
+            cartItems: { $exists: true, $ne: [] },
           })
           .toArray();
 
