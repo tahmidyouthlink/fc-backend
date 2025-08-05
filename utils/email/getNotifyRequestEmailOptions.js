@@ -161,8 +161,13 @@ const getNotifyRequestEmailOptions = (
               }
 
               .row-3 .column-1 .block-3.paragraph_block td.pad > div,
+              .row-4 .column-2 .block-1.paragraph_block td.pad > div,
               .row-4 .column-2 .block-2.paragraph_block td.pad > div {
                 font-size: 14px !important;
+              }
+
+              .row-4 .column-2 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
               }
 
               .row-3 .column-1 .block-2.paragraph_block td.pad > div,
@@ -557,7 +562,7 @@ const getNotifyRequestEmailOptions = (
                       <tr>
                         <td>
                           <table
-                            class="row-content stack"
+                            class="row-content"
                             align="center"
                             border="0"
                             cellpadding="0"
@@ -611,9 +616,9 @@ const getNotifyRequestEmailOptions = (
                                       <tr>
                                         <td class="pad" style="width: 100%">
                                           <div class="alignment" align="center">
-                                            <table role="presentation" width="100%" style="height: 200px;">
+                                            <table role="presentation" width="100%" style="height: 175px;">
                                               <tr>
-                                                <td align="center" valign="middle" style="height: 200px;">
+                                                <td align="center" valign="middle" style="height: 175px;">
                                                   <img src="${
                                                     notifyProduct.imageUrl
                                                   }" 
@@ -658,7 +663,7 @@ const getNotifyRequestEmailOptions = (
                                     mso-table-rspace: 0pt;
                                     font-weight: 400;
                                     text-align: left;
-                                    vertical-align: top;
+                                    vertical-align: middle;
                                     border-radius: 4px;
                                   "
                                 >
@@ -667,8 +672,6 @@ const getNotifyRequestEmailOptions = (
                                     target="_blank"
                                     style="
                                       text-decoration: none;
-                                      display: block;
-                                      height: 200px;
                                     "
                                   >
                                     <table
@@ -691,7 +694,7 @@ const getNotifyRequestEmailOptions = (
                                               color: #fc7318;
                                               font-family: 'Trebuchet MS', Arial,
                                                 Helvetica, sans-serif;
-                                              font-size: 22px;
+                                              font-size: 20px;
                                               line-height: 1.2;
                                               text-align: left;
                                               mso-line-height-alt: 26px;
