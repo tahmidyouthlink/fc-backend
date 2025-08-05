@@ -4095,7 +4095,7 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const {
+          let {
             name,
             email,
             phoneNumber,
@@ -4112,6 +4112,8 @@ async function run() {
             cartItems,
             userDevice,
           } = req.body;
+
+          if (!deliveryType) deliveryType = "STANDARD";
 
           const [products, offers, shippingZones, orders, customer, promoInfo] =
             await Promise.all([
