@@ -148,48 +148,51 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                 max-height: none !important;
               }
 
-              .row-3 .column-1 .block-1.paragraph_block td.pad > div {
+              .row-4 .column-1 .block-1.paragraph_block td.pad > div {
                 font-size: 22px !important;
               }
 
-              .row-3 .column-1 .block-2.paragraph_block td.pad > div,
-              .row-3 .column-1 .block-3.paragraph_block td.pad > div,
-              .row-3 .column-1 .block-5.paragraph_block td.pad > div,
-              .row-4 .column-1 .block-1.paragraph_block td.pad > div,
               .row-4 .column-1 .block-2.paragraph_block td.pad > div,
-              .row-5 .column-1 .block-3.paragraph_block td.pad > div {
+              .row-4 .column-1 .block-3.paragraph_block td.pad > div,
+              .row-4 .column-1 .block-5.paragraph_block td.pad > div,
+              .row-5 .column-1 .block-1.paragraph_block td.pad > div,
+              .row-5 .column-1 .block-2.paragraph_block td.pad > div {
                 font-size: 14px !important;
               }
 
-              .row-3 .column-1 .block-4.button_block span {
+              .row-4 .column-1 .block-4.button_block span {
                 font-size: 14px !important;
                 line-height: 28px !important;
               }
 
-              .row-5 .column-1 .block-1.paragraph_block td.pad > div {
-                font-size: 23px !important;
-              }
-
-              .row-5 .column-1 .block-2.paragraph_block td.pad > div {
-                font-size: 17px !important;
-              }
-
-              .row-6 .column-1 .block-2.paragraph_block td.pad > div,
-              .row-6 .column-1 .block-4.paragraph_block td.pad > div {
-                font-size: 13px !important;
-              }
-
-              .row-2 .column-1,
-              .row-3 .column-1 {
+              .row-3 .column-1,
+              .row-4 .column-1 {
                 padding: 55px 20px 15px !important;
               }
 
-              .row-4 .column-1 {
+              .row-5 .column-1 {
                 padding: 15px 20px 40px !important;
               }
-
-              .row-5 .column-1 {
+                
+              .row-top-footer .column-1 {
                 padding: 40px 10px !important;
+              }
+
+              .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
+                font-size: 20px !important;
+              }
+
+              .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
+                font-size: 16px !important;
+              }
+
+              .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
+
+              .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
+              .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
+                font-size: 12px !important;
               }
             }
           </style>
@@ -236,7 +239,67 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
               <tr>
                 <td>
                   <table
-                    class="row row-1"
+                    class="row row-1 mobile_hide"
+                    align="center"
+                    width="100%"
+                    border="0"
+                    cellpadding="0"
+                    cellspacing="0"
+                    role="presentation"
+                    style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
+                  >
+                    <tbody>
+                      <tr>
+                        <td>
+                          <table
+                            class="row-content stack"
+                            align="center"
+                            border="0"
+                            cellpadding="0"
+                            cellspacing="0"
+                            role="presentation"
+                            style="
+                              mso-table-lspace: 0pt;
+                              mso-table-rspace: 0pt;
+                              color: #000000;
+                              width: 650px;
+                              margin: 0 auto;
+                            "
+                            width="650"
+                          >
+                            <tbody>
+                              <tr>
+                                <td
+                                  class="column column-1"
+                                  width="100%"
+                                  style="
+                                    mso-table-lspace: 0pt;
+                                    mso-table-rspace: 0pt;
+                                    font-weight: 400;
+                                    text-align: left;
+                                    vertical-align: top;
+                                  "
+                                >
+                                  <div
+                                    class="spacer_block block-1"
+                                    style="
+                                      height: 30px;
+                                      line-height: 30px;
+                                      font-size: 1px;
+                                    "
+                                  >
+                                    &#8202;
+                                  </div>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <table
+                    class="row row-2"
                     align="center"
                     width="100%"
                     border="0"
@@ -303,19 +366,28 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                                       >
                                         <div class="alignment" align="center">
                                           <div style="max-width: 130px">
-                                            <img
-                                              src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/brl/r1c/ovx/logo.png"
-                                              style="
-                                                display: block;
-                                                height: auto;
-                                                border: 0;
-                                                width: 100%;
-                                              "
-                                              width="130"
-                                              alt="Image"
-                                              title="Image"
-                                              height="auto"
-                                            />
+                                            <a
+                                              href="${
+                                                process.env.MAIN_DOMAIN_URL
+                                              }"
+                                              target="_blank"
+                                              ><img
+                                                src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/brl/r1c/ovx/logo.png"
+                                                style="
+                                                  display: block;
+                                                  height: auto;
+                                                  border: 0;
+                                                  width: 100%;
+                                                "
+                                                width="130"
+                                                alt="${
+                                                  process.env.COMPANY_NAME
+                                                } Logo"
+                                                title="${
+                                                  process.env.COMPANY_NAME
+                                                } Logo"
+                                                height="auto"
+                                            /></a>
                                           </div>
                                         </div>
                                       </td>
@@ -330,7 +402,7 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-2"
+                    class="row row-3"
                     align="center"
                     width="100%"
                     border="0"
@@ -409,8 +481,8 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                                                 width: 100%;
                                               "
                                               width="456"
-                                              alt="Image"
-                                              title="Image"
+                                              alt="Securely reset password"
+                                              title="Securely reset password"
                                               height="auto"
                                             />
                                           </div>
@@ -427,7 +499,7 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-3"
+                    class="row row-4"
                     align="center"
                     width="100%"
                     border="0"
@@ -724,7 +796,7 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-4"
+                    class="row row-5"
                     align="center"
                     width="100%"
                     border="0"
@@ -846,7 +918,7 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-5"
+                    class="row row-top-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1076,7 +1148,7 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-6"
+                    class="row row-bottom-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1156,8 +1228,12 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/facebook@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="Facebook"
-                                                    title="Facebook"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } Facebook"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } Facebook"
                                                     style="
                                                       display: block;
                                                       height: auto;
@@ -1173,8 +1249,12 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/instagram@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="Instagram"
-                                                    title="Instagram"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } Instagram"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } Instagram"
                                                     style="
                                                       display: block;
                                                       height: auto;
@@ -1190,8 +1270,12 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/twitter@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="Twitter"
-                                                    title="Twitter"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } Twitter"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } Twitter"
                                                     style="
                                                       display: block;
                                                       height: auto;
@@ -1207,8 +1291,12 @@ const getResetPasswordEmailOptions = (fullName, email, resetLink) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/tiktok@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="TikTok"
-                                                    title="TikTok"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } TikTok"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } TikTok"
                                                     style="
                                                       display: block;
                                                       height: auto;

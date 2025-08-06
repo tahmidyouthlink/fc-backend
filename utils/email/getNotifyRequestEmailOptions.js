@@ -175,8 +175,33 @@ const getNotifyRequestEmailOptions = (
                 font-size: 22px !important;
               }
 
+              .row-6 > tbody > tr > td > table > tbody > tr > td {
+                border-right: 0px solid transparent !important;
+              }
+
               .row-4 .column-2 .block-1.paragraph_block td.pad > div {
                 font-size: 20px !important;
+              }
+
+              .row-top-footer .column-1 {
+                padding: 40px 10px !important;
+              }
+
+              .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
+                font-size: 20px !important;
+              }
+
+              .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
+                font-size: 16px !important;
+              }
+
+              .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
+
+              .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
+              .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
+                font-size: 12px !important;
               }
             }
           </style>
@@ -201,7 +226,7 @@ const getNotifyRequestEmailOptions = (
           <tbody>
             <tr>
               <td>
-                <table
+                  <table
                     class="row row-1 mobile_hide"
                     align="center"
                     width="100%"
@@ -346,7 +371,9 @@ const getNotifyRequestEmailOptions = (
                                                 alt="${
                                                   process.env.COMPANY_NAME
                                                 } Logo"
-                                                title="Image"
+                                                title="${
+                                                  process.env.COMPANY_NAME
+                                                } Logo"
                                                 height="auto"
                                             /></a>
                                           </div>
@@ -623,8 +650,12 @@ const getNotifyRequestEmailOptions = (
                                                     notifyProduct.imageUrl
                                                   }" 
                                                     style="display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; border: 0;" 
-                                                    alt="Product Image" 
-                                                    title="Product Image" />
+                                                    alt="${
+                                                      notifyProduct.title
+                                                    }" 
+                                                    title="${
+                                                      notifyProduct.title
+                                                    }" />
                                                 </td>
                                               </tr>
                                             </table>
@@ -892,8 +923,8 @@ const getNotifyRequestEmailOptions = (
                                                     product.imageUrl
                                                   }" 
                                                     style="display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; border: 0;" 
-                                                    alt="Product Image" 
-                                                    title="Product Image" />
+                                                    alt="${product.title}" 
+                                                    title="${product.title}" />
                                                 </td>
                                               </tr>
                                             </table>
@@ -988,7 +1019,7 @@ const getNotifyRequestEmailOptions = (
                     : ""
                 }
                   <table
-                    class="row row-5"
+                    class="row row-top-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1238,7 +1269,7 @@ const getNotifyRequestEmailOptions = (
                     </tbody>
                   </table>
                   <table
-                    class="row row-6"
+                    class="row row-bottom-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1319,12 +1350,10 @@ const getNotifyRequestEmailOptions = (
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     style="
                                                       display: block;
@@ -1342,12 +1371,10 @@ const getNotifyRequestEmailOptions = (
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     style="
                                                       display: block;
@@ -1365,12 +1392,10 @@ const getNotifyRequestEmailOptions = (
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     style="
                                                       display: block;
@@ -1388,12 +1413,10 @@ const getNotifyRequestEmailOptions = (
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     style="
                                                       display: block;

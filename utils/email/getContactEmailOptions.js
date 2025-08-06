@@ -150,19 +150,12 @@ const getContactEmailOptions = (fullName, email) => {
               .row-4 .column-1 .block-3.paragraph_block td.pad > div,
               .row-5 .column-1 .block-1.paragraph_block td.pad > div,
               .row-5 .column-1 .block-2.paragraph_block td.pad > div,
-              .row-5 .column-1 .block-3.paragraph_block td.pad > div,
-              .row-6 .column-1 .block-2.paragraph_block td.pad > div {
+              .row-5 .column-1 .block-3.paragraph_block td.pad > div {
                 font-size: 14px !important;
               }
 
-              .row-4 .column-1 .block-1.paragraph_block td.pad > div,
-              .row-6 .column-1 .block-1.paragraph_block td.pad > div {
+              .row-4 .column-1 .block-1.paragraph_block td.pad > div {
                 font-size: 22px !important;
-              }
-
-              .row-7 .column-1 .block-2.paragraph_block td.pad > div,
-              .row-7 .column-1 .block-4.paragraph_block td.pad > div {
-                font-size: 13px !important;
               }
 
               .row-3 .column-1,
@@ -174,8 +167,25 @@ const getContactEmailOptions = (fullName, email) => {
                 padding: 15px 20px 40px !important;
               }
 
-              .row-6 .column-1 {
+              .row-top-footer .column-1 {
                 padding: 40px 10px !important;
+              }
+
+              .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
+                font-size: 20px !important;
+              }
+
+              .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
+                font-size: 16px !important;
+              }
+
+              .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
+
+              .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
+              .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
+                font-size: 12px !important;
               }
             }
           </style>
@@ -363,8 +373,12 @@ const getContactEmailOptions = (fullName, email) => {
                                                   width: 100%;
                                                 "
                                                 width="130"
-                                                alt="Image"
-                                                title="Image"
+                                                alt="${
+                                                  process.env.COMPANY_NAME
+                                                } Logo"
+                                                title="${
+                                                  process.env.COMPANY_NAME
+                                                } Logo"
                                                 height="auto"
                                             /></a>
                                           </div>
@@ -461,8 +475,8 @@ const getContactEmailOptions = (fullName, email) => {
                                                 width: 100%;
                                               "
                                               width="342"
-                                              alt="Image"
-                                              title="Image"
+                                              alt="Customer service"
+                                              title="Customer service"
                                               height="auto"
                                             />
                                           </div>
@@ -832,7 +846,7 @@ const getContactEmailOptions = (fullName, email) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-5"
+                    class="row row-top-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1062,7 +1076,7 @@ const getContactEmailOptions = (fullName, email) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-6"
+                    class="row row-bottom-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1142,8 +1156,12 @@ const getContactEmailOptions = (fullName, email) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/facebook@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="Facebook"
-                                                    title="Facebook"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } Facebook"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } Facebook"
                                                     style="
                                                       display: block;
                                                       height: auto;
@@ -1159,8 +1177,12 @@ const getContactEmailOptions = (fullName, email) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/instagram@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="Instagram"
-                                                    title="Instagram"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } Instagram"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } Instagram"
                                                     style="
                                                       display: block;
                                                       height: auto;
@@ -1176,8 +1198,12 @@ const getContactEmailOptions = (fullName, email) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/twitter@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="Twitter"
-                                                    title="Twitter"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } Twitter"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } Twitter"
                                                     style="
                                                       display: block;
                                                       height: auto;
@@ -1193,8 +1219,12 @@ const getContactEmailOptions = (fullName, email) => {
                                                     src="https://app-rsrc.getbee.io/public/resources/social-networks-icon-sets/circle-color/tiktok@2x.png"
                                                     width="32"
                                                     height="auto"
-                                                    alt="TikTok"
-                                                    title="TikTok"
+                                                    alt="${
+                                                      process.env.COMPANY_NAME
+                                                    } TikTok"
+                                                    title="${
+                                                      process.env.COMPANY_NAME
+                                                    } TikTok"
                                                     style="
                                                       display: block;
                                                       height: auto;

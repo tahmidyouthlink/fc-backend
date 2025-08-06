@@ -229,6 +229,27 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
               .row-${5 + cartItems.length} .column-1 {
                 padding: 20px 0 !important;
               }
+
+              .row-top-footer .column-1 {
+                padding: 40px 10px !important;
+              }
+
+              .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
+                font-size: 20px !important;
+              }
+
+              .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
+                font-size: 16px !important;
+              }
+
+              .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
+
+              .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
+              .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
             }
           </style>
           <!--[if mso
@@ -418,7 +439,9 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                 alt="${
                                                   process.env.COMPANY_NAME
                                                 } Logo"
-                                                title="Image"
+                                                title="${
+                                                  process.env.COMPANY_NAME
+                                                } Logo"
                                                 height="auto"
                                             /></a>
                                           </div>
@@ -522,8 +545,8 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                 width: 100%;
                                               "
                                               width="336"
-                                              alt="Item in the cart"
-                                              title="Item in the cart"
+                                              alt="Item kept in cart"
+                                              title="Items kept in cart"
                                               height="auto"
                                             />
                                           </div>
@@ -881,9 +904,7 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                   <td align="center" valign="middle" style="height: 130px;">
                                                     <img src="${item.imageUrl}" 
                                                       style="display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; border: 0;" 
-                                                      alt="${
-                                                        item.title
-                                                      } Product Image" 
+                                                      alt="${item.title}" 
                                                       title="${item.title}" />
                                                   </td>
                                                 </tr>
@@ -1242,7 +1263,7 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-${6 + cartItems.length}"
+                    class="row row-top-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1474,7 +1495,7 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-${7 + cartItems.length}"
+                    class="row row-bottom-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1555,12 +1576,10 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     style="
                                                       display: block;
@@ -1578,12 +1597,10 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     style="
                                                       display: block;
@@ -1601,12 +1618,10 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     style="
                                                       display: block;
@@ -1624,12 +1639,10 @@ const getAbandonedCartEmailOptions = (email, fullName, cartItems) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     style="
                                                       display: block;

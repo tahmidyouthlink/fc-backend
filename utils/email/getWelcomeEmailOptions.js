@@ -6,7 +6,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
     text: `Welcome ${fullName}!
 
       We are thrilled to have you join our fashion-forward platform, ${process.env.COMPANY_NAME.toUpperCase()}!
-            
+      
       Expect exclusive drops, early access to new collections, and more!
 
       GET ${promo.amount} OFF
@@ -164,12 +164,37 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
               padding-right: 20px !important;
             }
 
+            .row-6 > tbody > tr > td > table > tbody > tr > td {
+              border-right: 0px solid transparent !important;
+            }
+
             .row-3 .column-1 {
               padding: 50px 20px 0 !important;
             }
 
             .row-7 .column-1 {
               padding: 40px 20px !important;
+            }
+
+            .row-top-footer .column-1 {
+              padding: 40px 10px !important;
+            }
+              
+            .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
+              font-size: 20px !important;
+            }
+              
+            .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
+              font-size: 16px !important;
+            }
+              
+            .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
+              font-size: 12px !important;
+            }
+              
+            .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
+            .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
+              font-size: 12px !important;
             }
           }
         </style><!--[if mso ]><style>sup, sub { font-size: 100% !important; } sup { mso-text-raise:10% } sub { mso-text-raise:-10% }</style> <![endif]-->
@@ -180,7 +205,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
           <tbody>
             <tr>
               <td>
-                <table
+                  <table
                     class="row row-1 mobile_hide"
                     align="center"
                     width="100%"
@@ -323,10 +348,10 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                                 "
                                                 width="130"
                                                 alt="${
-                                                  process.env.MAIN_DOMAIN_URL
+                                                  process.env.COMPANY_NAME
                                                 } Logo"
                                                 title="${
-                                                  process.env.MAIN_DOMAIN_URL
+                                                  process.env.COMPANY_NAME
                                                 } Logo"
                                                 height="auto"
                                             /></a>
@@ -373,7 +398,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                   <tr>
                                     <td class="pad" style="width:100%;padding-right:0px;padding-left:0px;">
                                       <div class="alignment" align="center">
-                                        <div class="fullWidth" style="max-width: 413px;"><img src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/1rk/f4j/z8d/celebrate.png" style="display: block; height: auto; border: 0; width: 100%;" width="413" alt="Welcome Image" title="Welcome Image" height="auto"></div>
+                                        <div class="fullWidth" style="max-width: 413px;"><img src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/1rk/f4j/z8d/celebrate.png" style="display: block; height: auto; border: 0; width: 100%;" width="413" alt="Celebration and Gift" title="Celebration and Gift" height="auto"></div>
                                       </div>
                                     </td>
                                   </tr>
@@ -505,8 +530,8 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                                     product.imageUrl
                                                   }" 
                                                     style="display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; border: 0;" 
-                                                    alt="Product Image" 
-                                                    title="Product Image" />
+                                                    alt="${product.title}" 
+                                                    title="${product.title}" />
                                                 </td>
                                               </tr>
                                             </table>
@@ -599,7 +624,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                   </tbody>
                 </table>
                   <table
-                    class="row row-5"
+                    class="row row-top-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -831,7 +856,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                     </tbody>
                   </table>
                   <table
-                    class="row row-6"
+                    class="row row-bottom-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -912,12 +937,10 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     style="
                                                       display: block;
@@ -935,12 +958,10 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     style="
                                                       display: block;
@@ -958,12 +979,10 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     style="
                                                       display: block;
@@ -981,12 +1000,10 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     style="
                                                       display: block;
