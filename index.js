@@ -321,198 +321,200 @@ async function run() {
       .db("fashion-commerce")
       .collection("customer-support");
 
-    cron.schedule("0 * * * *", async () => {
-      try {
-        const cronLocksCollection = client
-          .db("fashion-commerce")
-          .collection("cron-locks");
+    if (process.env.NODE_ENV === "production") {
+      cron.schedule("*/30 * * * *", async () => {
+        try {
+          const cronLocksCollection = client
+            .db("fashion-commerce")
+            .collection("cron-locks");
 
-        const now = new Date();
-        const lockExpiration = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour TTL
+          const now = new Date();
+          const lockExpiration = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes TTL
 
-        // Try to insert a lock
-        const result = await cronLocksCollection.insertOne({
-          _id: "abandoned-cart-cron-lock",
-          createdAt: now,
-          expiresAt: lockExpiration,
-        });
-
-        if (!result.insertedId) {
-          return console.error(
-            "Cron lock error: Another instance is already running the cron."
-          );
-        }
-
-        // Create a TTL index if it doesn’t already exist
-        await cronLocksCollection.createIndex(
-          { expiresAt: 1 },
-          { expireAfterSeconds: 0 }
-        );
-
-        const twelveHoursAgo = new Date(now - 12 * 60 * 60 * 1000);
-        const thirtySixHoursAgo = new Date(now - 36 * 60 * 60 * 1000);
-        // const fiveMinutesAgo = new Date(now - 5 * 60 * 1000); // Quick time for testing only
-        // const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000); // Quick time for testing only
-
-        const products = await productInformationCollection.find().toArray();
-        const specialOffers = await offerCollection.find().toArray();
-
-        // Send first email after 12h
-        const firstStageUsers = await customerListCollection
-          .find({
-            cartLastModifiedAt: {
-              $lte: twelveHoursAgo,
-              $gt: thirtySixHoursAgo,
-              // $lte: fiveMinutesAgo, // Quick time for testing only
-              // $gt: fifteenMinutesAgo, // Quick time for testing only
-            },
-            abandonedEmailStage: { $lt: 1 },
-            cartItems: { $exists: true, $ne: [] },
-          })
-          .toArray();
-
-        for (const user of firstStageUsers) {
-          const cartItems = user.cartItems.map((cartItem) => {
-            const product = products.find(
-              (product) => product._id.toString() == cartItem._id
-            );
-
-            const title = product.productTitle;
-            const pageUrl = `${
-              process.env.MAIN_DOMAIN_URL
-            }/product/${product.productTitle
-              .split(" ")
-              .join("-")
-              .toLowerCase()}`;
-            const imageUrl = product.productVariants[0].imageUrls[0];
-            const isOnlyRegularDiscountAvailable =
-              checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
-            const price = calculateFinalPrice(product, specialOffers);
-            const originalPrice = isOnlyRegularDiscountAvailable
-              ? Number(product.regularPrice)
-              : null;
-            const quantity = cartItem.selectedQuantity;
-            const size = cartItem.selectedSize;
-            const color = {
-              name: cartItem.selectedColor.label,
-              code: cartItem.selectedColor.color,
-            };
-
-            return {
-              title,
-              pageUrl,
-              imageUrl,
-              price,
-              originalPrice,
-              quantity,
-              size,
-              color,
-            };
+          // Try to insert a lock
+          const result = await cronLocksCollection.insertOne({
+            _id: "abandoned-cart-cron-lock",
+            createdAt: now,
+            expiresAt: lockExpiration,
           });
 
-          const mailResult = await transport.sendMail(
-            getAbandonedCartEmailOptions(
-              user.email,
-              user.userInfo.personalInfo.customerName,
-              cartItems
-            )
-          );
-
-          if (!mailResult?.accepted?.length)
+          if (!result.insertedId) {
             return console.error(
-              "Failed to send the first abandoned cart email."
+              "Cron lock error: Another instance is already running the cron."
+            );
+          }
+
+          // Create a TTL index if it doesn’t already exist
+          await cronLocksCollection.createIndex(
+            { expiresAt: 1 },
+            { expireAfterSeconds: 0 }
+          );
+
+          const twelveHoursAgo = new Date(now - 12 * 60 * 60 * 1000);
+          const thirtySixHoursAgo = new Date(now - 36 * 60 * 60 * 1000);
+          // const fiveMinutesAgo = new Date(now - 5 * 60 * 1000); // Quick time for testing only
+          // const fifteenMinutesAgo = new Date(now - 15 * 60 * 1000); // Quick time for testing only
+
+          const products = await productInformationCollection.find().toArray();
+          const specialOffers = await offerCollection.find().toArray();
+
+          // Send first email after 12h
+          const firstStageUsers = await customerListCollection
+            .find({
+              cartLastModifiedAt: {
+                $lte: twelveHoursAgo,
+                $gt: thirtySixHoursAgo,
+                // $lte: fiveMinutesAgo, // Quick time for testing only
+                // $gt: fifteenMinutesAgo, // Quick time for testing only
+              },
+              abandonedEmailStage: { $lt: 1 },
+              cartItems: { $exists: true, $ne: [] },
+            })
+            .toArray();
+
+          for (const user of firstStageUsers) {
+            const cartItems = user.cartItems.map((cartItem) => {
+              const product = products.find(
+                (product) => product._id.toString() == cartItem._id
+              );
+
+              const title = product.productTitle;
+              const pageUrl = `${
+                process.env.MAIN_DOMAIN_URL
+              }/product/${product.productTitle
+                .split(" ")
+                .join("-")
+                .toLowerCase()}`;
+              const imageUrl = product.productVariants[0].imageUrls[0];
+              const isOnlyRegularDiscountAvailable =
+                checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+              const price = calculateFinalPrice(product, specialOffers);
+              const originalPrice = isOnlyRegularDiscountAvailable
+                ? Number(product.regularPrice)
+                : null;
+              const quantity = cartItem.selectedQuantity;
+              const size = cartItem.selectedSize;
+              const color = {
+                name: cartItem.selectedColor.label,
+                code: cartItem.selectedColor.color,
+              };
+
+              return {
+                title,
+                pageUrl,
+                imageUrl,
+                price,
+                originalPrice,
+                quantity,
+                size,
+                color,
+              };
+            });
+
+            const mailResult = await transport.sendMail(
+              getAbandonedCartEmailOptions(
+                user.email,
+                user.userInfo.personalInfo.customerName,
+                cartItems
+              )
             );
 
-          await customerListCollection.updateOne(
-            { email: user.email },
-            { $set: { abandonedEmailStage: 1 } }
-          );
-        }
+            if (!mailResult?.accepted?.length)
+              return console.error(
+                "Failed to send the first abandoned cart email."
+              );
 
-        // Send second email after 36h
-        const secondStageUsers = await customerListCollection
-          .find({
-            cartLastModifiedAt: {
-              $lte: thirtySixHoursAgo,
-              // $lte: fifteenMinutesAgo, // Quick time for testing only
-            },
-            abandonedEmailStage: { $lt: 2 },
-            cartItems: { $exists: true, $ne: [] },
-          })
-          .toArray();
+            await customerListCollection.updateOne(
+              { email: user.email },
+              { $set: { abandonedEmailStage: 1 } }
+            );
+          }
 
-        for (const user of secondStageUsers) {
-          const cartItems = user.cartItems.map((cartItem) => {
-            const product = products.find(
-              (product) => product._id.toString() == cartItem._id
+          // Send second email after 36h
+          const secondStageUsers = await customerListCollection
+            .find({
+              cartLastModifiedAt: {
+                $lte: thirtySixHoursAgo,
+                // $lte: fifteenMinutesAgo, // Quick time for testing only
+              },
+              abandonedEmailStage: { $lt: 2 },
+              cartItems: { $exists: true, $ne: [] },
+            })
+            .toArray();
+
+          for (const user of secondStageUsers) {
+            const cartItems = user.cartItems.map((cartItem) => {
+              const product = products.find(
+                (product) => product._id.toString() == cartItem._id
+              );
+
+              const title = product.productTitle;
+              const pageUrl = `${
+                process.env.MAIN_DOMAIN_URL
+              }/product/${product.productTitle
+                .split(" ")
+                .join("-")
+                .toLowerCase()}`;
+              const imageUrl = product.productVariants[0].imageUrls[0];
+              const isOnlyRegularDiscountAvailable =
+                checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
+              const price = calculateFinalPrice(product, specialOffers);
+              const originalPrice = isOnlyRegularDiscountAvailable
+                ? Number(product.regularPrice)
+                : null;
+              const quantity = cartItem.selectedQuantity;
+              const size = cartItem.selectedSize;
+              const color = {
+                name: cartItem.selectedColor.label,
+                code: cartItem.selectedColor.color,
+              };
+
+              return {
+                title,
+                pageUrl,
+                imageUrl,
+                price,
+                originalPrice,
+                quantity,
+                size,
+                color,
+              };
+            });
+
+            const mailResult = await transport.sendMail(
+              getAbandonedCartEmailOptions(
+                user.email,
+                user.userInfo.personalInfo.customerName,
+                cartItems
+              )
             );
 
-            const title = product.productTitle;
-            const pageUrl = `${
-              process.env.MAIN_DOMAIN_URL
-            }/product/${product.productTitle
-              .split(" ")
-              .join("-")
-              .toLowerCase()}`;
-            const imageUrl = product.productVariants[0].imageUrls[0];
-            const isOnlyRegularDiscountAvailable =
-              checkIfOnlyRegularDiscountIsAvailable(product, specialOffers);
-            const price = calculateFinalPrice(product, specialOffers);
-            const originalPrice = isOnlyRegularDiscountAvailable
-              ? Number(product.regularPrice)
-              : null;
-            const quantity = cartItem.selectedQuantity;
-            const size = cartItem.selectedSize;
-            const color = {
-              name: cartItem.selectedColor.label,
-              code: cartItem.selectedColor.color,
-            };
+            if (!mailResult?.accepted?.length)
+              return console.error(
+                "Failed to send the second abandoned cart email."
+              );
 
-            return {
-              title,
-              pageUrl,
-              imageUrl,
-              price,
-              originalPrice,
-              quantity,
-              size,
-              color,
-            };
-          });
-
-          const mailResult = await transport.sendMail(
-            getAbandonedCartEmailOptions(
-              user.email,
-              user.userInfo.personalInfo.customerName,
-              cartItems
-            )
-          );
-
-          if (!mailResult?.accepted?.length)
-            return console.error(
-              "Failed to send the second abandoned cart email."
+            await customerListCollection.updateOne(
+              { email: user.email },
+              { $set: { abandonedEmailStage: 2 } }
             );
+          }
 
-          await customerListCollection.updateOne(
-            { email: user.email },
-            { $set: { abandonedEmailStage: 2 } }
-          );
+          // Delete the lock early
+          // await cronLocksCollection.deleteOne({
+          //   _id: "abandoned-cart-cron-lock",
+          // });
+        } catch (error) {
+          if (error.code === 11000) {
+            console.error(
+              "Cron lock already acquired by another instance. Skipping."
+            );
+          } else {
+            console.error("Abandoned cart cron job error:", error);
+          }
         }
-
-        // Delete the lock early
-        // await cronLocksCollection.deleteOne({
-        //   _id: "abandoned-cart-cron-lock",
-        // });
-      } catch (error) {
-        if (error.code === 11000) {
-          console.error(
-            "Cron lock already acquired by another instance. Skipping."
-          );
-        } else {
-          console.error("Abandoned cart cron job error:", error);
-        }
-      }
-    });
+      });
+    }
 
     // Route to generate signed URL for uploading a single file
     app.post(
