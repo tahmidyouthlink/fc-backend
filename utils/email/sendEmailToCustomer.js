@@ -7,7 +7,7 @@ const sendEmailToCustomer = async (order, status) => {
 
   try {
     await transport.sendMail(options);
-    console.log("Customer email sent:", status);
+    // console.log("Customer email sent:", status);
   } catch (error) {
     console.error("Error sending customer email:", error);
   }

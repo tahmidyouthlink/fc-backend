@@ -1,4 +1,6 @@
 const confirmationEmail = require("./customer-order/confirmationEmail");
+const refundedEmail = require("./customer-order/refundedEmail");
+const requestDeclinedEmail = require("./customer-order/requestDeclinedEmail");
 const returnApprovalEmail = require("./customer-order/returnApprovalEmail");
 
 const getCustomerOrderEmailOptions = (order, status) => {
@@ -7,8 +9,8 @@ const getCustomerOrderEmailOptions = (order, status) => {
     // Shipped: shippedEmail,
     // Delivered: deliveredEmail,
     "Request Accepted": returnApprovalEmail,
-    // "Request Declined": requestDeclinedEmail,
-    // Refunded: refundedEmail,
+    "Request Declined": requestDeclinedEmail,
+    Refunded: refundedEmail,
   };
 
   const generator = emailGenerators[status];

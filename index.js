@@ -5078,6 +5078,10 @@ async function run() {
 
           const updateDoc = {};
           const currentTime = new Date();
+          const refundProcessedDate = moment()
+            .tz("Asia/Dhaka")
+            .format("DD-MM-YY");
+
           const undoAvailableUntil = new Date(
             currentTime.getTime() + 1 * 60 * 60 * 1000
           ); // 1 hours later
@@ -5146,6 +5150,7 @@ async function run() {
                 returnDataToSend.length > 0
               ) {
                 // Decrease the returnSku
+                updateDoc.$unset = { "returnInfo.refundProcessedDate": "" };
                 await decrementReturnSkuInProduct(returnDataToSend);
               } else {
                 console.error(
@@ -5236,6 +5241,12 @@ async function run() {
 
               // Store all shipping-related fields inside `shipmentInfo` object
               updateDoc.$set.declinedReason = declinedReason;
+            }
+
+            if (orderStatus === "Refunded") {
+              // Dot notation for nested field update
+              updateDoc.$set["returnInfo.refundProcessedDate"] =
+                refundProcessedDate;
             }
 
             // Add the new status to emailSentStatuses if email will be sent

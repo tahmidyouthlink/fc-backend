@@ -1,27 +1,26 @@
-module.exports = function returnApprovalEmail(order) {
-  const { customerInfo, orderNumber } = order;
+module.exports = function requestDeclinedEmail(order) {
+  const { customerInfo, orderNumber, declinedReason } = order;
   const website = process.env.WEBSITE_NAME;
 
   return {
     from: `${website} <${process.env.EMAIL_USER}>`,
     to: customerInfo.email,
-    subject: `Your Return Request Has Been Approved! ✅`,
+    subject: `Update on Your Return Request! [Order #${orderNumber}]`,
     text: `Hi ${customerInfo.customerName},
 
-We have received your return request for Order #${orderNumber} and we’re happy to let you know that it has been approved!
+Thank you for submitting your return request for your order #${orderNumber}.
 
-Here’s what to do next:
+After careful review, we’re sorry to inform you that we’re unable to approve the return request for the following reason:
 
-- Please pack the item securely in its original packaging  
-- Attach the provided delivery label  
-- Wait for your return pickup call
+Reason: ${declinedReason}
 
-Once we receive and inspect the item, we will process your refund within 10 business days.
+We understand this may be disappointing. If you have any questions or would like further clarification, feel free to reach out. We’re here to help!
 
-Thanks for shopping with us and let us know if you need any assistance.
+Thanks for your understanding.
 
 Stay Posh,  
 PoshaX Team`,
+
     html: `<!DOCTYPE html>
   <html
   xmlns:v="urn:schemas-microsoft-com:vml"
@@ -402,16 +401,16 @@ PoshaX Team`,
                                   "
                                 >
                                   <div class="alignment" align="center">
-                                    <div style="max-width: 336px">
+                                    <div style="max-width: 400px">
                                       <img
-                                        src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/j13/xk1/lan/Return-Approved-production-line-7.png"
+                                        src="https://a84f1dc0df.imgdist.com/pub/bfra/clk2zyb1/gtp/kfg/zkt/wmremove-transformed-removebg-preview.png"
                                         style="
                                           display: block;
                                           height: auto;
                                           border: 0;
                                           width: 100%;
                                         "
-                                        width="336"
+                                        width="400"
                                         alt
                                         title
                                         height="auto"
@@ -497,16 +496,14 @@ PoshaX Team`,
                                       style="margin: 0; word-break: break-word"
                                     >
                                       <strong
-                                        >We have received your return request
-                                        for order
+                                        >Thank you for submitting your return request for your order
                                         <span
                                           style="
                                             word-break: break-word;
                                             color: #16a34a;
                                           "
                                           >#${orderNumber}</span
-                                        >&nbsp;and we’re happy to let you know
-                                        that it has been approved!</strong
+                                        >&nbsp;</strong
                                       >
                                     </p>
                                   </div>
@@ -568,8 +565,8 @@ PoshaX Team`,
                               vertical-align: top;
                             "
                           >
-                            <table
-                              class="paragraph_block block-1"
+                          <table
+                              class="paragraph_block block-6"
                               width="100%"
                               border="0"
                               cellpadding="0"
@@ -582,164 +579,22 @@ PoshaX Team`,
                               "
                             >
                               <tr>
-                                <td class="pad" style="padding-bottom: 5px">
+                                <td class="pad" style="padding-bottom: 20px">
                                   <div
                                     style="
                                       color: #555555;
-                                      direction: ltr;
                                       font-family: 'Trebuchet MS',
                                         'Lucida Grande', 'Lucida Sans Unicode',
                                         'Lucida Sans', Tahoma, sans-serif;
                                       font-size: 16px;
-                                      font-weight: 400;
-                                      letter-spacing: 0px;
-                                      line-height: 1.2;
+                                      line-height: 1.5;
                                       text-align: left;
-                                      mso-line-height-alt: 19px;
+                                      mso-line-height-alt: 24px;
                                     "
                                   >
                                     <p style="margin: 0">
-                                      <strong>Here’s what to do next:</strong>
+                                      After careful review, we’re sorry to inform you that we’re unable to approve the return request for the following reason.
                                     </p>
-                                  </div>
-                                </td>
-                              </tr>
-                            </table>
-                            <table
-                              class="list_block block-2"
-                              width="100%"
-                              border="0"
-                              cellpadding="0"
-                              cellspacing="0"
-                              role="presentation"
-                              style="
-                                mso-table-lspace: 0pt;
-                                mso-table-rspace: 0pt;
-                                word-break: break-word;
-                                color: #555555;
-                                direction: ltr;
-                                font-family: 'Trebuchet MS', 'Lucida Grande',
-                                  'Lucida Sans Unicode', 'Lucida Sans', Tahoma,
-                                  sans-serif;
-                                font-size: 16px;
-                                font-weight: 400;
-                                letter-spacing: 0px;
-                                line-height: 1.2;
-                                text-align: left;
-                                mso-line-height-alt: 19px;
-                              "
-                            >
-                              <tr>
-                                <td class="pad" style="padding-bottom: 10px">
-                                  <div style="margin-left: -20px">
-                                    <ul
-                                      start="1"
-                                      style="
-                                        margin-top: 0;
-                                        margin-bottom: 0;
-                                        list-style-type: revert;
-                                      "
-                                    >
-                                      <li style="margin: 0 0 0 0">
-                                        <strong>Please</strong>
-                                        <strong
-                                          >pack the item securely in its
-                                          original packaging</strong
-                                        >
-                                      </li>
-                                    </ul>
-                                  </div>
-                                </td>
-                              </tr>
-                            </table>
-                            <table
-                              class="list_block block-3"
-                              width="100%"
-                              border="0"
-                              cellpadding="0"
-                              cellspacing="0"
-                              role="presentation"
-                              style="
-                                mso-table-lspace: 0pt;
-                                mso-table-rspace: 0pt;
-                                word-break: break-word;
-                                color: #555555;
-                                direction: ltr;
-                                font-family: 'Trebuchet MS', 'Lucida Grande',
-                                  'Lucida Sans Unicode', 'Lucida Sans', Tahoma,
-                                  sans-serif;
-                                font-size: 16px;
-                                font-weight: 400;
-                                letter-spacing: 0px;
-                                line-height: 1.2;
-                                text-align: left;
-                                mso-line-height-alt: 19px;
-                              "
-                            >
-                              <tr>
-                                <td class="pad" style="padding-bottom: 10px">
-                                  <div style="margin-left: -20px">
-                                    <ul
-                                      start="1"
-                                      style="
-                                        margin-top: 0;
-                                        margin-bottom: 0;
-                                        list-style-type: revert;
-                                      "
-                                    >
-                                      <li style="margin: 0 0 0 0">
-                                        <strong
-                                          >Attach the provided delivery
-                                          label</strong
-                                        >
-                                      </li>
-                                    </ul>
-                                  </div>
-                                </td>
-                              </tr>
-                            </table>
-                            <table
-                              class="list_block block-4"
-                              width="100%"
-                              border="0"
-                              cellpadding="0"
-                              cellspacing="0"
-                              role="presentation"
-                              style="
-                                mso-table-lspace: 0pt;
-                                mso-table-rspace: 0pt;
-                                word-break: break-word;
-                                color: #555555;
-                                direction: ltr;
-                                font-family: 'Trebuchet MS', 'Lucida Grande',
-                                  'Lucida Sans Unicode', 'Lucida Sans', Tahoma,
-                                  sans-serif;
-                                font-size: 16px;
-                                font-weight: 400;
-                                letter-spacing: 0px;
-                                line-height: 1.2;
-                                text-align: left;
-                                mso-line-height-alt: 19px;
-                              "
-                            >
-                              <tr>
-                                <td class="pad" style="padding-bottom: 15px">
-                                  <div style="margin-left: -20px">
-                                    <ul
-                                      start="1"
-                                      style="
-                                        margin-top: 0;
-                                        margin-bottom: 0;
-                                        list-style-type: revert;
-                                      "
-                                    >
-                                      <li style="margin: 0 0 0 0">
-                                        <strong
-                                          >Wait for your return pickup
-                                          call</strong
-                                        >
-                                      </li>
-                                    </ul>
                                   </div>
                                 </td>
                               </tr>
@@ -773,15 +628,14 @@ PoshaX Team`,
                                     "
                                   >
                                     <p style="margin: 0">
-                                      Once we receive and inspect the item, we
-                                      will process your refund within
+                                      Reason:
                                       <span
                                         style="
                                           word-break: break-word;
-                                          color: #555555;
+                                          color: #f80000;
                                         "
-                                        >10 </span
-                                      >business days.
+                                        >${declinedReason}</span
+                                      >
                                     </p>
                                   </div>
                                 </td>
@@ -815,8 +669,41 @@ PoshaX Team`,
                                     "
                                   >
                                     <p style="margin: 0">
-                                      Thanks for shopping with us and let us
-                                      know if you need any assistance.
+                                      We understand this may be disappointing. If you have any questions or would like further clarification, feel free to reach out. We’re here to help!
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                            <table
+                              class="paragraph_block block-6"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad" style="padding-bottom: 20px">
+                                  <div
+                                    style="
+                                      color: #555555;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 16px;
+                                      line-height: 1.5;
+                                      text-align: left;
+                                      mso-line-height-alt: 24px;
+                                    "
+                                  >
+                                    <p style="margin: 0">
+                                      Thanks for your understanding.
                                     </p>
                                   </div>
                                 </td>
@@ -1412,7 +1299,6 @@ PoshaX Team`,
     </table>
     <!-- End -->
   </body>
-  </html>
-`,
+  </html>`,
   };
 };

@@ -1,28 +1,30 @@
-module.exports = function returnApprovalEmail(order) {
-  const { customerInfo, orderNumber } = order;
+module.exports = function refundedEmail(order) {
+  const { customerInfo, orderNumber, returnInfo, paymentInfo } = order;
   const website = process.env.WEBSITE_NAME;
 
   return {
     from: `${website} <${process.env.EMAIL_USER}>`,
     to: customerInfo.email,
-    subject: `Your Return Request Has Been Approved! ✅`,
+    subject: `Your Refund Has Been Processed!`,
     text: `Hi ${customerInfo.customerName},
 
-We have received your return request for Order #${orderNumber} and we’re happy to let you know that it has been approved!
+We want to let you know that your refund for Return Order #${orderNumber} has been successfully processed!
 
-Here’s what to do next:
+Refund Details:
+Amount Refunded: ৳ ${returnInfo.refundAmount}
+Payment Method: ${paymentInfo.paymentMethod || "N/A"}
+Refund Processed Date: ${returnInfo.refundProcessedDate}
 
-- Please pack the item securely in its original packaging  
-- Attach the provided delivery label  
-- Wait for your return pickup call
+The refunded amount should reflect in your account/wallet within 3–10 business days, depending on your bank or payment provider.
 
-Once we receive and inspect the item, we will process your refund within 10 business days.
+If you have any questions or need further assistance, feel free to contact us. We’re always here to help!
 
-Thanks for shopping with us and let us know if you need any assistance.
+Thank you for shopping with us!
 
 Stay Posh,  
 PoshaX Team`,
-    html: `<!DOCTYPE html>
+    html: `
+    <!DOCTYPE html>
   <html
   xmlns:v="urn:schemas-microsoft-com:vml"
   xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -404,7 +406,7 @@ PoshaX Team`,
                                   <div class="alignment" align="center">
                                     <div style="max-width: 336px">
                                       <img
-                                        src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/j13/xk1/lan/Return-Approved-production-line-7.png"
+                                        src="https://a84f1dc0df.imgdist.com/pub/bfra/clk2zyb1/elx/led/kz2/Refund-Confirm-money-transfer-4.png"
                                         style="
                                           display: block;
                                           height: auto;
@@ -599,7 +601,7 @@ PoshaX Team`,
                                     "
                                   >
                                     <p style="margin: 0">
-                                      <strong>Here’s what to do next:</strong>
+                                      <strong>Refund Details:</strong>
                                     </p>
                                   </div>
                                 </td>
@@ -641,11 +643,11 @@ PoshaX Team`,
                                       "
                                     >
                                       <li style="margin: 0 0 0 0">
-                                        <strong>Please</strong>
-                                        <strong
-                                          >pack the item securely in its
-                                          original packaging</strong
-                                        >
+                                        <strong>
+                                          Amount Refunded: ৳ ${returnInfo.refundAmount.toFixed(
+                                            2
+                                          )}
+                                          </strong>
                                       </li>
                                     </ul>
                                   </div>
@@ -688,10 +690,11 @@ PoshaX Team`,
                                       "
                                     >
                                       <li style="margin: 0 0 0 0">
-                                        <strong
-                                          >Attach the provided delivery
-                                          label</strong
-                                        >
+                                        <strong>
+                                          Payment Method: ${
+                                            paymentInfo.paymentMethod
+                                          }
+                                          </strong>
                                       </li>
                                     </ul>
                                   </div>
@@ -734,10 +737,11 @@ PoshaX Team`,
                                       "
                                     >
                                       <li style="margin: 0 0 0 0">
-                                        <strong
-                                          >Wait for your return pickup
-                                          call</strong
-                                        >
+                                        <strong>
+                                          Refund Processed Date: ${
+                                            returnInfo.refundProcessedDate
+                                          }
+                                          </strong>
                                       </li>
                                     </ul>
                                   </div>
@@ -773,15 +777,7 @@ PoshaX Team`,
                                     "
                                   >
                                     <p style="margin: 0">
-                                      Once we receive and inspect the item, we
-                                      will process your refund within
-                                      <span
-                                        style="
-                                          word-break: break-word;
-                                          color: #555555;
-                                        "
-                                        >10 </span
-                                      >business days.
+                                      The refunded amount should reflect in your account/wallet within 3-10 business days, depending on your bank or payment provider.
                                     </p>
                                   </div>
                                 </td>
@@ -815,8 +811,41 @@ PoshaX Team`,
                                     "
                                   >
                                     <p style="margin: 0">
-                                      Thanks for shopping with us and let us
-                                      know if you need any assistance.
+                                      If you have any questions or need further assistance, feel free to contact us. We’re always here to help!
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                            <table
+                              class="paragraph_block block-6"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad" style="padding-bottom: 20px">
+                                  <div
+                                    style="
+                                      color: #555555;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 16px;
+                                      line-height: 1.5;
+                                      text-align: left;
+                                      mso-line-height-alt: 24px;
+                                    "
+                                  >
+                                    <p style="margin: 0">
+                                      Thank you for shopping with us!
                                     </p>
                                   </div>
                                 </td>
@@ -1413,6 +1442,6 @@ PoshaX Team`,
     <!-- End -->
   </body>
   </html>
-`,
+    `,
   };
 };
