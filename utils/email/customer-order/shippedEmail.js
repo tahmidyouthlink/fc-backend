@@ -1,58 +1,32 @@
-const generateOrderItemsHTML = require("./generateOrderItemsHTML");
-
-module.exports = function confirmationEmail(order) {
+module.exports = function shippedEmail(order) {
   const {
     customerInfo,
     orderNumber,
-    dateTime,
     deliveryInfo,
-    subtotal,
-    shippingCharge,
-    total,
     productInformation,
+    shipmentInfo,
   } = order;
   const website = process.env.WEBSITE_NAME;
+
+  const trackingUrl = `${shipmentInfo.trackingUrl}${shipmentInfo.trackingNumber}`;
 
   return {
     from: `${website} <${process.env.EMAIL_USER}>`,
     to: customerInfo.email,
-    subject: `[${website}] Thank You for Your Order!`,
+    subject: `[${website}] Your Order is on the Way!`,
     text: `Hi ${customerInfo.customerName},
 
-Thanks for shopping with us! 🛍️
+Great news! 🚚 Your order ${orderNumber} has been shipped!
 
-Here is a quick summary of your order:
+Expected delivery: ${deliveryInfo.expectedDeliveryDate}
 
-Order Number: ${orderNumber}
-Order Date: ${dateTime}
-Shipping To: ${deliveryInfo.address1}, ${deliveryInfo.city}, ${
-      deliveryInfo.postalCode
-    }
+Track your package here: ${trackingUrl}
 
-Items:
-${generateOrderItemsHTML.generateOrderItemsText(productInformation)}
+We hope you love your new items ✨
 
-We will notify you as soon as your items are shipped! 🚚
+Questions? Contact us anytime at ${process.env.COMPANY_EMAIL}
 
-------------------------------------
-      
-      GOT A QUESTION?
-      We're here to help you
-      
-      Feel free to contact us at ${process.env.COMPANY_EMAIL}
-      or call us at ${process.env.COMPANY_PHONE.replace(/-/g, " ")}
-      Sunday through Thursday 8:30-5:30 BST
-      
-      Follow us:
-      Facebook: https://facebook.com
-      Instagram: https://instagram.com
-      Twitter: https://twitter.com
-      TikTok: https://tiktok.com
-      
-      ${process.env.COMPANY_NAME} | Your service is all we care | Stay Posh
-      
-      FAQ: ${process.env.MAIN_DOMAIN_URL}/faq  
-      Contact Us: ${process.env.MAIN_DOMAIN_URL}/contact`,
+${process.env.COMPANY_NAME} Team`,
     html: `<!DOCTYPE html>
 <html
   xmlns:v="urn:schemas-microsoft-com:vml"
@@ -241,27 +215,6 @@ We will notify you as soon as your items are shipped! 🚚
         .row-15 .column-1 {
           padding: 40px 10px !important;
         }
-
-        .row-top-footer .column-1 {
-                padding: 40px 10px !important;
-              }
-
-              .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
-                font-size: 20px !important;
-              }
-
-              .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
-                font-size: 16px !important;
-              }
-
-              .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
-                font-size: 12px !important;
-              }
-
-              .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
-              .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
-                font-size: 12px !important;
-              }
       }
     </style>
     <!--[if mso
