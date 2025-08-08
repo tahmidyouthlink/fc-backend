@@ -1,6 +1,8 @@
 const getStockUpdateEmailOptions = (email, notifiedProduct) => {
+  const website = process.env.WEBSITE_NAME;
+
   const options = {
-    from: `${process.env.COMPANY_NAME} <${process.env.EMAIL_USER}>`,
+    from: `${website} <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Great News! Your Chosen Item is Back in Stock! 🎉",
     text: `Hi ${notifiedProduct.customerName}!
@@ -42,28 +44,28 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
       FAQ: ${process.env.MAIN_DOMAIN_URL}/faq  
       Contact Us: ${process.env.MAIN_DOMAIN_URL}/contact`,
     html: `<!DOCTYPE html>
-      <html
-        xmlns:v="urn:schemas-microsoft-com:vml"
-        xmlns:o="urn:schemas-microsoft-com:office:office"
-        lang="en"
-      >
-        <head>
-          <title></title>
-          <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <!--[if mso]>
-            <xml
-              ><w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"
-                ><w:DontUseAdvancedTypographyReadingMail
-              /></w:WordDocument>
-              <o:OfficeDocumentSettings
-                ><o:PixelsPerInch>96</o:PixelsPerInch
-                ><o:AllowPNG /></o:OfficeDocumentSettings
-            ></xml>
-          <![endif]-->
-          <!--[if !mso]><!-->
-          <!--<![endif]-->
-          <style>
+  <html
+  xmlns:v="urn:schemas-microsoft-com:vml"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  lang="en"
+>
+  <head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--[if mso]>
+      <xml
+        ><w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"
+          ><w:DontUseAdvancedTypographyReadingMail
+        /></w:WordDocument>
+        <o:OfficeDocumentSettings
+          ><o:PixelsPerInch>96</o:PixelsPerInch
+          ><o:AllowPNG /></o:OfficeDocumentSettings
+      ></xml>
+    <![endif]-->
+    <!--[if !mso]><!-->
+    <!--<![endif]-->
+    <style>
             * {
               box-sizing: border-box;
             }
@@ -151,8 +153,13 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
               }
 
               .row-3 .column-1 .block-3.paragraph_block td.pad > div,
+              .row-4 .column-2 .block-1.paragraph_block td.pad > div,
               .row-4 .column-2 .block-2.paragraph_block td.pad > div {
                 font-size: 14px !important;
+              }
+
+              .row-4 .column-2 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
               }
 
               .row-3 .column-1 .block-2.paragraph_block td.pad > div,
@@ -160,94 +167,352 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                 font-size: 22px !important;
               }
 
+              .row-6 > tbody > tr > td > table > tbody > tr > td {
+                border-right: 0px solid transparent !important;
+              }
+
               .row-4 .column-2 .block-1.paragraph_block td.pad > div {
                 font-size: 20px !important;
               }
+
+              .row-top-footer .column-1 {
+                padding: 40px 10px !important;
+              }
+
+              .row-top-footer .column-1 .block-1.paragraph_block td.pad > div {
+                font-size: 20px !important;
+              }
+
+              .row-top-footer .column-1 .block-2.paragraph_block td.pad > div {
+                font-size: 16px !important;
+              }
+
+              .row-top-footer .column-1 .block-3.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
+
+              .row-bottom-footer .column-1 .block-2.paragraph_block td.pad > div,
+              .row-bottom-footer .column-1 .block-4.paragraph_block td.pad > div {
+                font-size: 12px !important;
+              }
             }
           </style>
-          <!--[if mso
-            ]><style>
-              sup,
-              sub {
-                font-size: 100% !important;
-              }
-              sup {
-                mso-text-raise: 10%;
-              }
-              sub {
-                mso-text-raise: -10%;
-              }
-            </style>
-          <![endif]-->
-        </head>
+    <!--[if mso
+      ]><style>
+        sup,
+        sub {
+          font-size: 100% !important;
+        }
+        sup {
+          mso-text-raise: 10%;
+        }
+        sub {
+          mso-text-raise: -10%;
+        }
+      </style>
+    <![endif]-->
+  </head>
 
-      <body class="body" style="margin: 0; padding: 0; -webkit-text-size-adjust: none; text-size-adjust: none;">
-        <table class="nl-container" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
-          <tbody>
-            <tr>
-              <td>
-                <table
-                    class="row row-1 mobile_hide"
-                    align="center"
-                    width="100%"
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
-                  >
-                    <tbody>
-                      <tr>
-                        <td>
-                          <table
-                            class="row-content stack"
-                            align="center"
-                            border="0"
-                            cellpadding="0"
-                            cellspacing="0"
-                            role="presentation"
+  <body
+    class="body"
+    style="
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: none;
+      text-size-adjust: none;
+    "
+  >
+    <table
+      class="nl-container"
+      width="100%"
+      border="0"
+      cellpadding="0"
+      cellspacing="0"
+      role="presentation"
+      style="
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+        background-color: #f5f5f5;
+      "
+    >
+      <tbody>
+        <tr>
+          <td>
+            <table
+              class="row row-1"
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <table
+                      class="row-content stack"
+                      align="center"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="
+                        mso-table-lspace: 0pt;
+                        mso-table-rspace: 0pt;
+                        background-color: #fff;
+                        color: #000000;
+                        width: 650px;
+                        margin: 0 auto;
+                      "
+                      width="650"
+                    >
+                      <tbody>
+                        <tr>
+                          <td
+                            class="column column-1"
+                            width="100%"
                             style="
                               mso-table-lspace: 0pt;
                               mso-table-rspace: 0pt;
-                              color: #000000;
-                              width: 650px;
-                              margin: 0 auto;
+                              font-weight: 400;
+                              text-align: left;
+                              padding-bottom: 15px;
+                              padding-top: 15px;
+                              vertical-align: top;
                             "
-                            width="650"
                           >
-                            <tbody>
+                            <table
+                              class="image_block block-1"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                              "
+                            >
                               <tr>
                                 <td
-                                  class="column column-1"
-                                  width="100%"
+                                  class="pad"
                                   style="
-                                    mso-table-lspace: 0pt;
-                                    mso-table-rspace: 0pt;
-                                    font-weight: 400;
-                                    text-align: left;
-                                    vertical-align: top;
+                                    width: 100%;
+                                    padding-right: 0px;
+                                    padding-left: 0px;
                                   "
                                 >
-                                  <div
-                                    class="spacer_block block-1"
-                                    style="
-                                      height: 30px;
-                                      line-height: 30px;
-                                      font-size: 1px;
-                                    "
-                                  >
-                                    &#8202;
+                                  <div class="alignment" align="center">
+                                    <div style="max-width: 120px">
+                                      <img
+                                        src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/t4a/ceu/etb/logo.png"
+                                        style="
+                                          display: block;
+                                          height: auto;
+                                          border: 0;
+                                          width: 100%;
+                                        "
+                                        width="120"
+                                        alt
+                                        title
+                                        height="auto"
+                                      />
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <table
-                    class="row row-2"
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <table
+              class="row row-3"
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <table
+                      class="row-content stack"
+                      align="center"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="
+                        mso-table-lspace: 0pt;
+                        mso-table-rspace: 0pt;
+                        background-color: #ecf3ea;
+                        color: #000000;
+                        padding: 40px 20px;
+                        width: 650px;
+                        margin: 0 auto;
+                      "
+                      width="650"
+                    >
+                      <tbody>
+                        <tr>
+                          <td
+                            class="column column-1"
+                            width="100%"
+                            style="
+                              mso-table-lspace: 0pt;
+                              mso-table-rspace: 0pt;
+                              font-weight: 400;
+                              text-align: left;
+                              padding-bottom: 5px;
+                              padding-top: 5px;
+                              vertical-align: top;
+                            "
+                          >
+                            <table
+                              class="image_block block-1"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                              "
+                            >
+                              <tr>
+                                <td
+                                  class="pad"
+                                  style="
+                                    width: 100%;
+                                    padding-right: 0px;
+                                    padding-left: 0px;
+                                  "
+                                >
+                                  <div class="alignment" align="center">
+                                    <div style="max-width: 336px">
+                                      <img
+                                        src="https://a84f1dc0df.imgdist.com/pub/bfra/clk2zyb1/zkn/q4p/tmq/stock-update.png"
+                                        style="
+                                          display: block;
+                                          height: auto;
+                                          border: 0;
+                                          width: 100%;
+                                        "
+                                        width="336"
+                                        alt
+                                        title
+                                        height="auto"
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                            <table
+                              class="paragraph_block block-2"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad" style="padding-bottom: 15px">
+                                  <div
+                                    style="
+                                      color: #4e4e4e;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 26px;
+                                      font-weight: 700;
+                                      line-height: 1.2;
+                                      text-align: center;
+                                      mso-line-height-alt: 31px;
+                                    "
+                                  >
+                                    <p
+                                      style="margin: 0; word-break: break-word"
+                                    >
+                                      Hi
+                                      <span
+                                        style="
+                                          word-break: break-word;
+                                          color: #16a34a;
+                                        "
+                                        >${notifiedProduct.customerName}!</span
+                                      >
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                            <table
+                              class="paragraph_block block-3"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad">
+                                  <div
+                                    style="
+                                      color: #555555;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 16px;
+                                      font-weight: 400;
+                                      line-height: 1.2;
+                                      text-align: center;
+                                      mso-line-height-alt: 19px;
+                                    "
+                                  >
+                                    <p
+                                      style="margin: 0; word-break: break-word"
+                                    >
+                                      <strong
+                                        >Good news! The item you just missed out on last time, it's back in stock.
+                                        </strong>
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <table
+                    class="row row-4"
                     align="center"
                     width="100%"
                     border="0"
@@ -269,292 +534,7 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                             style="
                               mso-table-lspace: 0pt;
                               mso-table-rspace: 0pt;
-                              color: #333;
-                              width: 650px;
-                              margin: 0 auto;
-                            "
-                            width="650"
-                          >
-                            <tbody>
-                              <tr>
-                                <td
-                                  class="column column-1"
-                                  width="100%"
-                                  style="
-                                    mso-table-lspace: 0pt;
-                                    mso-table-rspace: 0pt;
-                                    font-weight: 400;
-                                    text-align: left;
-                                    padding-bottom: 15px;
-                                    padding-top: 15px;
-                                    vertical-align: top;
-                                  "
-                                >
-                                  <table
-                                    class="image_block block-1"
-                                    width="100%"
-                                    border="0"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    role="presentation"
-                                    style="
-                                      mso-table-lspace: 0pt;
-                                      mso-table-rspace: 0pt;
-                                    "
-                                  >
-                                    <tr>
-                                      <td
-                                        class="pad"
-                                        style="
-                                          width: 100%;
-                                          padding-right: 0px;
-                                          padding-left: 0px;
-                                        "
-                                      >
-                                        <div class="alignment" align="center">
-                                          <div style="max-width: 130px">
-                                            <a
-                                              href="${
-                                                process.env.MAIN_DOMAIN_URL
-                                              }"
-                                              target="_blank"
-                                              ><img
-                                                src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/brl/r1c/ovx/logo.png"
-                                                style="
-                                                  display: block;
-                                                  height: auto;
-                                                  border: 0;
-                                                  width: 100%;
-                                                "
-                                                width="130"
-                                                alt="${
-                                                  process.env.COMPANY_NAME
-                                                } Logo"
-                                                title="Image"
-                                                height="auto"
-                                            /></a>
-                                          </div>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </table>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <table
-                    class="row row-3"
-                    align="center"
-                    width="100%"
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
-                  >
-                    <tbody>
-                      <tr>
-                        <td>
-                          <table
-                            class="row-content stack"
-                            align="center"
-                            border="0"
-                            cellpadding="0"
-                            cellspacing="0"
-                            role="presentation"
-                            style="
-                              mso-table-lspace: 0pt;
-                              mso-table-rspace: 0pt;
-                              color: #000000;
-                              width: 650px;
-                              margin: 0 auto;
-                            "
-                            width="650"
-                          >
-                            <tbody>
-                              <tr>
-                                <td
-                                  class="column column-1"
-                                  width="100%"
-                                  style="
-                                    mso-table-lspace: 0pt;
-                                    mso-table-rspace: 0pt;
-                                    font-weight: 400;
-                                    text-align: left;
-                                    padding: 40px 20px;
-                                    vertical-align: top;
-                                  "
-                                >
-                                  <table
-                                    class="image_block block-1"
-                                    width="100%"
-                                    border="0"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    role="presentation"
-                                    style="
-                                      mso-table-lspace: 0pt;
-                                      mso-table-rspace: 0pt;
-                                    "
-                                  >
-                                    <tr>
-                                      <td
-                                        class="pad"
-                                        style="
-                                          padding-bottom: 10px;
-                                          width: 100%;
-                                          padding-right: 0px;
-                                          padding-left: 0px;
-                                        "
-                                      >
-                                        <div class="alignment" align="center">
-                                          <div
-                                            class="fullWidth"
-                                            style="max-width: 366px"
-                                          >
-                                            <img
-                                              src="https://9b9bd796c4.imgdist.com/pub/bfra/q6hiwcjj/fev/lk1/kre/customer-service-1-51.png"
-                                              style="
-                                                display: block;
-                                                height: auto;
-                                                border: 0;
-                                                width: 100%;
-                                              "
-                                              width="366"
-                                              alt
-                                              title
-                                              height="auto"
-                                            />
-                                          </div>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </table>
-                                  <table
-                                    class="paragraph_block block-2"
-                                    width="100%"
-                                    border="0"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    role="presentation"
-                                    style="
-                                      mso-table-lspace: 0pt;
-                                      mso-table-rspace: 0pt;
-                                      word-break: break-word;
-                                    "
-                                  >
-                                    <tr>
-                                      <td class="pad" style="padding-bottom: 15px">
-                                        <div
-                                          style="
-                                            color: #4e4e4e;
-                                            font-family: 'Trebuchet MS', Arial,
-                                              Helvetica, sans-serif;
-                                            font-size: 26px;
-                                            line-height: 1.2;
-                                            text-align: center;
-                                            mso-line-height-alt: 31px;
-                                          "
-                                        >
-                                          <p
-                                            style="margin: 0; word-break: break-word"
-                                          >
-                                            <strong
-                                              ><span style="word-break: break-word"
-                                                >Hi
-                                                <span
-                                                  style="
-                                                    word-break: break-word;
-                                                    color: #29972d;
-                                                  "
-                                                  >${
-                                                    notifiedProduct.customerName
-                                                  }!</span
-                                                ></span
-                                              ></strong
-                                            >
-                                          </p>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </table>
-                                  <table
-                                    class="paragraph_block block-3"
-                                    width="100%"
-                                    border="0"
-                                    cellpadding="0"
-                                    cellspacing="0"
-                                    role="presentation"
-                                    style="
-                                      mso-table-lspace: 0pt;
-                                      mso-table-rspace: 0pt;
-                                      word-break: break-word;
-                                    "
-                                  >
-                                    <tr>
-                                      <td class="pad">
-                                        <div
-                                          style="
-                                            color: #052d3d;
-                                            font-family: 'Trebuchet MS', Arial,
-                                              Helvetica, sans-serif;
-                                            font-size: 16px;
-                                            line-height: 1.2;
-                                            text-align: center;
-                                            mso-line-height-alt: 19px;
-                                          "
-                                        >
-                                          <p
-                                            style="margin: 0; word-break: break-word"
-                                          >
-                                            <span
-                                              style="
-                                                word-break: break-word;
-                                                color: #575757;
-                                                
-                                              "
-                                              >Good news! The item you just missed out on last time, it's back in stock.</span
-                                            >
-                                          </p>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </table>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <table
-                    class="row row-4"
-                    align="center"
-                    width="100%"
-                    border="0"
-                    cellpadding="0"
-                    cellspacing="0"
-                    role="presentation"
-                    style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
-                  >
-                    <tbody>
-                      <tr>
-                        <td>
-                          <table
-                            class="row-content stack"
-                            align="center"
-                            border="0"
-                            cellpadding="0"
-                            cellspacing="0"
-                            role="presentation"
-                            style="
-                              mso-table-lspace: 0pt;
-                              mso-table-rspace: 0pt;
+                              background-color: #ffffff;
                               border-bottom: 20px solid #ffffff;
                               border-left: 20px solid #ffffff;
                               border-right: 20px solid #ffffff;
@@ -574,6 +554,7 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                     mso-table-rspace: 0pt;
                                     font-weight: 400;
                                     text-align: left;
+                                    background-color: #f0f0f0;
                                     vertical-align: top;
                                     border-radius: 4px;
                                   "
@@ -598,15 +579,19 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                       <tr>
                                         <td class="pad" style="width: 100%">
                                           <div class="alignment" align="center">
-                                            <table role="presentation" width="100%" style="height: 200px;">
+                                            <table role="presentation" width="100%" style="height: 175px;">
                                               <tr>
-                                                <td align="center" valign="middle" style="height: 200px;">
+                                                <td align="center" valign="middle" style="height: 175px;">
                                                   <img src="${
                                                     notifiedProduct.imageUrl
                                                   }" 
                                                     style="display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; border: 0;" 
-                                                    alt="Product Image" 
-                                                    title="Product Image" />
+                                                    alt="${
+                                                      notifiedProduct.title
+                                                    }" 
+                                                    title="${
+                                                      notifiedProduct.title
+                                                    }" />
                                                 </td>
                                               </tr>
                                             </table>
@@ -645,7 +630,7 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                     mso-table-rspace: 0pt;
                                     font-weight: 400;
                                     text-align: left;
-                                    vertical-align: top;
+                                    vertical-align: middle;
                                     border-radius: 4px;
                                   "
                                 >
@@ -654,8 +639,6 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                     target="_blank"
                                     style="
                                       text-decoration: none;
-                                      display: block;
-                                      height: 200px;
                                     "
                                   >
                                     <table
@@ -678,7 +661,7 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                               color: #fc7318;
                                               font-family: 'Trebuchet MS', Arial,
                                                 Helvetica, sans-serif;
-                                              font-size: 22px;
+                                              font-size: 20px;
                                               line-height: 1.2;
                                               text-align: left;
                                               mso-line-height-alt: 26px;
@@ -795,6 +778,9 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                                     vertical-align: middle;
                                                     width: 14px;
                                                     height: 14px;
+                                                    background-color: ${
+                                                      notifiedProduct.color.code
+                                                    };
                                                     border-radius: 50%;
                                                     margin-right: 2px;
                                                   "
@@ -806,6 +792,69 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                         </td>
                                       </tr>
                                     </table>
+                                    <table
+                              class="paragraph_block block-3"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                              "
+                            >
+                              <tr>
+                                <td class="pad">
+                                  <div style="margin-top : 20px;">
+                                    <a
+                                      href="${notifiedProduct.pageUrl}"
+                                      target="_blank"
+                                      style="color: #fff; text-decoration: none">
+                                      <span
+                                        class="button"
+                                        style="
+                                          background-color: #29972d;
+                                          border-bottom: 0px solid transparent;
+                                          border-left: 0px solid transparent;
+                                          border-radius: 4px;
+                                          border-right: 0px solid transparent;
+                                          border-top: 0px solid transparent;
+                                          color: #fff;
+                                          display: inline-block;
+                                          font-family: 'Trebuchet MS',
+                                            'Lucida Grande',
+                                            'Lucida Sans Unicode', 'Lucida Sans',
+                                            Tahoma, sans-serif;
+                                          font-size: 16px;
+                                          font-weight: undefined;
+                                          mso-border-alt: none;
+                                          padding-bottom: 5px;
+                                          padding-top: 5px;
+                                          padding-left: 20px;
+                                          padding-right: 20px;
+                                          text-align: center;
+                                          width: auto;
+                                          word-break: keep-all;
+                                          letter-spacing: normal;
+                                        "
+                                        ><span style="word-break: break-word"
+                                          ><span
+                                            style="
+                                              word-break: break-word;
+                                              line-height: 32px;
+                                            "
+                                            data-mce-style
+                                            ><strong
+                                              >ADD TO CART&nbsp;</strong
+                                            ></span
+                                          ></span
+                                        ></span
+                                      ></a>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
                                   </a>
                                 </td>
                               </tr>
@@ -815,8 +864,165 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                       </tr>
                     </tbody>
                   </table>
-                  <table
-                    class="row row-5"
+            <table
+              class="row row-3"
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="mso-table-lspace: 0pt; mso-table-rspace: 0pt"
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <table
+                      class="row-content stack"
+                      align="center"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="
+                        mso-table-lspace: 0pt;
+                        mso-table-rspace: 0pt;
+                        background-color: #ffffff;
+                        color: #000000;
+                        width: 650px;
+                        margin: 0 auto;
+                      "
+                      width="650"
+                    >
+                      <tbody>
+                        <tr>
+                          <td
+                            class="column column-1"
+                            width="100%"
+                            style="
+                              mso-table-lspace: 0pt;
+                              mso-table-rspace: 0pt;
+                              font-weight: 400;
+                              text-align: left;
+                              padding-bottom: 40px;
+                              padding-left: 40px;
+                              padding-right: 40px;
+                              padding-top: 40px;
+                              vertical-align: top;
+                            "
+                          >
+                            <table
+                              class="paragraph_block block-5"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad" style="padding-bottom: 20px">
+                                  <div
+                                    style="
+                                      color: #555555;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 16px;
+                                      font-weight: 700;
+                                      line-height: 1.5;
+                                      text-align: left;
+                                      mso-line-height-alt: 24px;
+                                    "
+                                  >
+                                    <p style="margin: 0">
+                                     We wanted to let you know before it runs out again.
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                            <table
+                              class="paragraph_block block-6"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad" style="padding-bottom: 20px">
+                                  <div
+                                    style="
+                                      color: #555555;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 16px;
+                                      line-height: 1.5;
+                                      text-align: left;
+                                      mso-line-height-alt: 24px;
+                                    "
+                                  >
+                                    <p style="margin: 0">
+                                      It’s the perfect time to grab it while it lasts. Let us know if you have any questions or need help placing your order. Happy shopping!
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                            <table
+                              class="paragraph_block block-7"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="
+                                mso-table-lspace: 0pt;
+                                mso-table-rspace: 0pt;
+                                word-break: break-word;
+                              "
+                            >
+                              <tr>
+                                <td class="pad">
+                                  <div
+                                    style="
+                                      color: #555555;
+                                      font-family: 'Trebuchet MS',
+                                        'Lucida Grande', 'Lucida Sans Unicode',
+                                        'Lucida Sans', Tahoma, sans-serif;
+                                      font-size: 16px;
+                                      line-height: 1.5;
+                                      text-align: left;
+                                      mso-line-height-alt: 24px;
+                                    "
+                                  >
+                                    <p style="margin: 0">Stay Posh</p>
+                                    <p style="margin: 0">PoshaX Team</p>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <table
+                    class="row row-top-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -838,11 +1044,10 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                             style="
                               mso-table-lspace: 0pt;
                               mso-table-rspace: 0pt;
+                              background-color: #f0f0f0;
                               color: #000000;
                               width: 650px;
                               margin: 0 auto;
-                              padding-left: 0 !important;
-                              padding-right: 0 !important;
                             "
                             width="650"
                           >
@@ -859,6 +1064,7 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                     border-bottom: 20px solid #ffffff;
                                     border-left: 20px solid #ffffff;
                                     border-right: 20px solid #ffffff;
+                                    border-top: 20px solid #ffffff;
                                     padding-bottom: 40px;
                                     padding-left: 20px;
                                     padding-right: 20px;
@@ -1045,8 +1251,8 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                       </tr>
                     </tbody>
                   </table>
-                  <table
-                    class="row row-6"
+            <table
+                    class="row row-bottom-footer"
                     align="center"
                     width="100%"
                     border="0"
@@ -1127,12 +1333,10 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Facebook"
                                                     style="
                                                       display: block;
@@ -1150,12 +1354,10 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Instagram"
                                                     style="
                                                       display: block;
@@ -1173,12 +1375,10 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } Twitter"
                                                     style="
                                                       display: block;
@@ -1196,12 +1396,10 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                                                     width="32"
                                                     height="auto"
                                                     alt="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     title="${
-                                                      process.env
-                                                        .MAIN_DOMAIN_URL
+                                                      process.env.COMPANY_NAME
                                                     } TikTok"
                                                     style="
                                                       display: block;
@@ -1366,13 +1564,13 @@ const getStockUpdateEmailOptions = (email, notifiedProduct) => {
                       </tr>
                     </tbody>
                   </table>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <!-- End -->
-        </body>
-      </html>`,
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- End -->
+  </body>
+  </html>`,
   };
 
   return options;
