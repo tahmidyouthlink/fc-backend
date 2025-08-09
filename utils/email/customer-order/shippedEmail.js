@@ -1,3 +1,5 @@
+const { generateOrderItemsHTML } = require("./generateOrderItemsHTML");
+
 module.exports = function shippedEmail(order) {
   const {
     customerInfo,
@@ -6,8 +8,8 @@ module.exports = function shippedEmail(order) {
     productInformation,
     shipmentInfo,
   } = order;
-  const website = process.env.WEBSITE_NAME;
 
+  const website = process.env.WEBSITE_NAME;
   const trackingUrl = `${shipmentInfo.trackingUrl}${shipmentInfo.trackingNumber}`;
 
   return {
@@ -16,17 +18,36 @@ module.exports = function shippedEmail(order) {
     subject: `[${website}] Your Order is on the Way!`,
     text: `Hi ${customerInfo.customerName},
 
-Great news! 🚚 Your order ${orderNumber} has been shipped!
+Great news! 🎉 Your order #${orderNumber} has been shipped!
+
+We hope you love your new items 🛍️
 
 Expected delivery: ${deliveryInfo.expectedDeliveryDate}
 
 Track your package here: ${trackingUrl}
 
-We hope you love your new items ✨
+Items ordered:
+${generateOrderItemsHTML.generateOrderItemsText(productInformation)}
 
-Questions? Contact us anytime at ${process.env.COMPANY_EMAIL}
-
-${process.env.COMPANY_NAME} Team`,
+------------------------------------
+      
+      GOT A QUESTION?
+      We're here to help you
+      
+      Feel free to contact us at ${process.env.COMPANY_EMAIL}
+      or call us at ${process.env.COMPANY_PHONE.replace(/-/g, " ")}
+      Sunday through Thursday 8:30-5:30 BST
+      
+      Follow us:
+      Facebook: https://facebook.com
+      Instagram: https://instagram.com
+      Twitter: https://twitter.com
+      TikTok: https://tiktok.com
+      
+      ${process.env.COMPANY_NAME} | Your service is all we care | Stay Posh
+      
+      FAQ: ${process.env.MAIN_DOMAIN_URL}/faq  
+      Contact Us: ${process.env.MAIN_DOMAIN_URL}/contact`,
     html: `<!DOCTYPE html>
 <html
   xmlns:v="urn:schemas-microsoft-com:vml"

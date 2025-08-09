@@ -5076,6 +5076,16 @@ async function run() {
             return res.status(404).send({ error: "Order not found" });
           }
 
+          const shippingZones = await shippingZoneCollection.find().toArray();
+          const city = order.deliveryInfo.city;
+          const deliveryType = order.deliveryInfo.deliveryMethod;
+
+          const estimatedTime = getEstimatedDeliveryTime(
+            city,
+            deliveryType,
+            shippingZones
+          );
+
           const updateDoc = {};
           const currentTime = new Date();
           const refundProcessedDate = moment()
@@ -5083,8 +5093,8 @@ async function run() {
             .format("DD-MM-YY");
 
           const undoAvailableUntil = new Date(
-            currentTime.getTime() + 1 * 60 * 60 * 1000
-          ); // 1 hours later
+            currentTime.getTime() + 24 * 60 * 60 * 1000
+          ); // 24 hours later
 
           // Initialize emailSentStatuses if it doesn't exist
           const emailSentStatuses = order.emailSentStatuses || [];
@@ -5186,13 +5196,26 @@ async function run() {
                 });
               }
 
+              const shipDate = new Date(shippedAt || Date.now());
+              const expectedDeliveryDate = getExpectedDeliveryDate(
+                shipDate,
+                deliveryType,
+                estimatedTime
+              );
+
               // Store all shipping-related fields inside `shipmentInfo` object
               updateDoc.$set.shipmentInfo = {
                 trackingNumber,
                 selectedShipmentHandlerName,
                 trackingUrl,
                 imageUrl,
-                shippedAt: new Date(shippedAt || Date.now()),
+                shippedAt: shipDate,
+              };
+
+              updateDoc.$set.deliveryInfo = {
+                ...(order.deliveryInfo || {}),
+                // estimatedTime: estimatedTime,
+                expectedDeliveryDate: expectedDeliveryDate,
               };
             }
 
@@ -5439,8 +5462,17 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const discountData = req.body;
-          const result = await promoCollection.insertOne(discountData);
+          const promoInfo = req.body;
+
+          // If the promo is set for welcome email, update all other promoCollections to set `isWelcomeEmailPromoCode` to false
+          if (promoInfo.isWelcomeEmailPromoCode) {
+            await promoCollection.updateMany(
+              { isWelcomeEmailPromoCode: true },
+              { $set: { isWelcomeEmailPromoCode: false } }
+            );
+          }
+
+          const result = await promoCollection.insertOne(promoInfo);
           res.send(result);
         } catch (error) {
           console.error("Error adding promo code:", error);
@@ -5561,10 +5593,19 @@ async function run() {
       async (req, res) => {
         try {
           const id = req.params.id;
-          const promo = req.body;
+          const promoInfo = req.body;
           const filter = { _id: new ObjectId(id) };
+
+          // If the promo is set for welcome email, update all other promoCollections to set `isWelcomeEmailPromoCode` to false
+          if (promoInfo.isWelcomeEmailPromoCode) {
+            await promoCollection.updateMany(
+              { isWelcomeEmailPromoCode: true },
+              { $set: { isWelcomeEmailPromoCode: false } }
+            );
+          }
+
           const updatePromo = {
-            $set: { ...promo },
+            $set: { ...promoInfo },
           };
 
           const result = await promoCollection.updateOne(filter, updatePromo);
