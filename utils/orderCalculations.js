@@ -240,22 +240,8 @@ const getEstimatedDeliveryTime = (
 };
 
 const getExpectedDeliveryDate = (dateInput, deliveryMethod, estimatedTime) => {
-  let orderDate;
-
-  if (typeof dateInput === "string" && dateInput.includes(" | ")) {
-    // Old format "DD-MM-YY | HH:mm"
-    const [datePart, timePart] = dateInput.split(" | ");
-    const [day, month, year] = datePart.split("-").map(Number);
-    const [hour, minute] = timePart.split(":").map(Number);
-    orderDate = moment.tz(
-      `${year + 2000}-${month}-${day} ${hour}:${minute}`,
-      "YYYY-M-D HH:mm",
-      "Asia/Dhaka"
-    );
-  } else {
-    // Accept Date object or ISO string
-    orderDate = moment(dateInput).tz("Asia/Dhaka");
-  }
+  // Accept Date object or ISO string
+  const orderDate = moment(dateInput).tz("Asia/Dhaka");
 
   // Parse the estimated duration
   let maxTime; // Maximum time in the duration range

@@ -5214,7 +5214,6 @@ async function run() {
 
               updateDoc.$set.deliveryInfo = {
                 ...(order.deliveryInfo || {}),
-                // estimatedTime: estimatedTime,
                 expectedDeliveryDate: expectedDeliveryDate,
               };
             }
