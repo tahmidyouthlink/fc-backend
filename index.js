@@ -590,7 +590,7 @@ async function run() {
               role: "READER",
             });
 
-            const publicUrl = `https://${bucket.name}/${file.name}`;
+            const publicUrl = `https://${bucket.name}/${blob.name}`;
             res.status(200).json({ fileUrl: publicUrl });
           });
 
@@ -635,7 +635,7 @@ async function run() {
                   role: "READER",
                 });
 
-                const publicUrl = `https://${bucket.name}/${file.name}`;
+                const publicUrl = `https://${bucket.name}/${blob.name}`;
                 resolve(publicUrl);
               });
 
