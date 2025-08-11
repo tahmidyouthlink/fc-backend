@@ -403,7 +403,7 @@ PoshaX Team`,
                                   <div class="alignment" align="center">
                                     <div style="max-width: 400px">
                                       <img
-                                        src="https://a84f1dc0df.imgdist.com/pub/bfra/clk2zyb1/gtp/kfg/zkt/wmremove-transformed-removebg-preview.png"
+                                        src="https://a84f1dc0df.imgdist.com/pub/bfra/clk2zyb1/brv/m62/2jq/wmremove-transformed%20%285%29%202nd%20%281%29.png"
                                         style="
                                           display: block;
                                           height: auto;
