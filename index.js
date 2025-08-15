@@ -7485,7 +7485,7 @@ async function run() {
                       entity: "allUsers",
                       role: "READER",
                     });
-                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    const publicUrl = `https://${bucket.name}/${blob.name}`;
                     console.log(`Uploaded attachment to GCS:`, {
                       gcsFileName,
                       publicUrl,
@@ -7569,12 +7569,12 @@ async function run() {
                     entity: "allUsers",
                     role: "READER",
                   });
-                  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${newFile.name}`;
-                  console.log(`Renamed GCS file:`, {
-                    oldFileName,
-                    newFileName,
-                    publicUrl,
-                  });
+                  const publicUrl = `https://${bucket.name}/${newFile.name}`;
+                  // console.log(`Renamed GCS file:`, {
+                  //   oldFileName,
+                  //   newFileName,
+                  //   publicUrl,
+                  // });
                   attachment.url = publicUrl;
                 } catch (err) {
                   console.warn(`Failed to rename GCS file:`, {
