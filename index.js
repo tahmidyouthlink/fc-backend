@@ -2975,6 +2975,213 @@ async function run() {
       }
     );
 
+    app.patch(
+      "/receiveStock",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Product Hub"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { variants } = req.body;
+          if (!Array.isArray(variants) || variants.length === 0) {
+            return res
+              .status(400)
+              .json({ error: "Variants array is required" });
+          }
+
+          // De-dupe incoming rows on (productId,colorCode,size,location) and sum accept
+          const bucket = new Map();
+          for (const v of variants) {
+            const key = `${v.productId}||${v.colorCode}||${v.size}||${v.location}`;
+            const a = Number(v.accept);
+            if (!bucket.has(key)) {
+              bucket.set(key, {
+                productId: v.productId,
+                colorCode: v.colorCode,
+                size: v.size,
+                location: v.location,
+                accept: isNaN(a) ? 0 : a,
+              });
+            } else {
+              bucket.get(key).accept += isNaN(a) ? 0 : a;
+            }
+          }
+
+          const items = Array.from(bucket.values());
+          const results = [];
+
+          for (const item of items) {
+            const { productId, colorCode, size, location } = item;
+            const accept = Number(item.accept);
+
+            // Basic validation
+            if (!productId || !colorCode || size == null || !location) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: false,
+                error: "Missing required fields",
+              });
+              continue;
+            }
+            if (!Number.isFinite(accept) || accept <= 0) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: false,
+                error: "Accept must be a positive number",
+              });
+              continue;
+            }
+
+            // 1) Try to increment existing (productId,colorCode,size,location)
+            const incRes = await productInformationCollection.updateOne(
+              { productId },
+              {
+                $inc: {
+                  "productVariants.$[v].sku": accept,
+                  "productVariants.$[v].onHandSku": accept,
+                },
+              },
+              {
+                arrayFilters: [
+                  {
+                    "v.color.color": colorCode,
+                    "v.size": size,
+                    "v.location": location,
+                  },
+                ],
+              }
+            );
+
+            if (incRes.modifiedCount > 0) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: true,
+                updated: true,
+                message: "Stock received, variant updated",
+              });
+              continue;
+            }
+
+            // fetch full product document with all variants
+            const baseProduct = await productInformationCollection.findOne(
+              { productId },
+              { projection: { productVariants: 1, _id: 0 } }
+            );
+
+            // find *any* base variant that matches colorCode+size (regardless of location)
+            const baseVariant = baseProduct?.productVariants.find(
+              (v) => v.color.color === colorCode && v.size === size
+            );
+
+            if (!baseVariant) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: false,
+                error: "Base variant (productId+colorCode+size) does not exist",
+              });
+              continue;
+            }
+
+            // construct new variant for this location
+            const newVariant = {
+              color: baseVariant.color,
+              size: baseVariant.size,
+              sku: accept,
+              onHandSku: accept,
+              imageUrls: Array.isArray(baseVariant.imageUrls)
+                ? baseVariant.imageUrls
+                : [],
+              location,
+            };
+
+            // Guarded insert: only push if that exact location variant doesn't already exist
+            const insertRes = await productInformationCollection.updateOne(
+              {
+                productId,
+                productVariants: {
+                  $not: {
+                    $elemMatch: { "color.color": colorCode, size, location },
+                  },
+                },
+              },
+              { $push: { productVariants: newVariant } }
+            );
+
+            if (insertRes.modifiedCount > 0) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: true,
+                created: true,
+                message: "Stock received, new location variant created",
+              });
+              continue;
+            }
+
+            // Race safety: if insert failed because someone inserted it, try increment again
+            const retry = await productInformationCollection.updateOne(
+              { productId },
+              {
+                $inc: {
+                  "productVariants.$[v].sku": accept,
+                  "productVariants.$[v].onHandSku": accept,
+                },
+              },
+              {
+                arrayFilters: [
+                  {
+                    "v.color.color": colorCode,
+                    "v.size": size,
+                    "v.location": location,
+                  },
+                ],
+              }
+            );
+
+            if (retry.modifiedCount > 0) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: true,
+                updated: true,
+                message: "Stock received, variant updated (post-insert retry)",
+              });
+            } else {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                location,
+                success: false,
+                error: "Failed to add or update variant (possible conflict)",
+              });
+            }
+          }
+
+          return res.json({ results });
+        } catch (err) {
+          console.error("Error in receiveStock patch route:", err);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      }
+    );
+
     // POST /getProductNames
     app.post(
       "/getProductIds",
