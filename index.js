@@ -1664,10 +1664,32 @@ async function run() {
                 .json({ message: "Failed to create an account." });
             }
 
-            const promo = {
-              code: "POSHAX10",
-              amount: "10%",
-            };
+            const promoInfo = await promoCollection.findOne({
+              isWelcomeEmailPromoCode: true,
+              promoStatus: true,
+              $expr: {
+                $gt: [
+                  {
+                    $dateAdd: {
+                      startDate: { $toDate: "$expiryDate" }, // convert string to date
+                      unit: "day",
+                      amount: 1, // add 1 day so it expires end of the date
+                    },
+                  },
+                  new Date(),
+                ],
+              },
+            });
+
+            const promo = !promoInfo
+              ? null
+              : {
+                  code: promoInfo?.promoCode,
+                  amount:
+                    promoInfo?.promoDiscountType === "Percentage"
+                      ? promoInfo?.promoDiscountValue + "%"
+                      : "৳ " + promoInfo?.promoDiscountValue,
+                };
 
             const productList = await productInformationCollection
               .find()
@@ -1815,10 +1837,32 @@ async function run() {
             await newsletterCollection.insertOne({ email: data.email });
         }
 
-        const promo = {
-          code: "POSHAX10",
-          amount: "10%",
-        };
+        const promoInfo = await promoCollection.findOne({
+          isWelcomeEmailPromoCode: true,
+          promoStatus: true,
+          $expr: {
+            $gt: [
+              {
+                $dateAdd: {
+                  startDate: { $toDate: "$expiryDate" }, // convert string to date
+                  unit: "day",
+                  amount: 1, // add 1 day so it expires end of the date
+                },
+              },
+              new Date(),
+            ],
+          },
+        });
+
+        const promo = !promoInfo
+          ? null
+          : {
+              code: promoInfo?.promoCode,
+              amount:
+                promoInfo?.promoDiscountType === "Percentage"
+                  ? promoInfo?.promoDiscountValue + "%"
+                  : "৳ " + promoInfo?.promoDiscountValue,
+            };
 
         const productList = await productInformationCollection.find().toArray();
         const specialOffers = await offerCollection.find().toArray();
