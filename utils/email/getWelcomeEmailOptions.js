@@ -9,10 +9,14 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
       
       Expect exclusive drops, early access to new collections, and more!
 
-      GET ${promo.amount} OFF
+      ${
+        !promo
+          ? ""
+          : `GET ${promo.amount} OFF
       FROM YOUR NEXT ORDER
 
-      Copy & paste this promocode: ${promo.code}
+      Copy & paste this promocode: ${promo.code}`
+      }
 
       Ready to start shopping?
 
@@ -420,7 +424,10 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                     </tr>
                   </tbody>
                 </table>
-                <table class="row row-4" align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
+                ${
+                  !promo
+                    ? ""
+                    : `<table class="row row-4" align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
                   <tbody>
                     <tr>
                       <td>
@@ -433,9 +440,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                     <td class="pad" style="padding-bottom:20px;padding-left:20px;padding-right:20px;">
                                       <div style="font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif;">
                                         <div class style="font-size: 12px; font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif; mso-line-height-alt: 14.399999999999999px; color: #444444; line-height: 1.2;">
-                                          <p style="margin: 0; font-size: 12px; text-align: center; mso-line-height-alt: 14.399999999999999px;"><span style="word-break: break-word; font-size: 28px;"><strong><span style="word-break: break-word;">GET ${
-                                            promo.amount
-                                          } OFF</span> </strong></span></p>
+                                          <p style="margin: 0; font-size: 12px; text-align: center; mso-line-height-alt: 14.399999999999999px;"><span style="word-break: break-word; font-size: 28px;"><strong><span style="word-break: break-word;">GET ${promo.amount} OFF</span> </strong></span></p>
                                           <p style="margin: 0; font-size: 12px; text-align: center; mso-line-height-alt: 14.399999999999999px;"><span style="word-break: break-word; font-size: 14px;"><strong>FROM YOUR NEXT ORDER</strong></span></p>
                                         </div>
                                       </div>
@@ -447,9 +452,7 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                     <td class="pad" style="padding-left:20px;padding-right:20px;">
                                       <div style="font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif;">
                                         <div class style="font-size: 12px; font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif; mso-line-height-alt: 14.399999999999999px; color: #555555; line-height: 1.2;">
-                                          <p style="margin: 0; font-size: 12px; text-align: center; mso-line-height-alt: 14.399999999999999px;"><span style="word-break: break-word; font-size: 16px;"><span style="word-break: break-word;">Copy & paste this promocode</span><span style="word-break: break-word; color: #052d3d;"><strong> 👉 &nbsp;<span style="word-break: break-word; background-color: #d4ffce;"> ${
-                                            promo.code
-                                          }&nbsp;</span></strong></span></span></p>
+                                          <p style="margin: 0; font-size: 12px; text-align: center; mso-line-height-alt: 14.399999999999999px;"><span style="word-break: break-word; font-size: 16px;"><span style="word-break: break-word;">Copy & paste this promocode</span><span style="word-break: break-word; color: #052d3d;"><strong> 👉 &nbsp;<span style="word-break: break-word; background-color: #d4ffce;"> ${promo.code}&nbsp;</span></strong></span></span></p>
                                         </div>
                                       </div>
                                     </td>
@@ -462,7 +465,8 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                       </td>
                     </tr>
                   </tbody>
-                </table>
+                </table>`
+                }
                 <table class="row row-5" align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
                   <tbody>
                     <tr>
@@ -480,17 +484,19 @@ const getWelcomeEmailOptions = (fullName, email, promo, products) => {
                                     </td>
                                   </tr>
                                 </table>
-                                <table class="paragraph_block block-2" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;">
+                                ${
+                                  !promo
+                                    ? ""
+                                    : `<table class="paragraph_block block-2" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;">
                                   <tr>
                                     <td class="pad">
                                       <div style="color:#555555;font-family:'Trebuchet MS', Arial, Helvetica, sans-serif;font-size:18px;line-height:1.2;text-align:center;mso-line-height-alt:22px;">
-                                        <p style="margin: 0; word-break: break-word;"><span style="word-break: break-word;">Use the promocode for ${
-                                          promo.amount
-                                        } off</span></p>
+                                        <p style="margin: 0; word-break: break-word;"><span style="word-break: break-word;">Use the promocode for ${promo.amount} off</span></p>
                                       </div>
                                     </td>
                                   </tr>
-                                </table>
+                                </table>`
+                                }
                               </td>
                             </tr>
                           </tbody>
