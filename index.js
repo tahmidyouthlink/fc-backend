@@ -3068,100 +3068,6 @@ async function run() {
                 updated: true,
                 message: "Stock received, variant updated",
               });
-              continue;
-            }
-
-            // fetch full product document with all variants
-            const baseProduct = await productInformationCollection.findOne(
-              { productId },
-              { projection: { productVariants: 1, _id: 0 } }
-            );
-
-            // find *any* base variant that matches colorCode+size (regardless of location)
-            const baseVariant = baseProduct?.productVariants.find(
-              (v) => v.color.color === colorCode && v.size === size
-            );
-
-            if (!baseVariant) {
-              results.push({
-                productId,
-                colorCode,
-                size,
-                location,
-                success: false,
-                error: "Base variant (productId+colorCode+size) does not exist",
-              });
-              continue;
-            }
-
-            // construct new variant for this location
-            const newVariant = {
-              color: baseVariant.color,
-              size: baseVariant.size,
-              sku: accept,
-              onHandSku: accept,
-              imageUrls: Array.isArray(baseVariant.imageUrls)
-                ? baseVariant.imageUrls
-                : [],
-              location,
-            };
-
-            // Guarded insert: only push if that exact location variant doesn't already exist
-            const insertRes = await productInformationCollection.updateOne(
-              {
-                productId,
-                productVariants: {
-                  $not: {
-                    $elemMatch: { "color.color": colorCode, size, location },
-                  },
-                },
-              },
-              { $push: { productVariants: newVariant } }
-            );
-
-            if (insertRes.modifiedCount > 0) {
-              results.push({
-                productId,
-                colorCode,
-                size,
-                location,
-                success: true,
-                created: true,
-                message: "Stock received, new location variant created",
-              });
-              continue;
-            }
-
-            // Race safety: if insert failed because someone inserted it, try increment again
-            const retry = await productInformationCollection.updateOne(
-              { productId },
-              {
-                $inc: {
-                  "productVariants.$[v].sku": accept,
-                  "productVariants.$[v].onHandSku": accept,
-                },
-              },
-              {
-                arrayFilters: [
-                  {
-                    "v.color.color": colorCode,
-                    "v.size": size,
-                    "v.location": location,
-                  },
-                ],
-              }
-            );
-
-            if (retry.modifiedCount > 0) {
-              results.push({
-                productId,
-                colorCode,
-                size,
-                location,
-                success: true,
-                updated: true,
-                message: "Stock received, variant updated (post-insert retry)",
-              });
             } else {
               results.push({
                 productId,
@@ -3169,14 +3075,222 @@ async function run() {
                 size,
                 location,
                 success: false,
-                error: "Failed to add or update variant (possible conflict)",
+                error:
+                  "Variant not found for the specified product, color, size, and location",
               });
             }
           }
 
-          return res.json({ results });
+          // Check if any updates failed
+          const failedUpdates = results.filter((update) => !update.success);
+          if (failedUpdates.length > 0) {
+            return res.status(400).json({
+              results,
+              message: `Failed to update ${failedUpdates.length} variant(s)`,
+            });
+          }
+
+          return res.json({
+            results,
+            message: "All variants updated successfully",
+          });
         } catch (err) {
           console.error("Error in receiveStock patch route:", err);
+          res.status(500).json({ error: "Internal server error" });
+        }
+      }
+    );
+
+    // Transfer stock between locations
+    app.patch(
+      "/transferStock",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Product Hub"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { variants } = req.body;
+          if (!Array.isArray(variants) || variants.length === 0) {
+            return res
+              .status(400)
+              .json({ error: "Variants array is required" });
+          }
+
+          // De-dupe incoming rows on (productId, colorCode, size, originName, destinationName)
+          const bucket = new Map();
+          for (const v of variants) {
+            const key = `${v.productId}||${v.colorCode}||${v.size}||${v.originName}||${v.destinationName}`;
+            const a = Number(v.accept);
+            if (!bucket.has(key)) {
+              bucket.set(key, {
+                productId: v.productId,
+                colorCode: v.colorCode,
+                size: v.size,
+                originName: v.originName,
+                destinationName: v.destinationName,
+                accept: isNaN(a) ? 0 : a,
+              });
+            } else {
+              bucket.get(key).accept += isNaN(a) ? 0 : a;
+            }
+          }
+
+          const items = Array.from(bucket.values());
+          const results = [];
+
+          for (const item of items) {
+            const {
+              productId,
+              colorCode,
+              size,
+              originName,
+              destinationName,
+              accept,
+            } = item;
+
+            // Basic validation
+            if (
+              !productId ||
+              !colorCode ||
+              size == null ||
+              !originName ||
+              !destinationName
+            ) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                originName,
+                destinationName,
+                success: false,
+                error: "Missing required fields",
+              });
+              continue;
+            }
+            if (!Number.isFinite(accept) || accept <= 0) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                originName,
+                destinationName,
+                success: false,
+                error: "Accept must be a positive number",
+              });
+              continue;
+            }
+            if (originName === destinationName) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                originName,
+                destinationName,
+                success: false,
+                error: "Origin and destination locations must be different",
+              });
+              continue;
+            }
+
+            // Check if origin variant has sufficient stock
+            const product = await productInformationCollection.findOne(
+              { productId },
+              {
+                projection: {
+                  productVariants: {
+                    $elemMatch: {
+                      "color.color": colorCode,
+                      size,
+                      location: originName,
+                    },
+                  },
+                },
+              }
+            );
+
+            const originVariant = product?.productVariants?.[0];
+            if (!originVariant || originVariant.sku < accept) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                originName,
+                destinationName,
+                success: false,
+                error: `Insufficient stock in origin location (${originName}). Available: ${
+                  originVariant?.sku || 0
+                }, Requested: ${accept}`,
+              });
+              continue;
+            }
+
+            // Update both origin and destination variants atomically
+            const updateRes = await productInformationCollection.updateOne(
+              { productId },
+              {
+                $inc: {
+                  "productVariants.$[origin].sku": -accept,
+                  "productVariants.$[origin].onHandSku": -accept,
+                  "productVariants.$[destination].sku": accept,
+                  "productVariants.$[destination].onHandSku": accept,
+                },
+              },
+              {
+                arrayFilters: [
+                  {
+                    "origin.color.color": colorCode,
+                    "origin.size": size,
+                    "origin.location": originName,
+                  },
+                  {
+                    "destination.color.color": colorCode,
+                    "destination.size": size,
+                    "destination.location": destinationName,
+                  },
+                ],
+              }
+            );
+
+            if (updateRes.modifiedCount > 0) {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                originName,
+                destinationName,
+                success: true,
+                updated: true,
+                message: `Transferred ${accept} units from ${originName} to ${destinationName}`,
+              });
+            } else {
+              results.push({
+                productId,
+                colorCode,
+                size,
+                originName,
+                destinationName,
+                success: false,
+                error:
+                  "Failed to transfer stock. Variant not found for origin or destination location",
+              });
+            }
+          }
+
+          // Check if any updates failed
+          const failedUpdates = results.filter((update) => !update.success);
+          if (failedUpdates.length > 0) {
+            return res.status(400).json({
+              results,
+              message: `Failed to transfer ${failedUpdates.length} variant(s)`,
+            });
+          }
+
+          return res.json({
+            results,
+            message: "All stock transfers completed successfully",
+          });
+        } catch (err) {
+          console.error("Error in transferStock patch route:", err);
           res.status(500).json({ error: "Internal server error" });
         }
       }
@@ -6369,6 +6483,16 @@ async function run() {
         try {
           const locationData = req.body;
 
+          // Check if a location with the same locationName already exists
+          const existingLocation = await locationCollection.findOne({
+            locationName: locationData.locationName,
+          });
+          if (existingLocation) {
+            return res.status(400).send({
+              message: `A location with the name "${locationData.locationName}" already exists.`,
+            });
+          }
+
           // If the location is set as primary, update all other locations to set `isPrimaryLocation` to false
           if (locationData.isPrimaryLocation) {
             await locationCollection.updateMany(
@@ -6379,6 +6503,48 @@ async function run() {
 
           // Insert the new location
           const result = await locationCollection.insertOne(locationData);
+
+          // Update all products to add variants for the new location
+          const newLocationName = locationData.locationName;
+
+          const products = await productInformationCollection
+            .find({})
+            .toArray();
+
+          for (const product of products) {
+            const variants = product.productVariants || [];
+
+            // Use a Map to track unique color-size combinations and an example variant for each
+            const variantMap = new Map();
+
+            for (const v of variants) {
+              const key = `${v.color._id}|${v.size}`;
+              if (!variantMap.has(key)) {
+                variantMap.set(key, v);
+              }
+            }
+
+            // Create new variants for the new location
+            const newVariants = [];
+            for (const [key, example] of variantMap) {
+              newVariants.push({
+                color: example.color,
+                size: example.size,
+                sku: 0,
+                onHandSku: 0,
+                imageUrls: example.imageUrls,
+                location: newLocationName,
+              });
+            }
+
+            // If there are new variants to add, update the product
+            if (newVariants.length > 0) {
+              await productInformationCollection.updateOne(
+                { _id: product._id },
+                { $push: { productVariants: { $each: newVariants } } }
+              );
+            }
+          }
 
           res.send(result);
         } catch (error) {
@@ -6444,13 +6610,87 @@ async function run() {
         try {
           const id = req.params.id;
           const query = { _id: new ObjectId(id) };
-          const result = await locationCollection.deleteOne(query);
 
-          if (result.deletedCount === 0) {
+          // Find the location to check if it's primary
+          const location = await locationCollection.findOne(query);
+          if (!location) {
             return res.status(404).send({ message: "Location not found" });
           }
 
-          res.send(result);
+          // Check if the location is primary
+          if (location.isPrimaryLocation) {
+            return res.status(400).send({
+              message:
+                "Cannot delete primary location. Please assign a new one first.",
+            });
+          }
+
+          // Count total variants for this location using aggregation
+          const variantCountResult = await productInformationCollection
+            .aggregate([
+              { $unwind: "$productVariants" },
+              { $match: { "productVariants.location": location.locationName } },
+              { $count: "totalVariants" },
+            ])
+            .toArray();
+
+          const totalVariants =
+            variantCountResult.length > 0
+              ? variantCountResult[0].totalVariants
+              : 0;
+
+          // Remove variants associated with this location from all products
+          const updateResult = await productInformationCollection.updateMany(
+            { "productVariants.location": location.locationName },
+            { $pull: { productVariants: { location: location.locationName } } }
+          );
+
+          // Verify no variants remain for this location
+          const remainingVariants = await productInformationCollection
+            .aggregate([
+              { $unwind: "$productVariants" },
+              { $match: { "productVariants.location": location.locationName } },
+              { $count: "remainingVariants" },
+            ])
+            .toArray();
+
+          const remainingVariantCount =
+            remainingVariants.length > 0
+              ? remainingVariants[0].remainingVariants
+              : 0;
+
+          // If any variants remain, abort deletion
+          if (remainingVariantCount > 0) {
+            return res.status(400).send({
+              message: `Failed to delete all product variants for location: ${location.locationName}. ${remainingVariantCount} variants remain.`,
+            });
+          }
+
+          // Log the successful removal of variants
+          if (totalVariants > 0) {
+            // console.log(
+            //   `Removed ${totalVariants} product variants across ${updateResult.modifiedCount} products for location: ${location.locationName}`
+            // );
+          } else {
+            // console.log(
+            //   `No product variants found for location: ${location.locationName}`
+            // );
+          }
+
+          // Delete the location only after all variants are confirmed removed
+          const deleteResult = await locationCollection.deleteOne(query);
+
+          if (deleteResult.deletedCount === 0) {
+            return res.status(404).send({ message: "Location not found" });
+          }
+
+          res.send({
+            message:
+              "Location and associated product variants deleted successfully",
+            deleteResult,
+            variantsRemoved: totalVariants,
+            productsModified: updateResult.modifiedCount,
+          });
         } catch (error) {
           console.error("Error deleting Location:", error);
           res.status(500).send({
