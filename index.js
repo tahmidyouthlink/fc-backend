@@ -2828,182 +2828,212 @@ async function run() {
       async (req, res) => {
         try {
           const id = req.params.id;
-          const { _id, ...productDetails } = req.body;
-          const filter = { _id: new ObjectId(id) };
+          const {
+            productTitle,
+            regularPrice,
+            weight,
+            batchCode,
+            thumbnailImageUrl,
+            discountType,
+            discountValue,
+            productDetails,
+            materialCare,
+            sizeFit,
+            category,
+            subCategories,
+            groupOfSizes,
+            allSizes,
+            availableColors,
+            newArrival,
+            trending,
+            vendors,
+            tags,
+            productVariants,
+            selectedShippingZoneIds,
+            status,
+            season,
+            sizeGuideImageUrl,
+            restOfOutfit,
+            isInventoryShown,
+          } = req.body;
 
-          // Use moment-timezone to format dateTime
-          const dateTime = moment().tz("Asia/Dhaka").format("DD-MM-YY | HH:mm");
+          // Validate product ID
+          if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ message: "Invalid product ID" });
+          }
+
+          const filter = { _id: new ObjectId(id) };
 
           // 1. Fetch the current product (before update)
           const existingProduct = await productInformationCollection.findOne(
-            filter
+            filter,
+            { readPreference: "primary" }
           );
 
           if (!existingProduct) {
             return res.status(404).send({ message: "Product not found" });
           }
 
-          // 2. Update the product
-          const result = await productInformationCollection.updateOne(filter, {
-            $set: { ...productDetails },
-          });
-
-          // 3. Find product variants whose sku updated from 0 ➔ > 0
-          const oldVariants = existingProduct.productVariants || [];
-          const newVariants = productDetails.productVariants || [];
-
-          const updatedVariants = [];
-
-          oldVariants.forEach((oldVariant) => {
-            const matchingNewVariant = newVariants.find(
-              (newVariant) =>
-                oldVariant.color.color === newVariant.color.color &&
-                oldVariant.size === newVariant.size &&
-                oldVariant.location === newVariant.location
-            );
-
-            // console.log(matchingNewVariant, "matchingNewVariant");
-
-            if (matchingNewVariant) {
-              if (oldVariant.sku === 0 && matchingNewVariant.sku > 0) {
-                updatedVariants.push({
-                  colorCode: oldVariant.color.color, // e.g., "#3B7A57"
-                  size: oldVariant.size,
-                  productId: id,
-                });
-              }
-            }
-          });
-
-          // console.log(updatedVariants, "updatedVariants");
-
-          if (updatedVariants.length > 0) {
-            // 4. For each updated variant, find matching availabilityNotifications
-            for (const variant of updatedVariants) {
-              const { colorCode, size, productId } = variant;
-
-              const notificationDoc = await availabilityNotifications.findOne({
-                productId: productId,
-                colorCode: colorCode,
-                size: size,
-              });
-
-              // console.log(notificationDoc, "notificationDoc");
-
-              if (notificationDoc) {
-                const emailsToNotify = notificationDoc.emails.filter(
-                  (emailObj) => emailObj.notified === false
-                );
-
-                // console.log(emailsToNotify, "emailsToNotify");
-
-                for (const emailObj of emailsToNotify) {
-                  const { email, notified } = emailObj;
-
-                  // Skip already notified emails
-                  if (notified) continue;
-
-                  const user = await customerListCollection.findOne({ email });
-
-                  if (!user) {
-                    return res
-                      .status(404)
-                      .json({ message: "TokenError: No account found." });
-                  }
-
-                  const selectedProduct =
-                    await productInformationCollection.findOne({
-                      _id: new ObjectId(productId),
-                    });
-                  const specialOffers = await offerCollection.find().toArray();
-
-                  const isOnlyRegularDiscountAvailable =
-                    checkIfOnlyRegularDiscountIsAvailable(
-                      selectedProduct,
-                      specialOffers
-                    );
-                  const selectedVariant = selectedProduct.productVariants.find(
-                    (variant) =>
-                      variant.color.color == colorCode && variant.size == size
-                  );
-                  const colorName = selectedVariant.color.label;
-                  const imageUrl = selectedVariant.imageUrls[0];
-
-                  const notifiedProduct = {
-                    pageUrl: `${
-                      process.env.MAIN_DOMAIN_URL
-                    }/product/${existingProduct.productTitle
-                      .split(" ")
-                      .join("-")
-                      .toLowerCase()}?productId=${productId}&colorCode=${encodeURIComponent(
-                      colorCode
-                    )}&size=${encodeURIComponent(size)}`,
-                    imageUrl,
-                    title: selectedProduct.productTitle,
-                    price: calculateFinalPrice(selectedProduct, specialOffers),
-                    originalPrice: isOnlyRegularDiscountAvailable
-                      ? Number(selectedProduct.regularPrice)
-                      : null,
-                    size,
-                    color: {
-                      code: colorCode,
-                      name: colorName,
-                    },
-                    customerName: user.userInfo.personalInfo.customerName,
-                  };
-
-                  try {
-                    const mailResult = await transport.sendMail(
-                      getStockUpdateEmailOptions(email, notifiedProduct)
-                    );
-
-                    // Check if email was sent successfully (you can use mailResult.accepted to confirm if the email was delivered)
-                    if (
-                      mailResult &&
-                      mailResult.accepted &&
-                      mailResult.accepted.length > 0
-                    ) {
-                      // Update notified:true inside emails array
-                      await availabilityNotifications.updateOne(
-                        {
-                          _id: new ObjectId(notificationDoc._id),
-                          "emails.email": email,
-                        },
-                        {
-                          $set: {
-                            "emails.$.notified": true,
-                            "emails.$.updatedDateTime": dateTime,
-                          },
-                        }
-                      );
-
-                      // return res.status(200).json({
-                      //   success: true,
-                      //   message: "Invitation sent successfully!",
-                      //   userData: result,
-                      //   emailStatus: mailResult,
-                      // });
-                    }
-                  } catch (emailError) {
-                    console.error(
-                      `Failed to send email to ${email}:`,
-                      emailError.message
-                    );
-                  }
-                }
-              }
-            }
+          // Fetch primary and active locations
+          const primaryLocationDoc = await locationCollection.findOne(
+            { isPrimaryLocation: true, status: true },
+            { readPreference: "primary" }
+          );
+          if (!primaryLocationDoc) {
+            return res
+              .status(500)
+              .json({ message: "Primary location not found or not active" });
           }
 
-          // After update
+          const activeLocations = await locationCollection
+            .find({ status: true }, { readPreference: "primary" })
+            .toArray();
+          const activeLocationNames = activeLocations.map(
+            (loc) => loc.locationName
+          );
+
+          // Validate required fields (matching client-side checks)
+          const errors = [];
+          if (!productTitle?.trim()) errors.push("Title is required.");
+          if (!regularPrice || !Number.isFinite(Number(regularPrice)))
+            errors.push(
+              "Regular price is required and must be a valid number."
+            );
+          if (!batchCode?.trim()) errors.push("Batch code is required.");
+          if (!thumbnailImageUrl?.trim())
+            errors.push("Thumbnail image is required.");
+          if (!productDetails?.trim())
+            errors.push("Product details are required.");
+          if (productDetails?.trim().length < 10)
+            errors.push("Product details must be at least 10 characters.");
+          if (!Array.isArray(groupOfSizes) || groupOfSizes.length === 0)
+            errors.push("At least one size range is required.");
+          if (!Array.isArray(allSizes) || allSizes.length === 0)
+            errors.push("At least one size is required.");
+          if (!Array.isArray(availableColors) || availableColors.length === 0)
+            errors.push("At least one color is required.");
+          if (!Array.isArray(tags) || tags.length === 0)
+            errors.push("At least one tag is required.");
+          if (newArrival === undefined || newArrival === "")
+            errors.push("New Arrival selection is required.");
+          if (trending === undefined || trending === "")
+            errors.push("Trending selection is required.");
+          if (!Array.isArray(season) || season.length === 0)
+            errors.push("At least one season is required.");
+          if (
+            productVariants?.some(
+              (v) => !Array.isArray(v.imageUrls) || v.imageUrls.length < 2
+            )
+          ) {
+            errors.push("Each variant must have at least 2 images.");
+          }
+
+          // Validate that productVariants covers all active locations (including primary)
+          // if (Array.isArray(productVariants)) {
+          //   const expectedVariants = availableColors.flatMap((color) =>
+          //     allSizes.flatMap((size) =>
+          //       activeLocationNames.map((locationName) => ({
+          //         color: color.value,
+          //         size: String(size),
+          //         locationName,
+          //       }))
+          //     )
+          //   );
+          //   const actualVariants = productVariants.map((v) => ({
+          //     color: v.color.color,
+          //     size: String(v.size),
+          //     locationName: v.location,
+          //   }));
+          //   const missingVariants = expectedVariants.filter(
+          //     (exp) =>
+          //       !actualVariants.some(
+          //         (act) =>
+          //           act.color === exp.color &&
+          //           act.size === exp.size &&
+          //           act.locationName === exp.locationName
+          //       )
+          //   );
+
+          //   if (missingVariants.length > 0) {
+          //     errors.push(
+          //       "Product variants must include all active locations (including primary) for each color and size."
+          //     );
+          //   }
+          // } else {
+          //   errors.push("Product variants are required.");
+          // }
+
+          if (errors.length > 0) {
+            return res
+              .status(400)
+              .json({ message: "Validation failed", errors });
+          }
+
+          // Prepare update object, preserving existing sku and onHandSku in productVariants
+          const updateFields = {
+            productTitle,
+            regularPrice: Number(regularPrice),
+            weight: weight ? Number(weight) : undefined,
+            batchCode,
+            thumbnailImageUrl,
+            discountType,
+            discountValue: discountValue ? Number(discountValue) : 0,
+            productDetails,
+            materialCare,
+            sizeFit,
+            category,
+            subCategories: subCategories || [],
+            groupOfSizes,
+            allSizes,
+            availableColors,
+            newArrival: Boolean(newArrival),
+            trending: Boolean(trending),
+            vendors: vendors || [],
+            tags,
+            selectedShippingZoneIds: selectedShippingZoneIds || [],
+            status,
+            season,
+            sizeGuideImageUrl,
+            restOfOutfit: restOfOutfit || [],
+            isInventoryShown: Boolean(isInventoryShown),
+            productVariants: productVariants.map((variant) => ({
+              color: variant.color,
+              size: variant.size,
+              location: variant.location,
+              imageUrls: variant.imageUrls,
+              sku:
+                existingProduct.productVariants.find(
+                  (ev) =>
+                    ev.color.color === variant.color.color &&
+                    ev.size === variant.size &&
+                    ev.location === variant.location
+                )?.sku || 0,
+              onHandSku:
+                existingProduct.productVariants.find(
+                  (ev) =>
+                    ev.color.color === variant.color.color &&
+                    ev.size === variant.size &&
+                    ev.location === variant.location
+                )?.onHandSku || 0,
+            })),
+          };
+
+          // Update the product
+          const result = await productInformationCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateFields },
+            { writeConcern: { w: "majority" } }
+          );
+
+          // Respond based on update result
           if (result.modifiedCount > 0) {
-            res.send({
+            res.json({
               success: true,
               message: "Product updated successfully",
               modifiedCount: result.modifiedCount,
             });
           } else {
-            res.send({
+            res.json({
               success: false,
               message: "No changes made",
               modifiedCount: result.modifiedCount,
@@ -3011,7 +3041,7 @@ async function run() {
           }
         } catch (error) {
           console.error("Error updating product details:", error);
-          res.status(500).send({
+          res.status(500).json({
             message: "Failed to update product details",
             error: error.message,
           });
@@ -3019,6 +3049,69 @@ async function run() {
       }
     );
 
+    // Helper function to compute SKU in primary location for a specific product/color/size
+    async function computePrimarySku(
+      productId,
+      colorCode,
+      size,
+      primaryLocation
+    ) {
+      // Normalize inputs
+      const normalizedProductId = productId?.trim();
+      const normalizedColorCode = colorCode?.trim().toUpperCase();
+      const normalizedSize = String(size).trim(); // Convert to string for consistency
+      const normalizedPrimaryLocation = primaryLocation?.trim();
+
+      const product = await productInformationCollection.findOne(
+        { productId: normalizedProductId },
+        { projection: { productVariants: 1 }, readPreference: "primary" } // Read from primary node
+      );
+
+      if (!product) {
+        console.log(`No product found for productId: ${normalizedProductId}`);
+        return 0;
+      }
+
+      const variants = product.productVariants || [];
+      // console.log(
+      //   `Found ${variants.length} variants for productId: ${normalizedProductId}`
+      // );
+
+      for (const variant of variants) {
+        const variantColor = variant.color?.color?.trim().toUpperCase();
+        const variantSize = String(variant.size).trim(); // Convert to string for comparison
+        const variantLocation = variant.location?.trim();
+
+        // console.log(
+        //   `Checking variant: color=${variantColor}, size=${variantSize} (type=${typeof variant.size}), location=${variantLocation} ` +
+        //     `against input: color=${normalizedColorCode}, size=${normalizedSize} (type=${typeof size}), location=${normalizedPrimaryLocation}`
+        // );
+
+        // Compare size as both string and number to handle database inconsistencies
+        const sizeMatches =
+          variantSize === normalizedSize ||
+          Number(variantSize) === Number(normalizedSize);
+
+        if (
+          variantColor === normalizedColorCode &&
+          sizeMatches &&
+          variantLocation === normalizedPrimaryLocation
+        ) {
+          const sku = Number(variant.sku) || 0;
+          // console.log(
+          //   `Found SKU: ${sku} for productId: ${normalizedProductId}, colorCode: ${colorCode}, size: ${size}, location: ${normalizedPrimaryLocation}`
+          // );
+          return sku;
+        }
+      }
+
+      // console.log(
+      //   `No variant found for productId: ${normalizedProductId}, colorCode: ${colorCode}, size: ${size}, location: ${normalizedPrimaryLocation}`
+      // );
+      return 0;
+    }
+
+    // Purchase stock in an location
     app.patch(
       "/receiveStock",
       verifyJWT,
@@ -3052,6 +3145,40 @@ async function run() {
           }
 
           const items = Array.from(bucket.values());
+
+          const primaryLocationDetails = await locationCollection.findOne(
+            {
+              isPrimaryLocation: true,
+            },
+            { readPreference: "primary" }
+          );
+          const primaryLocation = primaryLocationDetails?.locationName;
+          // console.log(primaryLocation, "primaryLocation");
+
+          // Collect unique {productId, colorCode, size} combos that are being updated
+          const uniqueCombos = new Set();
+          for (const item of items) {
+            const key = `${item.productId}||${item.colorCode}||${item.size}`;
+            uniqueCombos.add(key);
+          }
+
+          // Use moment-timezone to format dateTime
+          const dateTime = moment().tz("Asia/Dhaka").format("DD-MM-YY | HH:mm");
+
+          // Compute before primary SKU for each unique combo
+          const beforePrimarySkus = new Map();
+          for (const key of uniqueCombos) {
+            const [productId, colorCode, size] = key.split("||");
+            const sku = await computePrimarySku(
+              productId,
+              colorCode,
+              size,
+              primaryLocation
+            );
+            beforePrimarySkus.set(key, sku);
+            // console.log(`Before SKU for ${key}: ${sku}`);
+          }
+
           const results = [];
 
           for (const item of items) {
@@ -3099,6 +3226,7 @@ async function run() {
                     "v.location": location,
                   },
                 ],
+                writeConcern: { w: "majority" }, // Ensure update is committed
               }
             );
 
@@ -3132,6 +3260,169 @@ async function run() {
               results,
               message: `Failed to update ${failedUpdates.length} variant(s)`,
             });
+          }
+
+          // After successful updates, check which combos had primary SKU go from 0 to >0
+          const updatedCombos = [];
+          for (const key of uniqueCombos) {
+            const [productId, colorCode, size] = key.split("||");
+            const afterSku = await computePrimarySku(
+              productId,
+              colorCode,
+              size,
+              primaryLocation
+            );
+            // console.log(`After SKU for ${key}: ${afterSku}`);
+
+            if (beforePrimarySkus.get(key) === 0 && afterSku > 0) {
+              updatedCombos.push({ productId, colorCode, size });
+            }
+          }
+
+          // console.log(`Updated combos: ${JSON.stringify(updatedCombos)}`);
+
+          // Send notifications for updated combos
+          if (updatedCombos.length > 0) {
+            for (const combo of updatedCombos) {
+              const { productId, colorCode, size } = combo;
+
+              const product = await productInformationCollection.findOne(
+                {
+                  productId,
+                },
+                { readPreference: "primary" }
+              );
+              const mongoId = product._id.toHexString().trim();
+              // console.log(mongoId, "mongoId");
+
+              // Normalize size for notification query
+              const normalizedSize = String(size).trim();
+
+              const notificationDoc = await availabilityNotifications.findOne(
+                {
+                  productId: mongoId,
+                  colorCode: colorCode,
+                  $or: [
+                    { size: normalizedSize },
+                    { size: Number(normalizedSize) },
+                  ],
+                },
+                { readPreference: "primary" }
+              );
+
+              if (notificationDoc) {
+                const emailsToNotify = notificationDoc.emails.filter(
+                  (emailObj) => emailObj.notified === false
+                );
+
+                for (const emailObj of emailsToNotify) {
+                  const { email, notified } = emailObj;
+
+                  // Skip already notified emails
+                  if (notified) continue;
+
+                  const user = await customerListCollection.findOne({ email });
+
+                  if (!user) {
+                    console.error(`No user found for email: ${email}`);
+                    continue;
+                  }
+
+                  const selectedProduct =
+                    await productInformationCollection.findOne(
+                      {
+                        productId,
+                      },
+                      { readPreference: "primary" }
+                    );
+                  const specialOffers = await offerCollection.find().toArray();
+
+                  const isOnlyRegularDiscountAvailable =
+                    checkIfOnlyRegularDiscountIsAvailable(
+                      selectedProduct,
+                      specialOffers
+                    );
+
+                  const selectedVariant = selectedProduct.productVariants.find(
+                    (variant) =>
+                      variant.color.color == colorCode &&
+                      (String(variant.size) === normalizedSize ||
+                        Number(variant.size) === Number(normalizedSize))
+                  );
+
+                  if (!selectedVariant) {
+                    console.error(
+                      `No variant found for productId: ${productId}, colorCode: ${colorCode}, size: ${size}`
+                    );
+                    continue;
+                  }
+
+                  const colorName = selectedVariant.color.label;
+                  const imageUrl = selectedVariant.imageUrls[0];
+
+                  const notifiedProduct = {
+                    pageUrl: `${
+                      process.env.MAIN_DOMAIN_URL
+                    }/product/${selectedProduct.productTitle
+                      .split(" ")
+                      .join("-")
+                      .toLowerCase()}?productId=${mongoId}&colorCode=${encodeURIComponent(
+                      colorCode
+                    )}&size=${encodeURIComponent(size)}`,
+                    imageUrl,
+                    title: selectedProduct.productTitle,
+                    price: calculateFinalPrice(selectedProduct, specialOffers),
+                    originalPrice: isOnlyRegularDiscountAvailable
+                      ? Number(selectedProduct.regularPrice)
+                      : null,
+                    size,
+                    color: {
+                      code: colorCode,
+                      name: colorName,
+                    },
+                    customerName: user.userInfo.personalInfo.customerName,
+                  };
+
+                  // console.log(
+                  //   `Notified product for ${email}: ${JSON.stringify(
+                  //     notifiedProduct
+                  //   )}`
+                  // );
+
+                  try {
+                    const mailResult = await transport.sendMail(
+                      getStockUpdateEmailOptions(email, notifiedProduct)
+                    );
+
+                    // Check if email was sent successfully
+                    if (
+                      mailResult &&
+                      mailResult.accepted &&
+                      mailResult.accepted.length > 0
+                    ) {
+                      // Update notified:true inside emails array
+                      await availabilityNotifications.updateOne(
+                        {
+                          _id: new ObjectId(notificationDoc._id),
+                          "emails.email": email,
+                        },
+                        {
+                          $set: {
+                            "emails.$.notified": true,
+                            "emails.$.updatedDateTime": dateTime,
+                          },
+                        }
+                      );
+                    }
+                  } catch (emailError) {
+                    console.error(
+                      `Failed to send email to ${email}:`,
+                      emailError.message
+                    );
+                  }
+                }
+              }
+            }
           }
 
           return res.json({
@@ -3180,6 +3471,39 @@ async function run() {
           }
 
           const items = Array.from(bucket.values());
+
+          const primaryLocationDetails = await locationCollection.findOne(
+            { isPrimaryLocation: true },
+            { readPreference: "primary" }
+          );
+          const primaryLocation = primaryLocationDetails?.locationName;
+
+          // Collect unique {productId, colorCode, size} combos for transfers to primary location
+          const uniqueCombos = new Set();
+          for (const item of items) {
+            if (item.destinationName === primaryLocation) {
+              const key = `${item.productId}||${item.colorCode}||${item.size}`;
+              uniqueCombos.add(key);
+            }
+          }
+
+          // Use moment-timezone to format dateTime
+          const dateTime = moment().tz("Asia/Dhaka").format("DD-MM-YY | HH:mm");
+
+          // Compute before primary SKU for each unique combo
+          const beforePrimarySkus = new Map();
+          for (const key of uniqueCombos) {
+            const [productId, colorCode, size] = key.split("||");
+            const sku = await computePrimarySku(
+              productId,
+              colorCode,
+              size,
+              primaryLocation
+            );
+            beforePrimarySkus.set(key, sku);
+            console.log(`Before SKU for ${key}: ${sku}`);
+          }
+
           const results = [];
 
           for (const item of items) {
@@ -3249,6 +3573,7 @@ async function run() {
                     },
                   },
                 },
+                readPreference: "primary",
               }
             );
 
@@ -3292,6 +3617,7 @@ async function run() {
                     "destination.location": destinationName,
                   },
                 ],
+                writeConcern: { w: "majority" },
               }
             );
 
@@ -3327,6 +3653,207 @@ async function run() {
               results,
               message: `Failed to transfer ${failedUpdates.length} variant(s)`,
             });
+          }
+
+          // After successful updates, check which combos had primary SKU go from 0 to >0
+          const updatedCombos = [];
+          for (const key of uniqueCombos) {
+            const [productId, colorCode, size] = key.split("||");
+            const afterSku = await computePrimarySku(
+              productId,
+              colorCode,
+              size,
+              primaryLocation
+            );
+            console.log(`After SKU for ${key}: ${afterSku}`);
+            if (beforePrimarySkus.get(key) === 0 && afterSku > 0) {
+              updatedCombos.push({ productId, colorCode, size });
+            }
+          }
+
+          console.log(`Updated combos: ${JSON.stringify(updatedCombos)}`);
+
+          // Send notifications for updated combos
+          if (updatedCombos.length > 0) {
+            for (const combo of updatedCombos) {
+              const { productId, colorCode, size } = combo;
+
+              // Map custom productId to MongoDB _id (as string)
+              const product = await productInformationCollection.findOne(
+                { productId },
+                { readPreference: "primary" }
+              );
+              if (!product) {
+                console.error(`No product found for productId: ${productId}`);
+                continue;
+              }
+              const mongoId = product._id.toHexString().trim();
+              console.log(
+                `Mapped productId: ${productId} to MongoDB _id: ${mongoId}`
+              );
+
+              // Normalize size for notification query
+              const normalizedSize = String(size).trim();
+
+              // Query availabilityNotifications with productId as string
+              const notificationDoc = await availabilityNotifications.findOne(
+                {
+                  productId: mongoId,
+                  colorCode: colorCode,
+                  $or: [
+                    { size: normalizedSize },
+                    { size: Number(normalizedSize) },
+                  ],
+                },
+                { readPreference: "primary" }
+              );
+
+              if (notificationDoc) {
+                console.log(
+                  `Found notification document for productId: ${mongoId}, colorCode: ${colorCode}, size: ${size}`
+                );
+                const emailsToNotify = notificationDoc.emails.filter(
+                  (emailObj) => emailObj.notified === false
+                );
+                console.log(
+                  `Emails to notify for productId: ${mongoId}, colorCode: ${colorCode}, size: ${size}: ${emailsToNotify.length}`
+                );
+
+                for (const emailObj of emailsToNotify) {
+                  const { email, notified } = emailObj;
+
+                  // Skip already notified emails
+                  if (notified) continue;
+
+                  const user = await customerListCollection.findOne({ email });
+
+                  if (!user) {
+                    console.error(`No user found for email: ${email}`);
+                    continue;
+                  }
+
+                  const selectedProduct =
+                    await productInformationCollection.findOne(
+                      { productId },
+                      { readPreference: "primary" }
+                    );
+                  if (!selectedProduct) {
+                    console.error(
+                      `No product found for productId: ${productId}`
+                    );
+                    continue;
+                  }
+
+                  const specialOffers = await offerCollection.find().toArray();
+
+                  const isOnlyRegularDiscountAvailable =
+                    checkIfOnlyRegularDiscountIsAvailable(
+                      selectedProduct,
+                      specialOffers
+                    );
+                  const selectedVariant = selectedProduct.productVariants.find(
+                    (variant) =>
+                      variant.color.color == colorCode &&
+                      (String(variant.size) === normalizedSize ||
+                        Number(variant.size) === Number(normalizedSize))
+                  );
+
+                  if (!selectedVariant) {
+                    console.error(
+                      `No variant found for productId: ${productId}, colorCode: ${colorCode}, size: ${size}`
+                    );
+                    continue;
+                  }
+
+                  const colorName = selectedVariant.color.label;
+                  const imageUrl = selectedVariant.imageUrls[0];
+
+                  const notifiedProduct = {
+                    pageUrl: `${
+                      process.env.MAIN_DOMAIN_URL
+                    }/product/${selectedProduct.productTitle
+                      .split(" ")
+                      .join("-")
+                      .toLowerCase()}?productId=${encodeURIComponent(
+                      mongoId
+                    )}&colorCode=${encodeURIComponent(
+                      colorCode
+                    )}&size=${encodeURIComponent(normalizedSize)}`,
+                    imageUrl,
+                    title: selectedProduct.productTitle,
+                    price: calculateFinalPrice(selectedProduct, specialOffers),
+                    originalPrice: isOnlyRegularDiscountAvailable
+                      ? Number(selectedProduct.regularPrice)
+                      : null,
+                    size: normalizedSize,
+                    color: {
+                      code: colorCode,
+                      name: colorName,
+                    },
+                    customerName: user.userInfo.personalInfo.customerName,
+                  };
+
+                  console.log(
+                    `Notified product for ${email}: ${JSON.stringify(
+                      notifiedProduct
+                    )}`
+                  );
+
+                  try {
+                    const mailResult = await transport.sendMail(
+                      getStockUpdateEmailOptions(email, notifiedProduct)
+                    );
+
+                    // Check if email was sent successfully
+                    if (
+                      mailResult &&
+                      mailResult.accepted &&
+                      mailResult.accepted.length > 0
+                    ) {
+                      console.log(`Email sent successfully to ${email}`);
+                      await availabilityNotifications.updateOne(
+                        {
+                          _id: new ObjectId(notificationDoc._id),
+                          "emails.email": email,
+                        },
+                        {
+                          $set: {
+                            "emails.$.notified": true,
+                            "emails.$.updatedDateTime": dateTime,
+                          },
+                        }
+                      );
+                    } else {
+                      console.error(
+                        `Email sending failed for ${email}: No recipients accepted`
+                      );
+                    }
+                  } catch (emailError) {
+                    console.error(
+                      `Failed to send email to ${email}:`,
+                      emailError.message
+                    );
+                  }
+                }
+              } else {
+                console.log(
+                  `No notification document found for productId: ${mongoId}, colorCode: ${colorCode}, size: ${size}`
+                );
+                // Debug: Check if any notification exists for this productId
+                const debugNotifications = await availabilityNotifications
+                  .find({ productId: mongoId })
+                  .toArray();
+                console.log(
+                  `Debug: All notifications for productId ${mongoId}: ${JSON.stringify(
+                    debugNotifications
+                  )}`
+                );
+              }
+            }
+          } else {
+            console.log(
+              "No combos updated from 0 to >0 in primary location, no notifications sent"
+            );
           }
 
           return res.json({
