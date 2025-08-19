@@ -8484,8 +8484,16 @@ async function run() {
 
           // Parse and upload attachments to GCS
           const attachments = [];
-          if (req.files && req.files.length > 0) {
-            const uploadPromises = req.files.map((file) => {
+          const expectedAttachmentCount = parseInt(attachmentCount) || 0;
+          if (
+            req.files &&
+            req.files.length > 0 &&
+            expectedAttachmentCount > 0
+          ) {
+            // Limit to expectedAttachmentCount to avoid processing embedded attachments
+            const filesToProcess = req.files.slice(0, expectedAttachmentCount);
+
+            const uploadPromises = filesToProcess.map((file) => {
               return new Promise((resolve, reject) => {
                 const gcsFileName = `support-attachments/${tempSupportId}_${Date.now()}_${
                   file.originalname
