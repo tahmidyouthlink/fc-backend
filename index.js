@@ -4277,8 +4277,15 @@ async function run() {
       authorizeAccess([], "Orders", "Product Hub"),
       originChecker,
       async (req, res) => {
-        const { type, orderNumber, productId, dateTime, email, orderStatus } =
-          req.body;
+        const {
+          type,
+          orderNumber,
+          productId,
+          email,
+          orderStatus,
+          colorCode,
+          size,
+        } = req.body;
 
         try {
           if (type === "Ordered" && orderStatus === "Pending") {
@@ -4296,6 +4303,8 @@ async function run() {
               {
                 productId,
                 "emails.email": email,
+                colorCode,
+                size,
               },
               {
                 $set: { "emails.$.isRead": true },
