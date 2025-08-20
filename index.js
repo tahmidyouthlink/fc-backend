@@ -5020,24 +5020,66 @@ async function run() {
 
           if (!deliveryType) deliveryType = "STANDARD";
 
-          const [products, offers, shippingZones, orders, customer, promoInfo] =
-            await Promise.all([
-              productInformationCollection.find().toArray(),
-              offerCollection.find().toArray(),
-              shippingZoneCollection.find().toArray(),
-              orderListCollection
-                .find({}, { projection: { orderNumber: 1 } })
-                .toArray(),
-              customerListCollection.findOne(
-                { email },
-                { projection: { "userInfo.customerId": 1, _id: 0 } }
-              ),
-              promoCode
-                ? promoCollection.findOne({
-                    promoCode: { $regex: `^${promoCode}$`, $options: "i" },
-                  })
-                : Promise.resolve(null),
-            ]);
+          const [
+            products,
+            offers,
+            shippingZones,
+            primaryLocation,
+            orders,
+            customer,
+            promoInfo,
+          ] = await Promise.all([
+            productInformationCollection.find().toArray(),
+            offerCollection.find().toArray(),
+            shippingZoneCollection.find().toArray(),
+            locationCollection.findOne({
+              isPrimaryLocation: true,
+            }),
+            orderListCollection
+              .find({}, { projection: { orderNumber: 1 } })
+              .toArray(),
+            customerListCollection.findOne(
+              { email },
+              { projection: { "userInfo.customerId": 1, _id: 0 } }
+            ),
+            promoCode
+              ? promoCollection.findOne({
+                  promoCode: { $regex: `^${promoCode}$`, $options: "i" },
+                })
+              : Promise.resolve(null),
+          ]);
+
+          const hasFaultyItems = cartItems.some((storedItem) => {
+            const product = products?.find(
+              (p) => p?._id.toString() === storedItem?._id
+            );
+
+            if (!product) return true;
+
+            const productVariant = product.productVariants.find(
+              (variant) =>
+                variant.location === primaryLocation.locationName &&
+                variant.size === storedItem.selectedSize &&
+                variant.color._id.toString() === storedItem.selectedColor._id
+            );
+
+            if (!productVariant) return true;
+
+            if (
+              product.status !== "active" ||
+              productVariant.sku < 1 ||
+              storedItem.selectedQuantity > productVariant.sku
+            ) {
+              return true; // inactive, out of stock, or not enough stock
+            }
+
+            return false; // everything fine
+          });
+
+          if (hasFaultyItems)
+            return res.status(400).send({
+              hasFaultyItems,
+            });
 
           const subtotal = calculateSubtotal(products, cartItems, offers);
           const totalSpecialOfferDiscount = calculateTotalSpecialOfferDiscount(
