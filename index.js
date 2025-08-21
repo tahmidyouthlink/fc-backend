@@ -5227,6 +5227,42 @@ async function run() {
 
           const result = await orderListCollection.insertOne(orderData);
 
+          try {
+            for (const cartItem of cartItems) {
+              const productResult =
+                await productInformationCollection.updateOne(
+                  {
+                    _id: new ObjectId(cartItem._id),
+                    productVariants: {
+                      $elemMatch: {
+                        size: cartItem.selectedSize,
+                        color: cartItem.selectedColor,
+                        location: primaryLocation.locationName,
+                        sku: { $gte: cartItem.selectedQuantity }, // Ensure enough SKU to subtract
+                      },
+                    },
+                  },
+                  {
+                    $inc: {
+                      "productVariants.$.sku": -cartItem.selectedQuantity,
+                    }, // Decrement the SKU
+                  }
+                );
+
+              if (productResult.modifiedCount === 0) {
+                return res.status(500).send({
+                  message: "Failed to update product SKU.",
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error updating product SKU:", error);
+            return res.status(500).send({
+              message: "Failed to update product SKU.",
+              error: error.message,
+            });
+          }
+
           return res.status(201).send({
             orderNumber,
             totalAmount: total,
