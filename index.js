@@ -5167,11 +5167,6 @@ async function run() {
             deliveryType,
             shippingZones
           );
-          const expectedDeliveryDate = getExpectedDeliveryDate(
-            dateTime,
-            deliveryType,
-            estimatedTime
-          );
 
           const orderNumber = generateOrderId(
             orders.map((order) => order.orderNumber),
@@ -5200,7 +5195,7 @@ async function run() {
               noteToSeller: note,
               deliveryMethod: deliveryType,
               estimatedTime,
-              expectedDeliveryDate,
+              expectedDeliveryDate: null,
             },
             productInformation: selectedProducts,
             subtotal,
