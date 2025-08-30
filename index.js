@@ -6319,6 +6319,21 @@ async function run() {
         try {
           const promoInfo = req.body;
 
+          // ✅ Check if promoCode already exists
+          if (promoInfo?.promoCode) {
+            const existingPromo = await promoCollection.findOne({
+              promoCode: promoInfo.promoCode,
+            });
+
+            if (existingPromo) {
+              return res.status(400).send({
+                success: false,
+                message:
+                  "Promo code already exists. Please use a different one.",
+              });
+            }
+          }
+
           // If the promo is set for welcome email, update all other promoCollections to set `isWelcomeEmailPromoCode` to false
           if (promoInfo.isWelcomeEmailPromoCode) {
             await promoCollection.updateMany(
@@ -6413,32 +6428,6 @@ async function run() {
       }
     });
 
-    // delete single promo
-    app.delete(
-      "/deletePromo/:id",
-      verifyJWT,
-      authorizeAccess(["Owner"], "Marketing"),
-      originChecker,
-      async (req, res) => {
-        try {
-          const id = req.params.id;
-          const query = { _id: new ObjectId(id) };
-          const result = await promoCollection.deleteOne(query);
-
-          if (result.deletedCount === 0) {
-            return res.status(404).send({ message: "Promo not found" });
-          }
-
-          res.send(result);
-        } catch (error) {
-          console.error("Error deleting promo:", error);
-          res
-            .status(500)
-            .send({ message: "Failed to delete promo", error: error.message });
-        }
-      }
-    );
-
     //update a single promo
     app.put(
       "/updatePromo/:id",
@@ -6450,6 +6439,22 @@ async function run() {
           const id = req.params.id;
           const promoInfo = req.body;
           const filter = { _id: new ObjectId(id) };
+
+          // ✅ Check duplicate promoCode (excluding current promo)
+          if (promoInfo?.promoCode) {
+            const existingPromo = await promoCollection.findOne({
+              promoCode: promoInfo.promoCode,
+              _id: { $ne: new ObjectId(id) }, // exclude current document
+            });
+
+            if (existingPromo) {
+              return res.status(400).send({
+                success: false,
+                message:
+                  "Promo code already exists. Please use a different one.",
+              });
+            }
+          }
 
           // If the promo is set for welcome email, update all other promoCollections to set `isWelcomeEmailPromoCode` to false
           if (promoInfo.isWelcomeEmailPromoCode) {
@@ -6488,6 +6493,17 @@ async function run() {
       async (req, res) => {
         try {
           const offerData = req.body;
+
+          // Check if offerTitle already exists
+          const existingOffer = await offerCollection.findOne({
+            offerTitle: offerData.offerTitle,
+          });
+          if (existingOffer) {
+            return res
+              .status(400)
+              .send({ message: "Offer title already exists!" });
+          }
+
           const result = await offerCollection.insertOne(offerData);
           res.send(result);
         } catch (error) {
@@ -6544,12 +6560,23 @@ async function run() {
       async (req, res) => {
         try {
           const id = req.params.id;
-          const promo = req.body;
+          const offerData = req.body;
           const filter = { _id: new ObjectId(id) };
-          const updateOffer = {
-            $set: { ...promo },
-          };
 
+          // Check if offerTitle already exists on another document
+          const existingOffer = await offerCollection.findOne({
+            offerTitle: offerData.offerTitle,
+            _id: { $ne: new ObjectId(id) }, // ignore the current document
+          });
+          if (existingOffer) {
+            return res
+              .status(400)
+              .send({ message: "Offer title already exists!" });
+          }
+
+          const updateOffer = {
+            $set: { ...offerData },
+          };
           const result = await offerCollection.updateOne(filter, updateOffer);
 
           if (result.matchedCount === 0) {
@@ -6562,32 +6589,6 @@ async function run() {
           res
             .status(500)
             .send({ message: "Failed to update offer", error: error.message });
-        }
-      }
-    );
-
-    // delete single offer
-    app.delete(
-      "/deleteOffer/:id",
-      verifyJWT,
-      authorizeAccess(["Owner"], "Marketing"),
-      originChecker,
-      async (req, res) => {
-        try {
-          const id = req.params.id;
-          const query = { _id: new ObjectId(id) };
-          const result = await offerCollection.deleteOne(query);
-
-          if (result.deletedCount === 0) {
-            return res.status(404).send({ message: "Offer not found" });
-          }
-
-          res.send(result);
-        } catch (error) {
-          console.error("Error deleting offer:", error);
-          res
-            .status(500)
-            .send({ message: "Failed to delete offer", error: error.message });
         }
       }
     );
