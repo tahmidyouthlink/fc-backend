@@ -3022,6 +3022,13 @@ async function run() {
                     ev.size === variant.size &&
                     ev.location === variant.location
                 )?.returnSku || 0,
+              forfeitedSku:
+                existingProduct.productVariants.find(
+                  (ev) =>
+                    ev.color.color === variant.color.color &&
+                    ev.size === variant.size &&
+                    ev.location === variant.location
+                )?.forfeitedSku || 0,
             })),
           };
 
@@ -6998,6 +7005,7 @@ async function run() {
                 sku: 0,
                 onHandSku: 0,
                 returnSku: 0,
+                forfeitedSku: 0,
                 imageUrls: example.imageUrls,
                 location: newLocationName,
               });
