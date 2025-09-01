@@ -3015,6 +3015,13 @@ async function run() {
                     ev.size === variant.size &&
                     ev.location === variant.location
                 )?.onHandSku || 0,
+              returnSku:
+                existingProduct.productVariants.find(
+                  (ev) =>
+                    ev.color.color === variant.color.color &&
+                    ev.size === variant.size &&
+                    ev.location === variant.location
+                )?.returnSku || 0,
             })),
           };
 
@@ -5749,63 +5756,6 @@ async function run() {
       return updateResults;
     };
 
-    const incrementSkuInProduct = async (dataToSend) => {
-      const updateResults = [];
-
-      for (const productDetails of dataToSend) {
-        const { productId, sku, size, color } = productDetails;
-
-        if (!productId || !sku || !size || !color) {
-          updateResults.push({
-            productId,
-            error: "Missing details in dataToSend",
-          });
-          continue;
-        }
-
-        const primaryLocation = await locationCollection.findOne({
-          isPrimaryLocation: true,
-        });
-        if (!primaryLocation) {
-          return { error: "Primary location not found" };
-        }
-
-        const { locationName } = primaryLocation;
-
-        const updateResult = await productInformationCollection.updateOne(
-          {
-            productId,
-            productVariants: {
-              $elemMatch: {
-                size: size,
-                color: color,
-                location: locationName,
-              },
-            },
-          },
-          {
-            $inc: { "productVariants.$.sku": sku }, // Increment the SKU
-          }
-        );
-
-        if (updateResult.modifiedCount === 0) {
-          updateResults.push({ productId, error: "Failed to increment SKU" });
-        } else {
-          updateResults.push({
-            productId,
-            updatedVariant: {
-              size,
-              color,
-              location: locationName,
-              sku: `+${sku}`,
-            },
-          });
-        }
-      }
-
-      return updateResults;
-    };
-
     const incrementOnHandSkuInProduct = async (dataToSend) => {
       const updateResults = [];
 
@@ -5952,22 +5902,6 @@ async function run() {
 
           if (isUndo) {
             if (
-              order.orderStatus === "Processing" &&
-              orderStatus === "Pending"
-            ) {
-              // Validate dataToSend before calling the function
-              if (Array.isArray(dataToSend) && dataToSend.length > 0) {
-                // Increment the SKU
-                await incrementSkuInProduct(dataToSend);
-              } else {
-                console.error(
-                  "Invalid dataToSend: must be a non-empty array for SKU increment."
-                );
-                throw new Error(
-                  "Invalid dataToSend: must be a non-empty array for SKU increment."
-                );
-              }
-            } else if (
               order.orderStatus === "Shipped" &&
               orderStatus === "Processing"
             ) {
@@ -7063,6 +6997,7 @@ async function run() {
                 size: example.size,
                 sku: 0,
                 onHandSku: 0,
+                returnSku: 0,
                 imageUrls: example.imageUrls,
                 location: newLocationName,
               });
