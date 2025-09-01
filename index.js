@@ -5701,68 +5701,6 @@ async function run() {
       }
     );
 
-    const decrementReturnSkuInProduct = async (returnDataToSend) => {
-      const updateResults = [];
-
-      for (const productDetails of returnDataToSend) {
-        const { productId, sku, size, color } = productDetails;
-
-        if (!productId || !sku || !size || !color) {
-          updateResults.push({
-            productId,
-            error: "Missing details in returnDataToSend",
-          });
-          continue;
-        }
-
-        const primaryLocation = await locationCollection.findOne({
-          isPrimaryLocation: true,
-        });
-        if (!primaryLocation) {
-          return { error: "Primary location not found" };
-        }
-
-        const { locationName } = primaryLocation;
-
-        const updateResult = await productInformationCollection.updateOne(
-          {
-            productId,
-            productVariants: {
-              $elemMatch: {
-                size: size,
-                color: color,
-                location: locationName,
-                returnSku: { $gte: sku }, // Ensure enough returnSku to subtract
-              },
-            },
-          },
-          {
-            $inc: { "productVariants.$.returnSku": -sku }, // Decrement the SKU
-          }
-        );
-
-        if (updateResult.modifiedCount === 0) {
-          updateResults.push({
-            productId,
-            error:
-              "Failed to decrement SKU. Either no match found or not enough returnSku.",
-          });
-        } else {
-          updateResults.push({
-            productId,
-            updatedVariant: {
-              size,
-              color,
-              location: locationName,
-              returnSku: `-${sku}`,
-            },
-          });
-        }
-      }
-
-      return updateResults;
-    };
-
     const incrementOnHandSkuInProduct = async (dataToSend) => {
       const updateResults = [];
 
@@ -5926,42 +5864,10 @@ async function run() {
                 );
               }
             } else if (
-              order.orderStatus === "On Hold" &&
-              orderStatus === "Shipped"
-            ) {
-              updateDoc.$unset = { onHoldReason: "" }; // Remove onHoldReason
-            } else if (
-              order.orderStatus === "Delivered" &&
-              (orderStatus === "On Hold" || orderStatus === "Shipped")
-            ) {
-              updateDoc.$set = {
-                "deliveryInfo.deliveredAt": null, // Set deliveredAt to null
-              };
-            } else if (
               order.orderStatus === "Request Declined" &&
               orderStatus === "Return Requested"
             ) {
               updateDoc.$unset = { declinedReason: "" }; // Remove declinedReason
-            } else if (
-              order.orderStatus === "Refunded" &&
-              orderStatus === "Return Initiated"
-            ) {
-              // Validate returnDataToSend before calling the function
-              if (
-                Array.isArray(returnDataToSend) &&
-                returnDataToSend.length > 0
-              ) {
-                // Decrease the returnSku
-                updateDoc.$unset = { "returnInfo.refundProcessedDate": "" };
-                await decrementReturnSkuInProduct(returnDataToSend);
-              } else {
-                console.error(
-                  "Invalid returnDataToSend: must be a non-empty array for SKU decrement."
-                );
-                throw new Error(
-                  "Invalid returnDataToSend: must be a non-empty array for SKU decrement."
-                );
-              }
             }
 
             // Undo logic: Revert to the previous status
