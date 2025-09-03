@@ -19,6 +19,7 @@ const moment = require("moment-timezone");
 const compression = require("compression");
 const helmet = require("helmet");
 const cron = require("node-cron");
+const { BetaAnalyticsDataClient } = require("@google-analytics/data");
 const generateCustomerId = require("./utils/generateCustomerId");
 const generateOrderId = require("./utils/generateOrderId");
 const getImageSetsBasedOnColors = require("./utils/getImageSetsBasedOnColors");
@@ -320,6 +321,102 @@ async function run() {
     const customerSupportCollection = client
       .db("fashion-commerce")
       .collection("customer-support");
+
+    if (process.env.NODE_ENV === "production") {
+      try {
+        const marketingStatsCollection = client
+          .db("fashion-commerce")
+          .collection("marketing-stats");
+
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - 1);
+        const startDateStr = endDate.toISOString().slice(0, 10);
+        const endDateStr = startDateStr;
+
+        const property = `properties/${process.env.GA4_PROPERTY_ID}`;
+
+        const analyticsClient = new BetaAnalyticsDataClient({
+          projectId: process.env.GA_PROJECT_ID,
+          credentials: {
+            client_email: process.env.GA_CLIENT_EMAIL,
+            private_key: process.env.GA_PRIVATE_KEY.replace(/\\n/g, "\n"),
+          },
+        });
+
+        const request = {
+          property,
+          dateRanges: [{ startDate: startDateStr, endDate: endDateStr }],
+          dimensions: [
+            { name: "date" },
+            { name: "sessionDefaultChannelGroup" }, // channel like "Organic Search", "Social"
+            { name: "sessionSource" }, // e.g. facebook.com
+            { name: "sessionMedium" }, // e.g. cpc, organic
+          ],
+          metrics: [
+            { name: "sessions" },
+            { name: "activeUsers" },
+            { name: "totalUsers" },
+            { name: "engagedSessions" },
+          ],
+        };
+
+        // schedule every 6 hours: minute 0 past every 6th hour
+        cron.schedule(
+          "0 */6 * * *",
+          async () => {
+            console.log("Starting ETL", new Date());
+
+            const [response] = await analyticsClient.runReport(request);
+            if (!response.rows) {
+              return console.error(
+                "No rows returned for",
+                startDateStr,
+                endDateStr
+              );
+            }
+
+            // map response -> documents
+            const docs = response.rows.map((row) => {
+              const dimVals = row.dimensionValues.map((d) => d.value);
+              const metVals = row.metricValues.map((m) => Number(m.value));
+              return {
+                date: dimVals[0],
+                channel: dimVals[1] || "(not set)",
+                source: dimVals[2] || "(not set)",
+                medium: dimVals[3] || "(not set)",
+                sessions: metVals[0] || 0,
+                activeUsers: metVals[1] || 0,
+                totalUsers: metVals[2] || 0,
+                engagedSessions: metVals[3] || 0,
+                fetchedAt: new Date(),
+              };
+            });
+
+            // upsert per unique key (date + channel + source + medium) to avoid duplicates
+            const ops = docs.map((doc) => ({
+              updateOne: {
+                filter: {
+                  date: doc.date,
+                  channel: doc.channel,
+                  source: doc.source,
+                  medium: doc.medium,
+                },
+                update: { $set: doc },
+                upsert: true,
+              },
+            }));
+
+            if (ops.length) {
+              const res = await marketingStatsCollection.bulkWrite(ops);
+              console.log("Upserted docs:", res);
+            }
+          },
+          { timezone: "Asia/Dhaka" }
+        );
+      } catch (error) {
+        console.error("Google Analytics:", error);
+      }
+    }
 
     if (process.env.NODE_ENV === "production") {
       cron.schedule("*/30 * * * *", async () => {
