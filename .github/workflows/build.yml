@@ -1,0 +1,25 @@
+name: Build and Deploy poshax-backend to Cloud Run
+     on:
+       push:
+         branches: [ main ]
+     jobs:
+       build-and-deploy:
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           - id: auth
+             uses: google-github-actions/auth@v2
+             with:
+               credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+           - name: Set up gcloud
+             uses: google-github-actions/setup-gcloud@v2
+           - name: Build and Push
+             run: |
+               gcloud builds submit --tag asia-southeast1-docker.pkg.dev/robotic-gist-453607-t2/cloud-run-source-deploy/fc-backend/poshax-backend:latest .
+           - name: Deploy to Cloud Run
+             run: |
+               gcloud run deploy poshax-backend \
+                 --image=asia-southeast1-docker.pkg.dev/robotic-gist-453607-t2/cloud-run-source-deploy/fc-backend/poshax-backend:latest \
+                 --platform=managed \
+                 --region=asia-southeast1 \
+                 --allow-unauthenticated
