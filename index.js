@@ -5884,10 +5884,8 @@ async function run() {
           imageUrl,
           isUndo,
           onHoldReason,
-          declinedReason,
           returnInfo,
           dataToSend,
-          returnDataToSend,
         } = req.body; // Extract status from request body
 
         // Define valid statuses
@@ -5898,8 +5896,8 @@ async function run() {
           "On Hold",
           "Delivered",
           "Return Requested",
-          "Request Accepted",
-          "Request Declined",
+          "Processed",
+          "Declined",
           "Return Initiated",
           "Refunded",
         ];
@@ -5961,10 +5959,20 @@ async function run() {
                 );
               }
             } else if (
-              order.orderStatus === "Request Declined" &&
+              (order.orderStatus === "Declined" ||
+                order.orderStatus === "Processed") &&
               orderStatus === "Return Requested"
             ) {
-              updateDoc.$unset = { declinedReason: "" }; // Remove declinedReason
+              // Reset all return products back to pending with empty declineReason
+              const resetProducts = order.returnInfo.products.map((p) => ({
+                ...p,
+                status: "pending",
+                declineReason: "",
+              }));
+
+              updateDoc.$set = {
+                "returnInfo.products": resetProducts,
+              };
             }
 
             // Undo logic: Revert to the previous status
@@ -6046,18 +6054,16 @@ async function run() {
               updateDoc.$set.returnInfo = returnInfo;
               updateDoc.$set.returnInfo.isRead = false;
             }
-
-            // Add delivery-related fields if `orderStatus` is `On Hold`
-            if (orderStatus === "Request Declined") {
-              if (!declinedReason) {
+            if (orderStatus === "Processed" || orderStatus === "Declined") {
+              if (!returnInfo) {
                 return res.status(400).json({
                   error:
-                    "Declined reason is required for 'Request Declined' status",
+                    "Return Requested is required for 'Return Requested' status",
                 });
               }
 
               // Store all shipping-related fields inside `shipmentInfo` object
-              updateDoc.$set.declinedReason = declinedReason;
+              updateDoc.$set.returnInfo = returnInfo;
             }
 
             if (orderStatus === "Refunded") {

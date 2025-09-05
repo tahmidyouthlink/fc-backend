@@ -10,8 +10,8 @@ const getCustomerOrderEmailOptions = (order, status) => {
     Processing: confirmationEmail,
     Shipped: shippedEmail,
     Delivered: deliveredEmail,
-    "Request Accepted": returnApprovalEmail,
-    "Request Declined": requestDeclinedEmail,
+    Processed: returnApprovalEmail,
+    Declined: requestDeclinedEmail,
     Refunded: refundedEmail,
   };
 
