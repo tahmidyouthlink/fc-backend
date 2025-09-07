@@ -6237,8 +6237,8 @@ async function run() {
             .format("DD-MM-YY");
 
           const undoAvailableUntil = new Date(
-            currentTime.getTime() + 24 * 60 * 60 * 1000
-          ); // 24 hours later
+            currentTime.getTime() + 2 * 60 * 60 * 1000
+          ); // 2 hours later
 
           // Initialize emailSentStatuses if it doesn't exist
           const emailSentStatuses = order.emailSentStatuses || [];
