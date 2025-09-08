@@ -5637,22 +5637,26 @@ async function run() {
           // Increment SKU (add the returned sku back to available stock)
           const updatedProduct =
             await productInformationCollection.findOneAndUpdate(
-              {
-                productId: productId,
-                "productVariants.location": primaryLocation.locationName,
-                "productVariants.color.color": color.color,
-                "productVariants.color.value": color.value,
-                "productVariants.color.label": color.label,
-                "productVariants.size": size,
-              },
+              { productId },
               {
                 $inc: {
-                  "productVariants.$.sku": decrementSku,
-                  "productVariants.$.onHandSku": decrementSku,
-                  "productVariants.$.returnSku": -decrementSku, // subtract from return stock
+                  "productVariants.$[variant].sku": decrementSku,
+                  "productVariants.$[variant].onHandSku": decrementSku,
+                  "productVariants.$[variant].returnSku": -decrementSku,
                 },
               },
-              { returnDocument: "after" }
+              {
+                returnDocument: "after", // gives updated doc
+                arrayFilters: [
+                  {
+                    "variant.location": primaryLocation.locationName,
+                    "variant.color.color": color.color,
+                    "variant.color.value": color.value,
+                    "variant.color.label": color.label,
+                    "variant.size": size,
+                  },
+                ],
+              }
             );
 
           const updatedOrder = await orderListCollection.updateOne(
@@ -5764,21 +5768,25 @@ async function run() {
           // Increment SKU (add the returned sku back to available stock)
           const updatedProduct =
             await productInformationCollection.findOneAndUpdate(
-              {
-                productId: productId,
-                "productVariants.location": primaryLocation.locationName,
-                "productVariants.color.color": color.color,
-                "productVariants.color.value": color.value,
-                "productVariants.color.label": color.label,
-                "productVariants.size": size,
-              },
+              { productId },
               {
                 $inc: {
-                  "productVariants.$.forfeitedSku": decrementSku,
-                  "productVariants.$.returnSku": -decrementSku, // subtract from return stock
+                  "productVariants.$[variant].forfeitedSku": decrementSku,
+                  "productVariants.$[variant].returnSku": -decrementSku,
                 },
               },
-              { returnDocument: "after" }
+              {
+                returnDocument: "after", // gives updated doc
+                arrayFilters: [
+                  {
+                    "variant.location": primaryLocation.locationName,
+                    "variant.color.color": color.color,
+                    "variant.color.value": color.value,
+                    "variant.color.label": color.label,
+                    "variant.size": size,
+                  },
+                ],
+              }
             );
 
           const updatedOrder = await orderListCollection.updateOne(
