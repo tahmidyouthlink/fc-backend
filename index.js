@@ -5541,35 +5541,12 @@ async function run() {
       async (req, res) => {
         try {
           const orders = await orderListCollection.find().toArray();
+
           const totalOrders = orders.length;
-
-          let totalRevenue = 0;
-          for (const order of orders) {
-            let orderRevenue = 0;
-
-            for (const product of order.productInformation) {
-              const base = Number(product.regularPrice) * Number(product.sku);
-
-              const discount = product.discountInfo
-                ? Number(product.discountInfo?.discountValue) *
-                  Number(product.sku)
-                : 0;
-
-              const offer = product.offerInfo
-                ? Number(product.offerInfo.appliedOfferDiscount) *
-                  Number(product.sku)
-                : 0;
-
-              orderRevenue += base - discount - offer;
-            }
-
-            // Apply promo discount (if any)
-            if (order.promoInfo?.appliedPromoDiscount) {
-              orderRevenue -= Number(order.promoInfo.appliedPromoDiscount);
-            }
-
-            totalRevenue += orderRevenue;
-          }
+          const totalRevenue = orders.reduce(
+            (sum, order) => sum + (order.total || 0), // order.total should already include all adjustments
+            0
+          );
 
           // Calculate AOV
           const averageOrderValue =
@@ -5626,7 +5603,6 @@ async function run() {
 
           // Step 2: Calculate COGS from sold products
           let totalCOGS = 0;
-          let totalRevenue = 0;
           for (const order of orders) {
             for (const product of order.productInformation) {
               const key = `${product.productId}|${product.color.color}|${
@@ -5634,27 +5610,14 @@ async function run() {
               }|${String(product.size)}`;
               const avgCost = avgUnitCostMap[key]?.avgCost || 0;
               totalCOGS += avgCost * Number(product.sku || 0);
-
-              const base = Number(product.regularPrice) * Number(product.sku);
-
-              const discount = product.discountInfo
-                ? Number(product.discountInfo?.discountValue) *
-                  Number(product.sku)
-                : 0;
-
-              const offer = product.offerInfo
-                ? Number(product.offerInfo.appliedOfferDiscount) *
-                  Number(product.sku)
-                : 0;
-
-              totalRevenue += base - discount - offer;
-            }
-
-            // Promo discount
-            if (order.promoInfo?.appliedPromoDiscount) {
-              totalRevenue -= Number(order.promoInfo.appliedPromoDiscount);
             }
           }
+
+          // Step 3: Revenue (trusting order.total field)
+          const totalRevenue = orders.reduce(
+            (sum, order) => sum + (order.total || 0),
+            0
+          );
 
           const grossProfit = totalRevenue - totalCOGS;
           const grossMarginPercent =
