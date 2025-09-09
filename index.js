@@ -43,6 +43,7 @@ const getContactEmailOptions = require("./utils/email/getContactEmailOptions");
 const getWelcomeEmailOptions = require("./utils/email/getWelcomeEmailOptions");
 const getNotifyRequestEmailOptions = require("./utils/email/getNotifyRequestEmailOptions");
 const getAbandonedCartEmailOptions = require("./utils/email/getAbandonedCartEmailOptions");
+const getReturnRequestEmailOptions = require("./utils/email/getReturnRequestEmailOptions");
 const {
   generateOtp,
   sendOtpEmail,
@@ -6520,6 +6521,39 @@ async function run() {
               // Store all shipping-related fields inside `shipmentInfo` object
               updateDoc.$set.returnInfo = returnInfo;
               updateDoc.$set.returnInfo.isRead = false;
+
+              const returnItems = returnInfo.products.map((item) => ({
+                title: item.productTitle,
+                pageUrl: `${
+                  process.env.MAIN_DOMAIN_URL
+                }/product/${item.productTitle
+                  .split(" ")
+                  .join("-")
+                  .toLowerCase()}`,
+                imageUrl: item.thumbnailImgUrl,
+                price: item.finalUnitPrice,
+                quantity: item.sku,
+                size: item.size,
+                color: {
+                  name: item.color.label,
+                  code: item.color.color,
+                },
+                issues: item.issues,
+              }));
+
+              const mailResult = await transport.sendMail(
+                getReturnRequestEmailOptions(
+                  order.customerInfo.email,
+                  order.customerInfo.customerName,
+                  returnItems,
+                  returnInfo.description
+                )
+              );
+
+              if (!mailResult?.accepted?.length)
+                return console.error(
+                  "Failed to send the return request email."
+                );
             }
             if (orderStatus === "Processed" || orderStatus === "Declined") {
               if (!returnInfo) {
