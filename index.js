@@ -5544,7 +5544,8 @@ async function run() {
 
           const totalOrders = orders.length;
           const totalRevenue = orders.reduce(
-            (sum, order) => sum + (order.total || 0), // order.total should already include all adjustments
+            (sum, order) =>
+              sum + ((order.total || 0) - (order.shippingCharge || 0)),
             0
           );
 
@@ -5615,7 +5616,8 @@ async function run() {
 
           // Step 3: Revenue (trusting order.total field)
           const totalRevenue = orders.reduce(
-            (sum, order) => sum + (order.total || 0),
+            (sum, order) =>
+              sum + ((order.total || 0) - (order.shippingCharge || 0)),
             0
           );
 
