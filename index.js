@@ -5472,8 +5472,9 @@ async function run() {
       }
     );
 
+    // dashboard overview
     app.get(
-      "/get-todays-orders",
+      "/dashboard/get-todays-orders",
       verifyJWT,
       authorizeAccess([], "Dashboard"),
       originChecker,
@@ -5526,6 +5527,149 @@ async function run() {
           });
         } catch (error) {
           res.status(500).send(error.message);
+        }
+      }
+    );
+
+    // analytics - get method of {totalRevenue, totalOrders, averageOrderValue}
+    app.get(
+      "/analytics/sales",
+      verifyJWT,
+      authorizeAccess([], "Analytics"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const orders = await orderListCollection.find().toArray();
+          const totalOrders = orders.length;
+
+          let totalRevenue = 0;
+          for (const order of orders) {
+            let orderRevenue = 0;
+
+            for (const product of order.productInformation) {
+              const base = Number(product.regularPrice) * Number(product.sku);
+
+              const discount = product.discountInfo
+                ? Number(product.discountInfo?.discountValue) *
+                  Number(product.sku)
+                : 0;
+
+              const offer = product.offerInfo
+                ? Number(product.offerInfo.appliedOfferDiscount) *
+                  Number(product.sku)
+                : 0;
+
+              orderRevenue += base - discount - offer;
+            }
+
+            // Apply promo discount (if any)
+            if (order.promoInfo?.appliedPromoDiscount) {
+              orderRevenue -= Number(order.promoInfo.appliedPromoDiscount);
+            }
+
+            totalRevenue += orderRevenue;
+          }
+
+          // Calculate AOV
+          const averageOrderValue =
+            totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+          res.json({
+            totalRevenue,
+            totalOrders,
+            averageOrderValue: Number(averageOrderValue.toFixed(2)), // round to 2 decimals
+          });
+        } catch (error) {
+          console.error("Error calculating analytics sales:", error);
+          res.status(500).json({
+            message: "Failed to fetch analytics sales",
+            error: "Failed to calculate analytics sales",
+          });
+        }
+      }
+    );
+
+    // analytics - get method of {totalCOGS, grossProfit, grossMarginPercent}
+    app.get(
+      "/analytics/profitability",
+      verifyJWT,
+      authorizeAccess([], "Analytics"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const orders = await orderListCollection.find().toArray();
+          const purchaseOrders = await purchaseOrderCollection.find().toArray();
+
+          // Step 1: Calculate average unit cost per variant
+          const avgUnitCostMap = {}; // key: productId|colorCode|colorName|size => avg cost
+
+          for (const po of purchaseOrders) {
+            for (const variant of po.purchaseOrderVariants) {
+              const key = `${variant.productId}|${variant.colorCode}|${
+                variant.colorName
+              }|${String(variant.size)}`;
+
+              const acceptedUnits = Number(variant.accept || 0);
+              const variantCost = Number(variant.cost || 0) * acceptedUnits;
+
+              const totalCost =
+                (avgUnitCostMap[key]?.totalCost || 0) + variantCost;
+              const totalUnits =
+                (avgUnitCostMap[key]?.totalUnits || 0) + acceptedUnits;
+
+              const avgCost = totalUnits > 0 ? totalCost / totalUnits : 0;
+
+              avgUnitCostMap[key] = { totalCost, totalUnits, avgCost };
+            }
+          }
+
+          // Step 2: Calculate COGS from sold products
+          let totalCOGS = 0;
+          let totalRevenue = 0;
+          for (const order of orders) {
+            for (const product of order.productInformation) {
+              const key = `${product.productId}|${product.color.color}|${
+                product.color.value
+              }|${String(product.size)}`;
+              const avgCost = avgUnitCostMap[key]?.avgCost || 0;
+              totalCOGS += avgCost * Number(product.sku || 0);
+
+              const base = Number(product.regularPrice) * Number(product.sku);
+
+              const discount = product.discountInfo
+                ? Number(product.discountInfo?.discountValue) *
+                  Number(product.sku)
+                : 0;
+
+              const offer = product.offerInfo
+                ? Number(product.offerInfo.appliedOfferDiscount) *
+                  Number(product.sku)
+                : 0;
+
+              totalRevenue += base - discount - offer;
+            }
+
+            // Promo discount
+            if (order.promoInfo?.appliedPromoDiscount) {
+              totalRevenue -= Number(order.promoInfo.appliedPromoDiscount);
+            }
+          }
+
+          const grossProfit = totalRevenue - totalCOGS;
+          const grossMarginPercent =
+            totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+          res.json({
+            totalCOGS: Number(totalCOGS.toFixed(2)),
+            grossProfit: Number(grossProfit.toFixed(2)),
+            grossMarginPercent: Number(grossMarginPercent.toFixed(2)),
+          });
+        } catch (error) {
+          console.error("Error calculating profitability:", error);
+          res.status(500).json({
+            message: "Failed to fetch analytics profitability",
+            error: "Failed to calculate profitability",
+          });
         }
       }
     );
