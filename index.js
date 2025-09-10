@@ -5732,6 +5732,107 @@ async function run() {
       }
     );
 
+    // analytics - get method of top products
+    app.get(
+      "/analytics/top-products",
+      verifyJWT,
+      authorizeAccess([], "Analytics"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const limit = parseInt(req.query.limit) || 10;
+
+          const orders = await orderListCollection.find().toArray();
+          const purchaseOrders = await purchaseOrderCollection.find().toArray();
+
+          // Step 1: Calculate average unit cost per variant
+          const avgUnitCostMap = {}; // key: productId|colorCode|colorName|size => avg cost
+
+          for (const po of purchaseOrders) {
+            for (const variant of po.purchaseOrderVariants) {
+              const key = `${variant.productId}|${variant.colorCode}|${
+                variant.colorName
+              }|${String(variant.size)}`;
+
+              const acceptedUnits = Number(variant.accept || 0);
+              const variantCost = Number(variant.cost || 0) * acceptedUnits;
+
+              const totalCost =
+                (avgUnitCostMap[key]?.totalCost || 0) + variantCost;
+              const totalUnits =
+                (avgUnitCostMap[key]?.totalUnits || 0) + acceptedUnits;
+              const avgCost = totalUnits > 0 ? totalCost / totalUnits : 0;
+
+              avgUnitCostMap[key] = { totalCost, totalUnits, avgCost };
+            }
+          }
+
+          // Step 2: Aggregate revenue, profit, margin per product
+          const productMap = {}; // key: productId => { productName, revenue, cogs, profit }
+
+          for (const order of orders) {
+            for (const product of order.productInformation) {
+              const key = `${product.productId}|${product.color.color}|${
+                product.color.value
+              }|${String(product.size)}`;
+              const avgCost = avgUnitCostMap[key]?.avgCost || 0;
+              console.log(avgCost, "avgCost");
+
+              let unitPrice = product.regularPrice; // default price
+
+              if (product.discountInfo) {
+                unitPrice = product.discountInfo.finalPriceAfterDiscount;
+              } else if (product.offerInfo) {
+                unitPrice =
+                  product.regularPrice -
+                  Number(product.offerInfo.appliedOfferDiscount || 0);
+              }
+
+              const revenue = unitPrice * Number(product.sku || 0);
+              const cost = avgCost * Number(product.sku || 0);
+
+              if (!productMap[product.productId]) {
+                productMap[product.productId] = {
+                  productId: product.productId,
+                  productName: product.productTitle,
+                  revenue: 0,
+                  cogs: 0,
+                };
+              }
+
+              productMap[product.productId].revenue += revenue;
+              productMap[product.productId].cogs += cost;
+            }
+          }
+
+          console.log(productMap, "productMap");
+
+          // Step 3: Calculate profit & margin
+          const productArray = Object.values(productMap).map((p) => {
+            const profit = p.revenue - p.cogs;
+            const marginPercent =
+              p.revenue > 0 ? (profit / p.revenue) * 100 : 0;
+            return {
+              productId: p.productId,
+              productName: p.productName,
+              revenue: Number(p.revenue.toFixed(2)),
+              profit: Number(profit.toFixed(2)),
+              marginPercent: Number(marginPercent.toFixed(2)),
+            };
+          });
+
+          // Step 4: Sort by revenue descending & limit
+          productArray.sort((a, b) => b.revenue - a.revenue);
+          const topProducts = productArray.slice(0, limit);
+
+          res.json(topProducts);
+        } catch (error) {
+          console.error("Error fetching top products:", error);
+          res.status(500).json({ message: "Failed to fetch top products" });
+        }
+      }
+    );
+
     // applying pagination in orderList
     app.get(
       "/orderList",
