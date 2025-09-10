@@ -5640,6 +5640,99 @@ async function run() {
       }
     );
 
+    // analytics - get method of sales trend
+    app.get(
+      "/analytics/sales-trend",
+      verifyJWT,
+      authorizeAccess([], "Analytics"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const range = req.query.range || "weekly"; // daily, weekly, monthly
+          const { startDate, endDate } = req.query; // yyyy-mm-dd
+
+          const orders = await orderListCollection.find().toArray();
+
+          // Parse filter dates
+          const start = startDate
+            ? moment(startDate, "YYYY-MM-DD").startOf("day")
+            : null;
+          const end = endDate
+            ? moment(endDate, "YYYY-MM-DD").endOf("day")
+            : null;
+
+          const revenueMap = {};
+
+          for (const order of orders) {
+            if (!order.dateTime) continue;
+
+            const orderDate = moment(order.dateTime, "DD-MM-YY | HH:mm");
+            if (start && end && !orderDate.isBetween(start, end, null, "[]"))
+              continue;
+
+            // Exclude shipping
+            const revenue = (order.total || 0) - (order.shippingCharge || 0);
+
+            let key;
+            if (range === "daily") {
+              // Group by HOUR for today
+              key = orderDate.format("YYYY-MM-DD HH:00");
+            } else if (range === "weekly") {
+              // Group by DATE for last 7 days
+              key = orderDate.format("YYYY-MM-DD");
+            } else if (range === "monthly") {
+              // Group by DATE for last 30/31/28 days
+              key = orderDate.format("YYYY-MM-DD");
+            } else {
+              // For custom range, also group by DATE
+              key = orderDate.format("YYYY-MM-DD");
+            }
+
+            revenueMap[key] = (revenueMap[key] || 0) + revenue;
+          }
+
+          // Build continuous timeline (fill missing days/hours with 0)
+          const trendData = [];
+          if (range === "daily") {
+            const today = moment().startOf("day");
+            for (let i = 0; i < 24; i++) {
+              const slot = today
+                .clone()
+                .add(i, "hours")
+                .format("YYYY-MM-DD HH:00");
+              trendData.push({
+                period: slot,
+                revenue: revenueMap[slot] || 0,
+              });
+            }
+          } else {
+            // For weekly/monthly/custom range
+            const s =
+              start ||
+              (range === "weekly"
+                ? moment().subtract(6, "days").startOf("day")
+                : moment().subtract(30, "days").startOf("day"));
+            const e = end || moment().endOf("day");
+
+            const cursor = s.clone();
+            while (cursor.isSameOrBefore(e)) {
+              const slot = cursor.format("YYYY-MM-DD");
+              trendData.push({
+                period: slot,
+                revenue: revenueMap[slot] || 0,
+              });
+              cursor.add(1, "days");
+            }
+          }
+
+          res.json({ range, startDate, endDate, trendData });
+        } catch (error) {
+          console.error("Error calculating sales trend:", error);
+          res.status(500).json({ message: "Failed to fetch sales trend" });
+        }
+      }
+    );
+
     // applying pagination in orderList
     app.get(
       "/orderList",
