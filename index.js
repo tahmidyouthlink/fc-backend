@@ -5648,8 +5648,7 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const range = req.query.range || "weekly"; // daily, weekly, monthly
-          const { startDate, endDate } = req.query; // yyyy-mm-dd
+          const { range, startDate, endDate } = req.query;
 
           const orders = await orderListCollection.find().toArray();
 
@@ -5663,6 +5662,12 @@ async function run() {
 
           const revenueMap = {};
 
+          // If custom range provided, ignore "range"
+          let activeRange = range;
+          if (startDate && endDate) {
+            activeRange = ""; // force custom range mode
+          }
+
           for (const order of orders) {
             if (!order.dateTime) continue;
 
@@ -5674,41 +5679,43 @@ async function run() {
             const revenue = (order.total || 0) - (order.shippingCharge || 0);
 
             let key;
-            if (range === "daily") {
+            if (activeRange === "daily" && !startDate && !endDate) {
               // Group by HOUR for today
               key = orderDate.format("YYYY-MM-DD HH:00");
-            } else if (range === "weekly") {
+            } else if (activeRange === "weekly") {
               // Group by DATE for last 7 days
               key = orderDate.format("YYYY-MM-DD");
-            } else if (range === "monthly") {
+            } else if (activeRange === "monthly") {
               // Group by DATE for last 30/31/28 days
               key = orderDate.format("YYYY-MM-DD");
             } else {
-              // For custom range, also group by DATE
-              key = orderDate.format("YYYY-MM-DD");
+              key = orderDate.format("YYYY-MM-DD"); // date grouping
             }
             revenueMap[key] = (revenueMap[key] || 0) + revenue;
           }
 
           // Build continuous timeline (fill missing days/hours with 0)
           const trendData = [];
-          if (range === "daily") {
-            const today = moment().startOf("day");
-            for (let i = 0; i < 24; i++) {
-              const slot = today
-                .clone()
-                .add(i, "hours")
-                .format("YYYY-MM-DD HH:00");
-              trendData.push({
-                period: slot,
-                revenue: revenueMap[slot] || 0,
-              });
+          if (activeRange === "daily") {
+            const s = start || moment().startOf("day");
+            const e = end || moment().endOf("day");
+
+            const cursor = s.clone();
+            while (cursor.isSameOrBefore(e)) {
+              for (let i = 0; i < 24; i++) {
+                const slot = cursor.clone().hour(i).format("YYYY-MM-DD HH:00");
+                trendData.push({
+                  period: slot,
+                  revenue: revenueMap[slot] || 0,
+                });
+              }
+              cursor.add(1, "day");
             }
           } else {
             // For weekly/monthly/custom range
             const s =
               start ||
-              (range === "weekly"
+              (activeRange === "weekly"
                 ? moment().subtract(6, "days").startOf("day")
                 : moment().subtract(30, "days").startOf("day"));
             const e = end || moment().endOf("day");
@@ -5724,7 +5731,7 @@ async function run() {
             }
           }
 
-          res.json({ range, startDate, endDate, trendData });
+          res.json({ trendData });
         } catch (error) {
           console.error("Error calculating sales trend:", error);
           res.status(500).json({ message: "Failed to fetch sales trend" });
@@ -5776,7 +5783,6 @@ async function run() {
                 product.color.value
               }|${String(product.size)}`;
               const avgCost = avgUnitCostMap[key]?.avgCost || 0;
-              console.log(avgCost, "avgCost");
 
               let unitPrice = product.regularPrice; // default price
 
@@ -5804,8 +5810,6 @@ async function run() {
               productMap[product.productId].cogs += cost;
             }
           }
-
-          console.log(productMap, "productMap");
 
           // Step 3: Calculate profit & margin
           const productArray = Object.values(productMap).map((p) => {
