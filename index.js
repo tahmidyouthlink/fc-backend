@@ -5687,7 +5687,6 @@ async function run() {
               // For custom range, also group by DATE
               key = orderDate.format("YYYY-MM-DD");
             }
-
             revenueMap[key] = (revenueMap[key] || 0) + revenue;
           }
 
