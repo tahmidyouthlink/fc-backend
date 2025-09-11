@@ -5837,6 +5837,95 @@ async function run() {
       }
     );
 
+    // analytics - get method of {lowStockVariants}
+    app.get(
+      "/analytics/low-stock",
+      verifyJWT,
+      authorizeAccess([], "Analytics"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const threshold = Number(req.query.threshold) || 5;
+
+          // 1) find primary location
+          const primaryLocation = await locationCollection.findOne({
+            isPrimaryLocation: true,
+          });
+          if (!primaryLocation) {
+            return res
+              .status(400)
+              .json({ message: "Primary location not found" });
+          }
+          const primaryLocationName = primaryLocation.locationName;
+
+          // 2) fetch all products
+          const products = await productInformationCollection.find().toArray();
+
+          // 3) flat low-stock variants
+          const lowVariants = [];
+
+          for (const product of products) {
+            const productId =
+              product.productId ?? product._id?.toString?.() ?? null;
+            const productTitle = product.productTitle || "Untitled Product";
+
+            for (const variant of product.productVariants || []) {
+              if (variant.location !== primaryLocationName) continue;
+
+              const stock = Number(variant.sku ?? 0);
+              if (stock <= threshold) {
+                const colorLabel =
+                  variant.color?.label ??
+                  variant.color?.value ??
+                  "Unknown Color";
+                const sizeLabel = String(variant.size ?? "");
+                // const productThumbnail = variant.imageUrls?.[0] ?? null;
+
+                // prepare variantTitle only for sorting
+                const variantTitle = `${colorLabel} ${sizeLabel}`.trim();
+
+                lowVariants.push({
+                  productId,
+                  productTitle,
+                  // productThumbnail,
+                  color: colorLabel,
+                  size: sizeLabel,
+                  sku: stock,
+                  _variantTitle: variantTitle, // hidden field for sorting only
+                });
+              }
+            }
+          }
+
+          // 4) sort by sku -> productTitle -> variantTitle (internal only)
+          lowVariants.sort((a, b) => {
+            if (a.sku !== b.sku) return a.sku - b.sku;
+            const prodCmp = a.productTitle.localeCompare(b.productTitle);
+            if (prodCmp !== 0) return prodCmp;
+            return (a._variantTitle || "").localeCompare(b._variantTitle || "");
+          });
+
+          // 5) remove _variantTitle before sending response
+          const sanitizedVariants = lowVariants.map(
+            ({ _variantTitle, ...rest }) => rest
+          );
+
+          res.json({
+            // threshold,
+            // primaryLocation: primaryLocationName,
+            // totalLowStockVariants: sanitizedVariants.length,
+            lowStockVariants: sanitizedVariants,
+          });
+        } catch (error) {
+          console.error("Error fetching low stock:", error);
+          res.status(500).json({
+            message: "Failed to fetch low stock analytics",
+            error: String(error.message || error),
+          });
+        }
+      }
+    );
+
     // applying pagination in orderList
     app.get(
       "/orderList",
