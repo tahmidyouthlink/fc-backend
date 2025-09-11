@@ -5481,12 +5481,9 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const today = new Date();
-          const dd = String(today.getDate()).padStart(2, "0");
-          const mm = String(today.getMonth() + 1).padStart(2, "0");
-          const yy = String(today.getFullYear()).slice(2); // '25'
-
-          const todayStr = `${dd}-${mm}-${yy}`; // '03-05-25'
+          // ✅ Use Bangladesh timezone
+          const today = moment.tz("Asia/Dhaka");
+          const todayStr = today.format("DD-MM-YY"); // e.g. "12-09-25"
 
           const allOrders = await orderListCollection.find().toArray();
 
@@ -5654,10 +5651,10 @@ async function run() {
 
           // Parse filter dates
           const start = startDate
-            ? moment(startDate, "YYYY-MM-DD").startOf("day")
+            ? moment.tz(startDate, "YYYY-MM-DD", "Asia/Dhaka").startOf("day")
             : null;
           const end = endDate
-            ? moment(endDate, "YYYY-MM-DD").endOf("day")
+            ? moment.tz(endDate, "YYYY-MM-DD", "Asia/Dhaka").endOf("day")
             : null;
 
           const revenueMap = {};
@@ -5671,7 +5668,11 @@ async function run() {
           for (const order of orders) {
             if (!order.dateTime) continue;
 
-            const orderDate = moment(order.dateTime, "DD-MM-YY | HH:mm");
+            const orderDate = moment.tz(
+              order.dateTime,
+              "DD-MM-YY | HH:mm",
+              "Asia/Dhaka"
+            );
             if (start && end && !orderDate.isBetween(start, end, null, "[]"))
               continue;
 
@@ -5697,8 +5698,8 @@ async function run() {
           // Build continuous timeline (fill missing days/hours with 0)
           const trendData = [];
           if (activeRange === "daily") {
-            const s = start || moment().startOf("day");
-            const e = end || moment().endOf("day");
+            const s = start || moment.tz("Asia/Dhaka").startOf("day");
+            const e = end || moment.tz("Asia/Dhaka").endOf("day");
 
             const cursor = s.clone();
             while (cursor.isSameOrBefore(e)) {
@@ -5716,9 +5717,9 @@ async function run() {
             const s =
               start ||
               (activeRange === "weekly"
-                ? moment().subtract(6, "days").startOf("day")
-                : moment().subtract(30, "days").startOf("day"));
-            const e = end || moment().endOf("day");
+                ? moment.tz("Asia/Dhaka").subtract(6, "days").startOf("day")
+                : moment.tz("Asia/Dhaka").subtract(30, "days").startOf("day"));
+            const e = end || moment.tz("Asia/Dhaka").endOf("day");
 
             const cursor = s.clone();
             while (cursor.isSameOrBefore(e)) {
