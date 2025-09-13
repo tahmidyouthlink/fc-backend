@@ -5387,15 +5387,15 @@ async function run() {
     // Get All Orders
     app.get(
       "/allOrders",
-      // verifyJWT,
-      // authorizeAccess(
-      //   [],
-      //   "Orders",
-      //   "Finances",
-      //   "Product Hub",
-      //   "Marketing",
-      //   "Customers"
-      // ),
+      verifyJWT,
+      authorizeAccess(
+        [],
+        "Orders",
+        "Finances",
+        "Product Hub",
+        "Marketing",
+        "Customers"
+      ),
       originChecker,
       async (req, res) => {
         try {
@@ -5877,7 +5877,7 @@ async function run() {
       }
     );
 
-    // analytics - get method of {lowStockVariants}
+    // analytics - get method of {lowStockVariants grouped by product}
     app.get(
       "/analytics/low-stock",
       verifyJWT,
@@ -5885,7 +5885,7 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
-          const threshold = Number(req.query.threshold) || 5;
+          const threshold = Number(req.query.threshold) || 10;
 
           // 1) find primary location
           const primaryLocation = await locationCollection.findOne({
@@ -5901,8 +5901,8 @@ async function run() {
           // 2) fetch all products
           const products = await productInformationCollection.find().toArray();
 
-          // 3) flat low-stock variants
-          const lowVariants = [];
+          // 3) build low-stock structure grouped by product
+          const productMap = new Map();
 
           for (const product of products) {
             const productId =
@@ -5913,48 +5913,63 @@ async function run() {
               if (variant.location !== primaryLocationName) continue;
 
               const stock = Number(variant.sku ?? 0);
-              if (stock <= threshold) {
+              if (stock < threshold) {
                 const colorLabel =
                   variant.color?.label ??
                   variant.color?.value ??
                   "Unknown Color";
                 const sizeLabel = String(variant.size ?? "");
-                // const productThumbnail = variant.imageUrls?.[0] ?? null;
-
-                // prepare variantTitle only for sorting
                 const variantTitle = `${colorLabel} ${sizeLabel}`.trim();
 
-                lowVariants.push({
+                const lowVariant = {
                   productId,
                   productTitle,
-                  // productThumbnail,
                   color: colorLabel,
                   size: sizeLabel,
                   sku: stock,
-                  _variantTitle: variantTitle, // hidden field for sorting only
-                });
+                  _variantTitle: variantTitle,
+                };
+
+                if (!productMap.has(productId)) {
+                  productMap.set(productId, {
+                    productId,
+                    productTitle,
+                    lowVariants: [],
+                  });
+                }
+                productMap.get(productId).lowVariants.push(lowVariant);
               }
             }
           }
 
-          // 4) sort by sku -> productTitle -> variantTitle (internal only)
-          lowVariants.sort((a, b) => {
-            if (a.sku !== b.sku) return a.sku - b.sku;
-            const prodCmp = a.productTitle.localeCompare(b.productTitle);
-            if (prodCmp !== 0) return prodCmp;
-            return (a._variantTitle || "").localeCompare(b._variantTitle || "");
+          // 4) convert map to array
+          let groupedProducts = Array.from(productMap.values());
+
+          // 5) sort products by number of lowVariants (desc), then productTitle
+          groupedProducts.sort((a, b) => {
+            if (b.lowVariants.length !== a.lowVariants.length) {
+              return b.lowVariants.length - a.lowVariants.length;
+            }
+            return a.productTitle.localeCompare(b.productTitle);
           });
 
-          // 5) remove _variantTitle before sending response
-          const sanitizedVariants = lowVariants.map(
-            ({ _variantTitle, ...rest }) => rest
-          );
+          // 6) sort variants inside each product by sku, then variantTitle
+          for (const group of groupedProducts) {
+            group.lowVariants.sort((a, b) => {
+              if (a.sku !== b.sku) return a.sku - b.sku;
+              // return (a._variantTitle || "").localeCompare(
+              //   b._variantTitle || ""
+              // );
+            });
+
+            // strip internal _variantTitle
+            group.lowVariants = group.lowVariants.map(
+              ({ _variantTitle, ...rest }) => rest
+            );
+          }
 
           res.json({
-            // threshold,
-            // primaryLocation: primaryLocationName,
-            // totalLowStockVariants: sanitizedVariants.length,
-            lowStockVariants: sanitizedVariants,
+            lowStockProducts: groupedProducts,
           });
         } catch (error) {
           console.error("Error fetching low stock:", error);
