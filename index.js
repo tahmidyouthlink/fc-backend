@@ -225,7 +225,7 @@ const multiClientAccess = (
 
       // if (origin === "http://localhost:3000") {
       //   return backendAccessMiddleware(req, res, next);
-      // }
+      // };
 
       if (origin === "https://poshax.shop") {
         return frontendAccessMiddleware(req, res, next);
