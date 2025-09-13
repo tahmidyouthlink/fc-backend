@@ -5804,18 +5804,28 @@ async function run() {
               }|${String(product.size)}`;
               const avgCost = avgUnitCostMap[key]?.avgCost || 0;
 
-              let unitPrice = product.regularPrice; // default price
+              const qty = Number(product.sku || 0);
+              const regularPrice = Number(product.regularPrice || 0);
+
+              let unitPrice = regularPrice; // default price
+              let discountPerUnit = 0; // discount given
 
               if (product.discountInfo) {
-                unitPrice = product.discountInfo.finalPriceAfterDiscount;
+                unitPrice = Number(
+                  product.discountInfo.finalPriceAfterDiscount || regularPrice
+                );
+                discountPerUnit = regularPrice - unitPrice;
               } else if (product.offerInfo) {
-                unitPrice =
-                  product.regularPrice -
-                  Number(product.offerInfo.appliedOfferDiscount || 0);
+                const offerDiscount = Number(
+                  product.offerInfo.appliedOfferDiscount || 0
+                );
+                unitPrice = regularPrice - offerDiscount;
+                discountPerUnit = offerDiscount;
               }
 
-              const revenue = unitPrice * Number(product.sku || 0);
-              const cost = avgCost * Number(product.sku || 0);
+              const revenue = unitPrice * qty;
+              const cost = avgCost * qty;
+              const discount = discountPerUnit * qty; // ✅ total discount given
 
               if (!productMap[product.productId]) {
                 productMap[product.productId] = {
@@ -5823,11 +5833,13 @@ async function run() {
                   productName: product.productTitle,
                   revenue: 0,
                   cogs: 0,
+                  discount: 0,
                 };
               }
 
               productMap[product.productId].revenue += revenue;
               productMap[product.productId].cogs += cost;
+              productMap[product.productId].discount += discount;
             }
           }
 
@@ -5840,6 +5852,7 @@ async function run() {
               productId: p.productId,
               productName: p.productName,
               revenue: Number(p.revenue.toFixed(2)),
+              discount: Number(p.discount.toFixed(2)), // ✅ include discount
               profit: Number(profit.toFixed(2)),
               marginPercent: Number(marginPercent.toFixed(2)),
             };
