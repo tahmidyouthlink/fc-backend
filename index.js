@@ -5529,42 +5529,6 @@ async function run() {
       }
     );
 
-    // analytics - get method of {totalRevenue, totalOrders, averageOrderValue}
-    app.get(
-      "/analytics/sales",
-      verifyJWT,
-      authorizeAccess([], "Analytics"),
-      originChecker,
-      async (req, res) => {
-        try {
-          const orders = await orderListCollection.find().toArray();
-
-          const totalOrders = orders.length;
-          const totalRevenue = orders.reduce(
-            (sum, order) =>
-              sum + ((order.total || 0) - (order.shippingCharge || 0)),
-            0
-          );
-
-          // Calculate AOV
-          const averageOrderValue =
-            totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-          res.json({
-            totalRevenue,
-            totalOrders,
-            averageOrderValue: Number(averageOrderValue.toFixed(2)), // round to 2 decimals
-          });
-        } catch (error) {
-          console.error("Error calculating analytics sales:", error);
-          res.status(500).json({
-            message: "Failed to fetch analytics sales",
-            error: "Failed to calculate analytics sales",
-          });
-        }
-      }
-    );
-
     // analytics - get method of {totalCOGS, grossProfit, grossMarginPercent}
     app.get(
       "/analytics/profitability",
@@ -5573,6 +5537,8 @@ async function run() {
       originChecker,
       async (req, res) => {
         try {
+          const { range, startDate, endDate } = req.query;
+
           const orders = await orderListCollection.find().toArray();
           const purchaseOrders = await purchaseOrderCollection.find().toArray();
 
@@ -5599,9 +5565,60 @@ async function run() {
             }
           }
 
-          // Step 2: Calculate COGS from sold products
+          // Step 2: Parse filter dates
+          const start = startDate
+            ? moment.tz(startDate, "YYYY-MM-DD", "Asia/Dhaka").startOf("day")
+            : null;
+          const end = endDate
+            ? moment.tz(endDate, "YYYY-MM-DD", "Asia/Dhaka").endOf("day")
+            : null;
+
+          // If custom range provided, ignore "range"
+          let activeRange = range;
+          if (startDate && endDate) {
+            activeRange = ""; // force custom range mode
+          }
+
+          // Step 3: Filter orders by date range
+          const filteredOrders = orders.filter((order) => {
+            if (!order.dateTime) return false;
+
+            const orderDate = moment.tz(
+              order.dateTime,
+              "DD-MM-YY | HH:mm",
+              "Asia/Dhaka"
+            );
+
+            if (start && end && !orderDate.isBetween(start, end, null, "[]")) {
+              return false;
+            }
+
+            // Predefined ranges
+            if (!startDate && !endDate) {
+              if (activeRange === "daily") {
+                return orderDate.isSame(moment.tz("Asia/Dhaka"), "day"); // ✅ only today
+              } else if (activeRange === "weekly") {
+                return orderDate.isSameOrAfter(
+                  moment.tz("Asia/Dhaka").subtract(6, "days").startOf("day")
+                );
+              } else if (activeRange === "monthly") {
+                return orderDate.isSameOrAfter(
+                  moment.tz("Asia/Dhaka").subtract(30, "days").startOf("day")
+                );
+              }
+            }
+
+            return true;
+          });
+
+          // Step 4: Calculate totals
           let totalCOGS = 0;
-          for (const order of orders) {
+          let totalRevenue = 0;
+          for (const order of filteredOrders) {
+            // Revenue (exclude shipping)
+            totalRevenue += (order.total || 0) - (order.shippingCharge || 0);
+
+            // COGS (based on avgUnitCostMap)
             for (const product of order.productInformation) {
               const key = `${product.productId}|${product.color.color}|${
                 product.color.value
@@ -5611,12 +5628,11 @@ async function run() {
             }
           }
 
-          // Step 3: Revenue (trusting order.total field)
-          const totalRevenue = orders.reduce(
-            (sum, order) =>
-              sum + ((order.total || 0) - (order.shippingCharge || 0)),
-            0
-          );
+          const totalOrders = filteredOrders.length;
+
+          // Calculate AOV
+          const averageOrderValue =
+            totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
           const grossProfit = totalRevenue - totalCOGS;
           const grossMarginPercent =
@@ -5626,6 +5642,9 @@ async function run() {
             totalCOGS: Number(totalCOGS.toFixed(2)),
             grossProfit: Number(grossProfit.toFixed(2)),
             grossMarginPercent: Number(grossMarginPercent.toFixed(2)),
+            totalRevenue: Number(totalRevenue.toFixed(2)),
+            totalOrders,
+            averageOrderValue: Number(averageOrderValue.toFixed(2)),
           });
         } catch (error) {
           console.error("Error calculating profitability:", error);
