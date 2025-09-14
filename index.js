@@ -5981,6 +5981,135 @@ async function run() {
       }
     );
 
+    // analytics - get method of marketing
+    app.get(
+      "/analytics/marketing",
+      verifyJWT,
+      authorizeAccess([], "Analytics"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { range, startDate, endDate } = req.query;
+
+          // Validate inputs
+          if (!range && (!startDate || !endDate)) {
+            return res.status(400).json({
+              message: "Either range or startDate/endDate must be provided",
+            });
+          }
+
+          // Parse filter dates
+          const start = startDate
+            ? moment.tz(startDate, "YYYY-MM-DD", "Asia/Dhaka").startOf("day")
+            : null;
+          const end = endDate
+            ? moment.tz(endDate, "YYYY-MM-DD", "Asia/Dhaka").endOf("day")
+            : null;
+
+          // If custom range provided, ignore "range"
+          let activeRange = range;
+          if (startDate && endDate) {
+            activeRange = ""; // force custom range mode
+          }
+
+          // Fetch orders from DB with date filtering
+          const query =
+            start && end
+              ? {
+                  dateTime: {
+                    $gte: start.format("DD-MM-YY | HH:mm"),
+                    $lte: end.format("DD-MM-YY | HH:mm"),
+                  },
+                }
+              : activeRange === "daily"
+              ? {
+                  dateTime: {
+                    $regex: `^${moment.tz("Asia/Dhaka").format("DD-MM-YY")}`,
+                  },
+                }
+              : activeRange === "weekly"
+              ? {
+                  dateTime: {
+                    $gte: moment
+                      .tz("Asia/Dhaka")
+                      .subtract(6, "days")
+                      .format("DD-MM-YY | HH:mm"),
+                  },
+                }
+              : activeRange === "monthly"
+              ? {
+                  dateTime: {
+                    $gte: moment
+                      .tz("Asia/Dhaka")
+                      .subtract(30, "days")
+                      .format("DD-MM-YY | HH:mm"),
+                  },
+                }
+              : {};
+
+          // 2. Fetch orders from DB
+          const orders = await orderListCollection.find(query).toArray();
+
+          const orderCount = orders.length;
+
+          // 4. Get visitors from GA4
+          const gaStart = start
+            ? start.format("YYYY-MM-DD")
+            : activeRange === "daily"
+            ? moment.tz("Asia/Dhaka").format("YYYY-MM-DD")
+            : activeRange === "weekly"
+            ? moment.tz("Asia/Dhaka").subtract(6, "days").format("YYYY-MM-DD")
+            : activeRange === "monthly"
+            ? moment.tz("Asia/Dhaka").subtract(30, "days").format("YYYY-MM-DD")
+            : "7daysAgo"; // fallback
+
+          const gaEnd = end
+            ? end.format("YYYY-MM-DD")
+            : moment.tz("Asia/Dhaka").format("YYYY-MM-DD");
+
+          const property = `properties/${process.env.GA4_PROPERTY_ID}`;
+
+          const analyticsClient = new BetaAnalyticsDataClient({
+            projectId: process.env.GA_PROJECT_ID,
+            credentials: {
+              client_email: process.env.GA_CLIENT_EMAIL,
+              private_key: process.env.GA_PRIVATE_KEY.replace(/\\n/g, "\n"),
+            },
+          });
+
+          const [response] = await analyticsClient.runReport({
+            property: property,
+            dateRanges: [{ startDate: gaStart, endDate: gaEnd }],
+            metrics: [{ name: "activeUsers" }],
+          });
+
+          const visitors = response.rows?.[0]?.metricValues?.[0]?.value
+            ? parseInt(response.rows[0].metricValues[0].value)
+            : 0;
+
+          // 5. Conversion Rate
+          const conversionRate =
+            visitors > 0 ? ((orderCount / visitors) * 100).toFixed(2) : 0;
+
+          // 6. Response
+          res.json({
+            range: activeRange || "custom",
+            startDate: gaStart,
+            endDate: gaEnd,
+            orders: orderCount,
+            visitors,
+            conversionRate,
+          });
+        } catch (error) {
+          console.error("Error fetching marketing:", error);
+          res.status(500).json({
+            message: "Failed to fetch marketing analytics",
+            error: String(error.message || error),
+          });
+        }
+      }
+    );
+
     // applying pagination in orderList
     app.get(
       "/orderList",
