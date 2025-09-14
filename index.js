@@ -6012,45 +6012,42 @@ async function run() {
             activeRange = ""; // force custom range mode
           }
 
-          // Fetch orders from DB with date filtering
-          const query =
-            start && end
-              ? {
-                  dateTime: {
-                    $gte: start.format("DD-MM-YY | HH:mm"),
-                    $lte: end.format("DD-MM-YY | HH:mm"),
-                  },
-                }
-              : activeRange === "daily"
-              ? {
-                  dateTime: {
-                    $regex: `^${moment.tz("Asia/Dhaka").format("DD-MM-YY")}`,
-                  },
-                }
-              : activeRange === "weekly"
-              ? {
-                  dateTime: {
-                    $gte: moment
-                      .tz("Asia/Dhaka")
-                      .subtract(6, "days")
-                      .format("DD-MM-YY | HH:mm"),
-                  },
-                }
-              : activeRange === "monthly"
-              ? {
-                  dateTime: {
-                    $gte: moment
-                      .tz("Asia/Dhaka")
-                      .subtract(30, "days")
-                      .format("DD-MM-YY | HH:mm"),
-                  },
-                }
-              : {};
-
           // 2. Fetch orders from DB
-          const orders = await orderListCollection.find(query).toArray();
+          const orders = await orderListCollection.find().toArray();
 
-          const orderCount = orders.length;
+          // 3. Filter orders by date range
+          const filteredOrders = orders.filter((order) => {
+            if (!order.dateTime) return false;
+
+            const orderDate = moment.tz(
+              order.dateTime,
+              "DD-MM-YY | HH:mm",
+              "Asia/Dhaka"
+            );
+
+            if (start && end && !orderDate.isBetween(start, end, null, "[]")) {
+              return false;
+            }
+
+            // Predefined ranges
+            if (!startDate && !endDate) {
+              if (activeRange === "daily") {
+                return orderDate.isSame(moment.tz("Asia/Dhaka"), "day");
+              } else if (activeRange === "weekly") {
+                return orderDate.isSameOrAfter(
+                  moment.tz("Asia/Dhaka").subtract(6, "days").startOf("day")
+                );
+              } else if (activeRange === "monthly") {
+                return orderDate.isSameOrAfter(
+                  moment.tz("Asia/Dhaka").subtract(30, "days").startOf("day")
+                );
+              }
+            }
+
+            return true;
+          });
+
+          const orderCount = filteredOrders.length;
 
           // 4. Get visitors from GA4
           const gaStart = start
