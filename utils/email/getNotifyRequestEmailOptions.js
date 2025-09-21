@@ -49,7 +49,7 @@ const getNotifyRequestEmailOptions = (
       
       ${process.env.COMPANY_NAME} | Your service is all we care | Stay Posh
       
-      FAQ: ${process.env.MAIN_DOMAIN_URL}/faq  
+      Help Center: ${process.env.MAIN_DOMAIN_URL}/help  
       Contact Us: ${process.env.MAIN_DOMAIN_URL}/contact`,
     html: `<!DOCTYPE html>
       <html
@@ -1549,10 +1549,10 @@ const getNotifyRequestEmailOptions = (
                                                 "
                                                 href="${
                                                   process.env.MAIN_DOMAIN_URL
-                                                }/faq"
+                                                }/help"
                                                 target="_blank"
                                                 rel="noopener"
-                                                ><strong>FAQ</strong></a
+                                                ><strong>Help Center</strong></a
                                               >&nbsp; |&nbsp;
                                               <strong
                                                 ><a

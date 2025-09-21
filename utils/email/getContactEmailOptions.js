@@ -11,7 +11,11 @@ const getContactEmailOptions = (fullName, email) => {
             
       Our goal is to get back to you within 48 hours.
     
-      In the meantime, feel free to explore our FAQs (https://poshax.shop/faq) or browse our latest collections (https://poshax.shop/shop?filterBy=New+Arrivals).
+      In the meantime, feel free to explore our FAQs (${
+        process.env.MAIN_DOMAIN_URL
+      }/help) or browse our latest collections (${
+      process.env.MAIN_DOMAIN_URL
+    }/shop?filterBy=New+Arrivals).
 
       Thanks again for contacting us! We truly appreciate your time!
     
@@ -35,7 +39,7 @@ const getContactEmailOptions = (fullName, email) => {
       
       ${process.env.COMPANY_NAME} | Your service is all we care | Stay Posh
       
-      FAQ: ${process.env.MAIN_DOMAIN_URL}/faq  
+      Help Center: ${process.env.MAIN_DOMAIN_URL}/help  
       Contact Us: ${process.env.MAIN_DOMAIN_URL}/contact`,
     html: `<!DOCTYPE html>
       <html
@@ -742,7 +746,7 @@ const getContactEmailOptions = (fullName, email) => {
                                             <a
                                               href="${
                                                 process.env.MAIN_DOMAIN_URL
-                                              }/faq"
+                                              }/help"
                                               target="_blank"
                                               style="
                                                 text-decoration: underline;
@@ -1356,10 +1360,10 @@ const getContactEmailOptions = (fullName, email) => {
                                                 "
                                                 href="${
                                                   process.env.MAIN_DOMAIN_URL
-                                                }/faq"
+                                                }/help"
                                                 target="_blank"
                                                 rel="noopener"
-                                                ><strong>FAQ</strong></a
+                                                ><strong>Help Center</strong></a
                                               >&nbsp; |&nbsp;
                                               <strong
                                                 ><a
