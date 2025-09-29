@@ -266,6 +266,9 @@ async function run() {
     const expenseCategoryCollection = client
       .db("fashion-commerce")
       .collection("expense-category");
+    const expenseEntryCollection = client
+      .db("fashion-commerce")
+      .collection("expense-entry");
     const colorCollection = client.db("fashion-commerce").collection("colors");
     const vendorCollection = client
       .db("fashion-commerce")
@@ -5567,6 +5570,45 @@ async function run() {
             .find()
             .toArray();
           res.status(200).send(expenseCategories);
+        } catch (error) {
+          res.status(500).send(error.message);
+        }
+      }
+    );
+
+    // Add a expense entry data
+    app.post(
+      "/add-expense-entry",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Finances"),
+      originChecker,
+      async (req, res) => {
+        const expenseEntryData = req.body;
+        try {
+          const result = await expenseEntryCollection.insertOne(
+            expenseEntryData
+          );
+          res.status(201).send(result);
+        } catch (error) {
+          console.error("Error adding expense entry data:", error);
+          res.status(500).send({
+            message: "Failed to add expense entry data",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    // Get all expense entries
+    app.get(
+      "/all-expense-entries",
+      verifyJWT,
+      authorizeAccess([], "Finances"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const expenseEntries = await expenseEntryCollection.find().toArray();
+          res.status(200).send(expenseEntries);
         } catch (error) {
           res.status(500).send(error.message);
         }
