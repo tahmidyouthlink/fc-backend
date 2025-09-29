@@ -263,6 +263,9 @@ async function run() {
     const categoryCollection = client
       .db("fashion-commerce")
       .collection("category");
+    const expenseCategoryCollection = client
+      .db("fashion-commerce")
+      .collection("expense-category");
     const colorCollection = client.db("fashion-commerce").collection("colors");
     const vendorCollection = client
       .db("fashion-commerce")
@@ -5529,6 +5532,47 @@ async function run() {
       }
     );
 
+    // Add a expense category
+    app.post(
+      "/add-expense-category",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Finances"),
+      originChecker,
+      async (req, res) => {
+        const expenseCategoryData = req.body;
+        try {
+          const result = await expenseCategoryCollection.insertOne(
+            expenseCategoryData
+          );
+          res.status(201).send(result);
+        } catch (error) {
+          console.error("Error adding expense category:", error);
+          res.status(500).send({
+            message: "Failed to add expense category",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    // Get all expense categories
+    app.get(
+      "/all-expense-categories",
+      verifyJWT,
+      authorizeAccess([], "Finances"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const expenseCategories = await expenseCategoryCollection
+            .find()
+            .toArray();
+          res.status(200).send(expenseCategories);
+        } catch (error) {
+          res.status(500).send(error.message);
+        }
+      }
+    );
+
     // analytics - get method of {totalCOGS, grossProfit, grossMarginPercent}
     app.get(
       "/analytics/profitability",
@@ -7878,6 +7922,14 @@ async function run() {
       async (req, res) => {
         try {
           const id = req.params.id;
+
+          // Validate the ObjectId
+          if (!ObjectId.isValid(id)) {
+            return res
+              .status(400)
+              .send({ message: "Invalid Payment Method ID" });
+          }
+
           const query = { _id: new ObjectId(id) };
           const result = await paymentMethodCollection.findOne(query);
 
