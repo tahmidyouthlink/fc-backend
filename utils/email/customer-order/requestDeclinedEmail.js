@@ -1261,10 +1261,10 @@ PoshaX Team`,
                                                 "
                                                 href="${
                                                   process.env.MAIN_DOMAIN_URL
-                                                }/faq"
+                                                }/help"
                                                 target="_blank"
                                                 rel="noopener"
-                                                ><strong>FAQ</strong></a
+                                                ><strong>Help Center</strong></a
                                               >&nbsp; |&nbsp;
                                               <strong
                                                 ><a

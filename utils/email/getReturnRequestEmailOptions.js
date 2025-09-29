@@ -16,7 +16,9 @@ const getReturnRequestEmailOptions = (
         .map((item) => {
           return `${item.title}\nPrice: ৳ ${item.price}\nSize: ${
             item.size
-          }\nColor: ${item.color.name}\nView: ${item.pageUrl}\n\nQuantity: ${
+          }\nColor: ${item.color.name}\nIssue${
+            item.issues?.length > 1 ? "s" : ""
+          }: ${item.issues?.join(", ")}\nView: ${item.pageUrl}\n\nQuantity: ${
             item.quantity
           }\n\nTotal Price: ${item.price * item.quantity}`;
         })
@@ -41,7 +43,7 @@ const getReturnRequestEmailOptions = (
       
       ${process.env.COMPANY_NAME} | Your service is all we care | Stay Posh
       
-      FAQ: ${process.env.MAIN_DOMAIN_URL}/faq  
+      Help Center: ${process.env.MAIN_DOMAIN_URL}/help  
       Contact Us: ${process.env.MAIN_DOMAIN_URL}/contact`,
     html: `<!DOCTYPE html>
       <html
@@ -191,9 +193,11 @@ const getReturnRequestEmailOptions = (
 
               ${returnItems
                 .map(
-                  (_, index) => `.row-${
-                    5 + index
-                  } .column-2 .block-2.paragraph_block td.pad > div {
+                  (_, index) => `
+              .row-${5 + index} .column-2 .block-2.paragraph_block td.pad > div,
+              .row-${
+                5 + index
+              } .column-2 .block-3.paragraph_block td.pad > div {
                 font-size: 11px !important;
               }`
                 )
@@ -1030,11 +1034,49 @@ const getReturnRequestEmailOptions = (
                                                   "
                                                 ></span>
                                                 ${item.color.name}
-                                                <br />Issue${
-                                                  item.issues?.length > 1
-                                                    ? "s"
-                                                    : ""
-                                                }: ${item.issues?.join(", ")}
+                                            </p>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    </table>
+                                    <table
+                                      class="paragraph_block block-3"
+                                      width="100%"
+                                      border="0"
+                                      cellpadding="0"
+                                      cellspacing="0"
+                                      role="presentation"
+                                      style="
+                                        mso-table-lspace: 0pt;
+                                        mso-table-rspace: 0pt;
+                                        word-break: break-word;
+                                      "
+                                    >
+                                      <tr>
+                                        <td
+                                          class="pad"
+                                          style="
+                                            padding-top: 15px;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              color: #666666;
+                                              font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif;
+                                              font-size: 14px;
+                                              line-height: 1.4;
+                                              text-align: left;
+                                              mso-line-height-alt: 20px;
+                                            "
+                                          >
+                                            <p
+                                              style="margin: 0; word-break: break-word"
+                                            >
+                                              Issue${
+                                                item.issues?.length > 1
+                                                  ? "s"
+                                                  : ""
+                                              }: ${item.issues?.join(", ")}
                                             </p>
                                           </div>
                                         </td>
@@ -1809,10 +1851,10 @@ const getReturnRequestEmailOptions = (
                                                 "
                                                 href="${
                                                   process.env.MAIN_DOMAIN_URL
-                                                }/faq"
+                                                }/help"
                                                 target="_blank"
                                                 rel="noopener"
-                                                ><strong>FAQ</strong></a
+                                                ><strong>Help Center</strong></a
                                               >&nbsp; |&nbsp;
                                               <strong
                                                 ><a
