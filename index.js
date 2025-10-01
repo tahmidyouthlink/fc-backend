@@ -5615,6 +5615,50 @@ async function run() {
       }
     );
 
+    // get multiple expense entries based on expense category _id
+    app.get(
+      "/expense-entries/:categoryId",
+      verifyJWT,
+      authorizeAccess([], "Finances"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { categoryId } = req.params;
+
+          // Validate the ObjectId
+          if (!ObjectId.isValid(categoryId)) {
+            return res
+              .status(400)
+              .send({ message: "Invalid Expense Category ID" });
+          }
+
+          // Fetch the expense category
+          const category = await expenseCategoryCollection.findOne({
+            _id: new ObjectId(categoryId),
+          });
+
+          if (!category) {
+            return res
+              .status(404)
+              .send({ message: "Expense Category not found" });
+          }
+
+          // Find expense entries by category name
+          const expenseEntries = await expenseEntryCollection
+            .find({ expenseCategory: category.expenseCategory })
+            .toArray();
+
+          res.send(expenseEntries);
+        } catch (error) {
+          console.error("Error fetching Expense Entires:", error);
+          res.status(500).send({
+            message: "Failed to fetch Expense Entires",
+            error: error.message,
+          });
+        }
+      }
+    );
+
     // analytics - get method of {totalCOGS, grossProfit, grossMarginPercent}
     app.get(
       "/analytics/profitability",
