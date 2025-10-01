@@ -5648,7 +5648,10 @@ async function run() {
             .find({ expenseCategory: category.expenseCategory })
             .toArray();
 
-          res.send(expenseEntries);
+          res.send({
+            expenseEntries,
+            expenseCategoryName: category?.expenseCategory,
+          });
         } catch (error) {
           console.error("Error fetching Expense Entires:", error);
           res.status(500).send({
