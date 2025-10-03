@@ -5662,6 +5662,49 @@ async function run() {
       }
     );
 
+    // Update an expense entry by ID
+    app.patch(
+      "/update-expense-entry/:id",
+      verifyJWT,
+      authorizeAccess(["Editor", "Owner"], "Finances"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { id } = req.params;
+          const updateData = req.body; // should contain fields to update (invoiceId or attachment)
+
+          // Validate ObjectId
+          if (!ObjectId.isValid(id)) {
+            return res
+              .status(400)
+              .send({ message: "Invalid Expense Entry ID" });
+          }
+
+          // Update the entry
+          const result = await expenseEntryCollection.findOneAndUpdate(
+            { _id: new ObjectId(id) },
+            { $set: updateData },
+            { returnDocument: "after" } // returns the updated document
+          );
+
+          if (!result) {
+            return res.status(404).send({ message: "Expense Entry not found" });
+          }
+
+          res.status(200).send({
+            message: "Expense Entry updated successfully",
+            updatedEntry: result,
+          });
+        } catch (error) {
+          console.error("Error updating expense entry:", error);
+          res.status(500).send({
+            message: "Failed to update expense entry",
+            error: error.message,
+          });
+        }
+      }
+    );
+
     // analytics - get method of {totalCOGS, grossProfit, grossMarginPercent}
     app.get(
       "/analytics/profitability",
