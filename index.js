@@ -650,7 +650,7 @@ async function run() {
 
           return res.status(200).json({
             uploadUrl: url,
-            publicUrl: `https://${bucket.name}/${file.name}`,
+            publicUrl: `https://storage.googleapis.com/${bucket.name}/${file.name}`,
           });
         } catch (error) {
           console.error("Error generating signed URL:", error);
@@ -694,7 +694,7 @@ async function run() {
               role: "READER",
             });
 
-            const publicUrl = `https://${bucket.name}/${blob.name}`;
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
             res.status(200).json({ fileUrl: publicUrl });
           });
 
@@ -739,7 +739,7 @@ async function run() {
                   role: "READER",
                 });
 
-                const publicUrl = `https://${bucket.name}/${blob.name}`;
+                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
                 resolve(publicUrl);
               });
 
