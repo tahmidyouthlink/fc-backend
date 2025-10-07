@@ -5705,6 +5705,142 @@ async function run() {
       }
     );
 
+    // finances - get method of sales
+    app.get(
+      "/finances/sales",
+      verifyJWT,
+      authorizeAccess([], "Finances"),
+      originChecker,
+      async (req, res) => {
+        try {
+          const { range, startDate, endDate } = req.query;
+
+          const orders = await orderListCollection.find().toArray();
+
+          const now = moment.tz("Asia/Dhaka");
+
+          // Determine active range
+          let activeRange = range;
+          if (startDate && endDate) activeRange = "custom";
+
+          // Determine start/end for filtering totals and timeline
+          let s = null,
+            e = null;
+          if (activeRange === "today") {
+            s = now.clone().startOf("day");
+            e = now.clone().endOf("day");
+          } else if (activeRange === "yesterday") {
+            s = now.clone().subtract(1, "day").startOf("day");
+            e = now.clone().subtract(1, "day").endOf("day");
+          } else if (activeRange === "weekly") {
+            s = now.clone().subtract(6, "days").startOf("day");
+            e = now.clone().endOf("day");
+          } else if (activeRange === "monthly") {
+            s = now.clone().subtract(29, "days").startOf("day");
+            e = now.clone().endOf("day");
+          } else if (activeRange === "custom" && startDate && endDate) {
+            s = moment.tz(startDate, "YYYY-MM-DD", "Asia/Dhaka").startOf("day");
+            e = moment.tz(endDate, "YYYY-MM-DD", "Asia/Dhaka").endOf("day");
+          }
+
+          const summaryMap = {};
+
+          // Totals for summary cards
+          let totalOrders = 0;
+          let totalRevenue = 0;
+          let totalRefund = 0;
+
+          // Process orders
+          for (const order of orders) {
+            if (!order.dateTime) continue;
+
+            const orderDate = moment.tz(
+              order.dateTime,
+              "DD-MM-YY | HH:mm",
+              "Asia/Dhaka"
+            );
+
+            // Only include orders within start/end
+            if (s && e && !orderDate.isBetween(s, e, null, "[]")) continue;
+
+            const key =
+              activeRange === "today" || activeRange === "yesterday"
+                ? orderDate.format("YYYY-MM-DD HH:00")
+                : orderDate.format("YYYY-MM-DD");
+
+            // Exclude shipping
+            const revenue = (order.total || 0) - (order.shippingCharge || 0);
+
+            // Refund calculation (accepted products)
+            let refund = 0;
+            if (order.orderStatus === "Refunded" && order.returnInfo) {
+              for (const product of order.returnInfo.products || []) {
+                if (product.status === "Accepted") {
+                  refund += (product.finalUnitPrice || 0) * (product.sku || 0);
+                }
+              }
+            }
+
+            // Build summary map for chart
+            summaryMap[key] = summaryMap[key] || {
+              period: key,
+              totalOrders: 0,
+              totalRevenue: 0,
+              totalRefund: 0,
+            };
+            summaryMap[key].totalOrders += 1;
+            summaryMap[key].totalRevenue += revenue;
+            summaryMap[key].totalRefund += refund;
+
+            // Update totals for cards
+            totalOrders += 1;
+            totalRevenue += revenue;
+            totalRefund += refund;
+          }
+
+          // Build continuous timeline
+          const summaryData = [];
+          const cursor = s ? s.clone() : null;
+
+          if (cursor) {
+            const endCursor = e.clone();
+            const increment =
+              activeRange === "today" || activeRange === "yesterday"
+                ? "hour"
+                : "day";
+
+            while (cursor.isSameOrBefore(endCursor)) {
+              const slot =
+                activeRange === "today" || activeRange === "yesterday"
+                  ? cursor.format("YYYY-MM-DD HH:00")
+                  : cursor.format("YYYY-MM-DD");
+
+              summaryData.push(
+                summaryMap[slot] || {
+                  period: slot,
+                  totalOrders: 0,
+                  totalRevenue: 0,
+                  totalRefund: 0,
+                }
+              );
+
+              cursor.add(1, increment);
+            }
+          }
+
+          res.json({
+            summaryData,
+            totalOrders,
+            totalRevenue,
+            totalRefund,
+          });
+        } catch (error) {
+          console.error("Error calculating sales summary:", error);
+          res.status(500).json({ message: "Failed to fetch sales summary" });
+        }
+      }
+    );
+
     // analytics - get method of {totalCOGS, grossProfit, grossMarginPercent}
     app.get(
       "/analytics/profitability",
